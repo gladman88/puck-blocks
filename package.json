@@ -28,7 +28,8 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "keywords": [
     "puck",
@@ -44,11 +45,14 @@
   },
   "devDependencies": {
     "@puckeditor/core": "^0.21.3",
+    "@testing-library/react": "^16.3.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "jsdom": "^26",
     "react": "^19",
     "react-dom": "^19",
     "tsup": "^8.5.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3"
   }
 }
