@@ -6,3 +6,18 @@ export type { HeroProps } from './blocks/Hero';
 
 export { RichText } from './blocks/RichText';
 export type { RichTextProps } from './blocks/RichText';
+
+export { StatCounters } from './blocks/StatCounters';
+export type { StatCountersProps, StatItem } from './blocks/StatCounters';
+
+export { AboutPromo } from './blocks/AboutPromo';
+export type { AboutPromoProps } from './blocks/AboutPromo';
+
+export { FeatureCards } from './blocks/FeatureCards';
+export type { FeatureCardsProps, FeatureItem } from './blocks/FeatureCards';
+
+export { TermsAccordion } from './blocks/TermsAccordion';
+export type { TermsAccordionProps, TermItem } from './blocks/TermsAccordion';
+
+export { ReviewsCarousel } from './blocks/ReviewsCarousel';
+export type { ReviewsCarouselProps, ReviewImage } from './blocks/ReviewsCarousel';
