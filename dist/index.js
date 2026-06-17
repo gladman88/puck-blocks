@@ -1,5 +1,5 @@
-import { jsxs, jsx } from 'react/jsx-runtime';
-import { useState } from 'react';
+import { jsxs, jsx, Fragment } from 'react/jsx-runtime';
+import { useState, useEffect } from 'react';
 
 // src/sanitize.ts
 var SAFE_HREF = /^(https?:\/\/|\/|#|mailto:|tel:)/i;
@@ -294,6 +294,145 @@ function LeadForm({
     ] })
   ] }) });
 }
+var STRINGS = {
+  ru: {
+    all: "\u0412\u0441\u0435",
+    from: "\u043E\u0442",
+    perDay: "\u0E3F/\u0434\u0435\u043D\u044C",
+    busy: "\u0437\u0430\u043D\u044F\u0442\u0430",
+    freeFrom: "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u0430 \u0441",
+    onRequest: "\u043F\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0443",
+    viewAll: "\u0421\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0432\u0435\u0441\u044C \u043A\u0430\u0442\u0430\u043B\u043E\u0433",
+    empty: "\u041D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0445 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432",
+    loading: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026",
+    error: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043A\u0430\u0442\u0430\u043B\u043E\u0433"
+  },
+  en: {
+    all: "All",
+    from: "from",
+    perDay: "\u0E3F/day",
+    busy: "busy",
+    freeFrom: "free from",
+    onRequest: "on request",
+    viewAll: "View full catalog",
+    empty: "No vehicles available",
+    loading: "Loading\u2026",
+    error: "Failed to load catalog"
+  }
+};
+function formatDate(iso, locale) {
+  try {
+    return new Date(iso).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-GB", {
+      day: "2-digit",
+      month: "short"
+    });
+  } catch {
+    return iso;
+  }
+}
+function VehicleCatalog({
+  heading,
+  vehicleType = "car",
+  apiBase = "",
+  catalogUrl,
+  puck
+}) {
+  const locale = puck?.metadata?.locale === "en" ? "en" : "ru";
+  const t = STRINGS[locale];
+  const [categories, setCategories] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [activeCat, setActiveCat] = useState(null);
+  const [state, setState] = useState("loading");
+  useEffect(() => {
+    let cancelled = false;
+    setState("loading");
+    setActiveCat(null);
+    const headers = { "ngrok-skip-browser-warning": "true" };
+    Promise.all([
+      fetch(`${apiBase}/api/v1/catalog/categories/`, { headers }).then(
+        (r) => r.ok ? r.json() : []
+      ),
+      fetch(`${apiBase}/api/v1/catalog/vehicles/?vehicle_type=${vehicleType}`, { headers }).then(
+        (r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.json();
+        }
+      )
+    ]).then(([cats, list2]) => {
+      if (cancelled) return;
+      setCategories(Array.isArray(cats) ? cats : []);
+      setVehicles(Array.isArray(list2) ? list2 : []);
+      setState("ready");
+    }).catch(() => {
+      if (!cancelled) setState("error");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, vehicleType]);
+  const usedCats = new Set(
+    vehicles.map((v) => v.category?.id).filter((id) => Boolean(id))
+  );
+  const tabs = categories.filter((c) => usedCats.has(c.id));
+  const list = activeCat ? vehicles.filter((v) => v.category?.id === activeCat) : vehicles;
+  const base2 = safeHref(catalogUrl);
+  return /* @__PURE__ */ jsxs(Section, { className: "sb-vcatalog", children: [
+    heading ? /* @__PURE__ */ jsx("h2", { className: "sb-h2", children: heading }) : null,
+    state === "ready" && tabs.length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vcatalog__tabs", children: [
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          className: `sb-vcatalog__tab ${activeCat === null ? "sb-vcatalog__tab--active" : ""}`,
+          onClick: () => setActiveCat(null),
+          children: t.all
+        }
+      ),
+      tabs.map((c) => /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          className: `sb-vcatalog__tab ${activeCat === c.id ? "sb-vcatalog__tab--active" : ""}`,
+          onClick: () => setActiveCat(c.id),
+          children: c.name
+        },
+        c.id
+      ))
+    ] }) : null,
+    state === "loading" ? /* @__PURE__ */ jsx("p", { className: "sb-vcatalog__state", children: t.loading }) : null,
+    state === "error" ? /* @__PURE__ */ jsx("p", { className: "sb-vcatalog__state", children: t.error }) : null,
+    state === "ready" && (list.length === 0 ? /* @__PURE__ */ jsx("p", { className: "sb-vcatalog__state", children: t.empty }) : /* @__PURE__ */ jsx("div", { className: "sb-vcatalog__grid", children: list.map((v) => {
+      const href = base2 ? `${base2}${base2.includes("?") ? "&" : "?"}vehicle=${encodeURIComponent(v.id)}` : void 0;
+      const media = /* @__PURE__ */ jsxs("div", { className: "sb-vcard__media", children: [
+        v.photo_url ? /* @__PURE__ */ jsx("img", { src: v.photo_url, alt: v.display_name, loading: "lazy" }) : null,
+        v.category ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__badge", style: { backgroundColor: v.category.color }, children: v.category.name }) : null,
+        !v.is_available ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__chip", children: v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy }) : null,
+        /* @__PURE__ */ jsxs("div", { className: "sb-vcard__overlay", children: [
+          /* @__PURE__ */ jsx("h3", { className: "sb-vcard__name", children: v.display_name }),
+          /* @__PURE__ */ jsxs("div", { className: "sb-vcard__meta", children: [
+            /* @__PURE__ */ jsxs("span", { className: "sb-vcard__year", children: [
+              v.year ?? "",
+              v.is_available ? /* @__PURE__ */ jsx("span", { className: "sb-dot" }) : null
+            ] }),
+            /* @__PURE__ */ jsx("span", { className: "sb-vcard__price", children: v.min_price_per_day !== null ? /* @__PURE__ */ jsxs(Fragment, { children: [
+              /* @__PURE__ */ jsxs("small", { children: [
+                t.from,
+                " "
+              ] }),
+              Math.round(v.min_price_per_day).toLocaleString("en-US"),
+              /* @__PURE__ */ jsxs("small", { children: [
+                " ",
+                t.perDay
+              ] })
+            ] }) : /* @__PURE__ */ jsx("small", { children: t.onRequest }) })
+          ] })
+        ] })
+      ] });
+      return href ? /* @__PURE__ */ jsx("a", { className: "sb-vcard", href, children: media }, v.id) : /* @__PURE__ */ jsx("div", { className: "sb-vcard", children: media }, v.id);
+    }) })),
+    state === "ready" && base2 ? /* @__PURE__ */ jsx("div", { className: "sb-vcatalog__foot", children: /* @__PURE__ */ jsx("a", { className: "sb-btn sb-btn--ghost", href: base2, children: t.viewAll }) }) : null
+  ] });
+}
 var internalConfig = {
   root: {
     fields: {
@@ -308,6 +447,7 @@ var internalConfig = {
   categories: {
     layout: { title: "\u041A\u0430\u0440\u043A\u0430\u0441", components: ["SiteHeader", "Footer"] },
     content: { title: "\u041A\u043E\u043D\u0442\u0435\u043D\u0442", components: ["Hero", "AboutPromo", "RichText", "LeadForm"] },
+    catalog: { title: "\u041A\u0430\u0442\u0430\u043B\u043E\u0433", components: ["VehicleCatalog"] },
     sections: {
       title: "\u0421\u0435\u043A\u0446\u0438\u0438",
       components: ["StatCounters", "FeatureCards", "TermsAccordion", "ReviewsCarousel"]
@@ -555,9 +695,30 @@ var internalConfig = {
         endpoint: ""
       },
       render: LeadForm
+    },
+    VehicleCatalog: {
+      label: "\u041A\u0430\u0442\u0430\u043B\u043E\u0433 \u0422\u0421",
+      fields: {
+        heading: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" },
+        vehicleType: {
+          type: "radio",
+          label: "\u0422\u0438\u043F",
+          options: [
+            { label: "\u0410\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u0438", value: "car" },
+            { label: "\u0411\u0430\u0439\u043A\u0438", value: "motorcycle" }
+          ]
+        },
+        catalogUrl: { type: "text", label: "\u0421\u0441\u044B\u043B\u043A\u0430 \u043D\u0430 \u043F\u043E\u043B\u043D\u044B\u0439 \u043A\u0430\u0442\u0430\u043B\u043E\u0433" }
+      },
+      defaultProps: {
+        heading: "\u0410\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u0438",
+        vehicleType: "car",
+        catalogUrl: ""
+      },
+      render: VehicleCatalog
     }
   }
 };
 var puckConfig = internalConfig;
 
-export { AboutPromo, FeatureCards, Footer, Hero, LeadForm, ReviewsCarousel, RichText, SiteHeader, StatCounters, TermsAccordion, puckConfig };
+export { AboutPromo, FeatureCards, Footer, Hero, LeadForm, ReviewsCarousel, RichText, SiteHeader, StatCounters, TermsAccordion, VehicleCatalog, puckConfig };

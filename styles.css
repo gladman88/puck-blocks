@@ -444,3 +444,137 @@
   width: 18px;
   height: 18px;
 }
+
+/* ---- VehicleCatalog ---- */
+.sb-vcatalog__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.sb-vcatalog__tab {
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-pill);
+  background: transparent;
+  color: var(--sb-text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sb-vcatalog__tab--active {
+  background: var(--sb-accent);
+  color: var(--sb-accent-ink);
+  border-color: transparent;
+  font-weight: 600;
+}
+.sb-vcatalog__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+.sb-vcard {
+  display: block;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius);
+  overflow: hidden;
+  background: var(--sb-bg-alt);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.sb-vcard:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 204, 51, 0.4);
+}
+.sb-vcard__media {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: var(--sb-surface);
+}
+.sb-vcard__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sb-vcard__badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+.sb-vcard__chip {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+.sb-vcard__overlay {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 0.75rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.4), transparent);
+}
+.sb-vcard__name {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sb-vcard__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.sb-vcard__year {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+.sb-vcard__price {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--sb-accent);
+  white-space: nowrap;
+}
+.sb-vcard__price small {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.5);
+}
+.sb-vcatalog__foot {
+  margin-top: 1.75rem;
+  text-align: center;
+}
+.sb-vcatalog__state {
+  padding: 2rem 0;
+  text-align: center;
+  color: var(--sb-text-muted);
+}
+.sb-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: 0.4rem;
+  border-radius: 50%;
+  background: #4ade80;
+  vertical-align: middle;
+}

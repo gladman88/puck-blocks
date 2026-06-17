@@ -122,6 +122,46 @@ interface LeadFormProps {
  */
 declare function LeadForm({ heading, text, buttonLabel, successMessage, endpoint, }: LeadFormProps): react.JSX.Element;
 
+interface CatalogCategory {
+    id: string;
+    name: string;
+    color: string;
+    vehicle_count: number;
+}
+interface CatalogVehicle {
+    id: string;
+    display_name: string;
+    photo_url: string | null;
+    vehicle_type: 'car' | 'motorcycle';
+    year: number | null;
+    category: CatalogCategory | null;
+    min_price_per_day: number | null;
+    is_available: boolean;
+    free_from: string | null;
+}
+interface VehicleCatalogProps {
+    heading?: string;
+    vehicleType?: 'car' | 'motorcycle';
+    /** API origin; '' = relative path (proxied by the host app). */
+    apiBase?: string;
+    /** Link to the full catalog app (card click + "view all"). */
+    catalogUrl?: string;
+}
+type PuckInjected = {
+    puck?: {
+        metadata?: {
+            locale?: string;
+        };
+    };
+};
+/**
+ * Live vehicle catalog section. Fetches vehicles + categories from the public
+ * FMS catalog API (single source of truth — prices/availability are never
+ * hand-entered), with a per-section category filter. Used twice (cars / bikes).
+ * Locale comes from Puck metadata passed by the host (page locale).
+ */
+declare function VehicleCatalog({ heading, vehicleType, apiBase, catalogUrl, puck, }: VehicleCatalogProps & PuckInjected): react.JSX.Element;
+
 /** Props for every editable component, keyed by component name. */
 interface Props {
     Hero: HeroProps;
@@ -134,6 +174,7 @@ interface Props {
     SiteHeader: SiteHeaderProps;
     Footer: FooterProps;
     LeadForm: LeadFormProps;
+    VehicleCatalog: VehicleCatalogProps;
 }
 /** Page-level (root) fields — drive SEO metadata, not visible layout. */
 interface RootProps {
@@ -143,4 +184,4 @@ interface RootProps {
 }
 declare const puckConfig: Config;
 
-export { AboutPromo, type AboutPromoProps, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, type NavLink, type Props, type ReviewImage, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TermItem, TermsAccordion, type TermsAccordionProps, puckConfig };
+export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogVehicle, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, type NavLink, type Props, type ReviewImage, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TermItem, TermsAccordion, type TermsAccordionProps, VehicleCatalog, type VehicleCatalogProps, puckConfig };

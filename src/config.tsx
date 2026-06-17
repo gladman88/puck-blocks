@@ -9,6 +9,7 @@ import { ReviewsCarousel, type ReviewsCarouselProps } from './blocks/ReviewsCaro
 import { SiteHeader, type SiteHeaderProps } from './blocks/SiteHeader';
 import { Footer, type FooterProps } from './blocks/Footer';
 import { LeadForm, type LeadFormProps } from './blocks/LeadForm';
+import { VehicleCatalog, type VehicleCatalogProps } from './blocks/VehicleCatalog';
 
 /** Props for every editable component, keyed by component name. */
 export interface Props {
@@ -22,6 +23,7 @@ export interface Props {
   SiteHeader: SiteHeaderProps;
   Footer: FooterProps;
   LeadForm: LeadFormProps;
+  VehicleCatalog: VehicleCatalogProps;
 }
 
 /** Page-level (root) fields — drive SEO metadata, not visible layout. */
@@ -45,6 +47,7 @@ const internalConfig: Config<Props, RootProps> = {
   categories: {
     layout: { title: 'Каркас', components: ['SiteHeader', 'Footer'] },
     content: { title: 'Контент', components: ['Hero', 'AboutPromo', 'RichText', 'LeadForm'] },
+    catalog: { title: 'Каталог', components: ['VehicleCatalog'] },
     sections: {
       title: 'Секции',
       components: ['StatCounters', 'FeatureCards', 'TermsAccordion', 'ReviewsCarousel'],
@@ -292,6 +295,27 @@ const internalConfig: Config<Props, RootProps> = {
         endpoint: '',
       },
       render: LeadForm,
+    },
+    VehicleCatalog: {
+      label: 'Каталог ТС',
+      fields: {
+        heading: { type: 'text', label: 'Заголовок' },
+        vehicleType: {
+          type: 'radio',
+          label: 'Тип',
+          options: [
+            { label: 'Автомобили', value: 'car' },
+            { label: 'Байки', value: 'motorcycle' },
+          ],
+        },
+        catalogUrl: { type: 'text', label: 'Ссылка на полный каталог' },
+      },
+      defaultProps: {
+        heading: 'Автомобили',
+        vehicleType: 'car',
+        catalogUrl: '',
+      },
+      render: VehicleCatalog,
     },
   },
 };
