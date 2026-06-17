@@ -18,7 +18,13 @@ export function Hero({ heading, subheading, backgroundImage, ctaLabel, ctaHref }
       className="relative flex min-h-[60vh] flex-col items-center justify-center px-6 py-24 text-center text-white"
       style={
         backgroundImage
-          ? { backgroundImage: `url(${backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+          ? {
+              // Quoted + encoded to prevent CSS injection — this value comes
+              // from the editor and is rendered into inline CSS on a public page.
+              backgroundImage: `url("${encodeURI(backgroundImage)}")`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }
           : { backgroundColor: '#111111' }
       }
     >

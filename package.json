@@ -1,8 +1,15 @@
 {
   "name": "puck-blocks",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared content blocks and Puck visual-editor config for rendering marketing pages with @measured/puck. Framework-neutral React components usable from Next.js and Vite.",
   "license": "MIT",
+  "author": "gladman88",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gladman88/puck-blocks.git"
+  },
+  "homepage": "https://github.com/gladman88/puck-blocks#readme",
+  "bugs": "https://github.com/gladman88/puck-blocks/issues",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -21,8 +28,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
-    "prepare": "tsup"
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "puck",

@@ -19,7 +19,7 @@ Consumed as a git dependency (no npm registry):
 // package.json
 {
   "dependencies": {
-    "puck-blocks": "github:<owner>/puck-blocks#v0.1.0"
+    "puck-blocks": "github:gladman88/puck-blocks#v0.1.1"
   }
 }
 ```
@@ -42,11 +42,22 @@ npm install @measured/puck react react-dom
 ### Tailwind
 
 Blocks use Tailwind utility classes. Add the package to your Tailwind content
-sources so the classes aren't purged:
+sources so the classes aren't purged.
+
+**Tailwind v4** — add an `@source` to your CSS. The path is relative to the CSS
+file, not the project root. Point it at the package in `node_modules` (adjust
+the `../` depth to your file's location — e.g. from `src/app/globals.css` it's
+`../../node_modules/...`):
 
 ```css
-/* globals.css (Tailwind v4) */
-@source "../node_modules/puck-blocks/dist/**/*.{js,cjs}";
+/* src/app/globals.css */
+@source "../../node_modules/puck-blocks/dist/**/*.{js,cjs}";
+```
+
+**Tailwind v3** — add the package to `content` in `tailwind.config`:
+
+```js
+content: ['./src/**/*.{ts,tsx}', './node_modules/puck-blocks/dist/**/*.{js,cjs}'],
 ```
 
 ## Usage
@@ -95,8 +106,10 @@ npm run typecheck  # tsc --noEmit
 npm run build      # emit dist/ (ESM + CJS + types)
 ```
 
-`build` also runs automatically on install via the `prepare` script, so git
-consumers get a freshly built `dist/`.
+The built `dist/` is **committed to the repo** so git-dependency consumers need
+no build step (and no dev dependencies) at install time — this avoids breaking a
+consumer's production install (`npm ci --omit=dev`). **Rebuild (`npm run build`)
+and commit `dist/` whenever you change `src/`.**
 
 ## License
 
