@@ -39,26 +39,19 @@ The host app provides these (they are **not** bundled):
 npm install @puckeditor/core react react-dom
 ```
 
-### Tailwind
+### Styles
 
-Blocks use Tailwind utility classes. Add the package to your Tailwind content
-sources so the classes aren't purged.
+Blocks ship their own **self-contained CSS** (design tokens as CSS variables +
+component styles, all `sb-`-prefixed and scoped under `.sb-root`). No Tailwind
+dependency — the blocks render identically in any host app (the FMS editor
+preview and the public site), independent of the host's theme/reset. Import it
+once in every consumer:
 
-**Tailwind v4** — add an `@source` to your CSS. The path is relative to the CSS
-file, not the project root. Point it at the package in `node_modules` (adjust
-the `../` depth to your file's location — e.g. from `src/app/globals.css` it's
-`../../node_modules/...`):
-
-```css
-/* src/app/globals.css */
-@source "../../node_modules/puck-blocks/dist/**/*.{js,cjs}";
+```ts
+import 'puck-blocks/styles.css';
 ```
 
-**Tailwind v3** — add the package to `content` in `tailwind.config`:
-
-```js
-content: ['./src/**/*.{ts,tsx}', './node_modules/puck-blocks/dist/**/*.{js,cjs}'],
-```
+Rebrand/tweak by overriding the `--sb-*` CSS variables on `.sb-root`.
 
 ## Usage
 

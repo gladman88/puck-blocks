@@ -8,18 +8,13 @@ export interface Props {
   RichText: RichTextProps;
 }
 
-/** Page-level (root) fields — these drive SEO metadata, not visible layout. */
+/** Page-level (root) fields — drive SEO metadata, not visible layout. */
 export interface RootProps {
   title?: string;
   description?: string;
   ogImage?: string;
 }
 
-/**
- * The single Puck config shared by the editor (in FMS) and the renderer
- * (in frontend_site). Keeping it here guarantees the editor preview and the
- * live page render identically.
- */
 const internalConfig: Config<Props, RootProps> = {
   root: {
     fields: {
@@ -27,21 +22,26 @@ const internalConfig: Config<Props, RootProps> = {
       description: { type: 'textarea', label: 'SEO description' },
       ogImage: { type: 'text', label: 'OG image URL' },
     },
-    render: ({ children }) => <>{children}</>,
+    // Wrap the whole tree in the design-system root so tokens + base styles
+    // apply identically in the editor preview and on the live site.
+    render: ({ children }) => <div className="sb-root">{children}</div>,
+  },
+  categories: {
+    content: { title: 'Контент', components: ['Hero', 'RichText'] },
   },
   components: {
     Hero: {
       label: 'Hero',
       fields: {
-        heading: { type: 'text', label: 'Heading' },
-        subheading: { type: 'textarea', label: 'Subheading' },
-        backgroundImage: { type: 'text', label: 'Background image URL' },
-        ctaLabel: { type: 'text', label: 'CTA label' },
-        ctaHref: { type: 'text', label: 'CTA link' },
+        heading: { type: 'text', label: 'Заголовок', contentEditable: true },
+        subheading: { type: 'textarea', label: 'Подзаголовок', contentEditable: true },
+        backgroundImage: { type: 'text', label: 'Фон — URL изображения' },
+        ctaLabel: { type: 'text', label: 'Кнопка — текст' },
+        ctaHref: { type: 'text', label: 'Кнопка — ссылка' },
       },
       defaultProps: {
         heading: 'Shiba Cars',
-        subheading: 'Car & motorbike rental in Phuket',
+        subheading: 'Аренда авто и байков на Пхукете',
         backgroundImage: '',
         ctaLabel: '',
         ctaHref: '',
@@ -49,12 +49,12 @@ const internalConfig: Config<Props, RootProps> = {
       render: Hero,
     },
     RichText: {
-      label: 'Rich text',
+      label: 'Текст',
       fields: {
-        content: { type: 'textarea', label: 'Content' },
+        content: { type: 'textarea', label: 'Текст', contentEditable: true },
       },
       defaultProps: {
-        content: 'Your text here.',
+        content: 'Текст…',
       },
       render: RichText,
     },
@@ -62,7 +62,6 @@ const internalConfig: Config<Props, RootProps> = {
 };
 
 // Exported as the loose `Config` type so consumers' <Puck>/<Render> accept it
-// directly — a strongly-typed Config<Props, RootProps> isn't assignable because
-// Puck's render prop (PuckComponent<Props>) is invariant. Authoring safety is
-// preserved via the typed `internalConfig` above.
+// directly (a strongly-typed Config<Props, RootProps> isn't assignable because
+// Puck's render prop is invariant). Authoring safety is kept via internalConfig.
 export const puckConfig = internalConfig as unknown as Config;

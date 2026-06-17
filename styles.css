@@ -1,0 +1,145 @@
+/*
+ * puck-blocks design system — self-contained and theme-independent.
+ * Import ONCE in every consumer (editor + site): `import 'puck-blocks/styles.css'`.
+ * All classes are prefixed `sb-` and scoped under `.sb-root` so they never
+ * collide with or inherit from the host app's styles (shadcn/Tailwind/etc.) —
+ * the block renders identically in the FMS editor preview and on the public site.
+ */
+
+.sb-root {
+  /* ---- Design tokens (from the brand spec) ---- */
+  --sb-bg: #191919;
+  --sb-bg-alt: #181818;
+  --sb-surface: #282828;
+  --sb-accent: #ffcc33;
+  --sb-accent-ink: #191919;
+  --sb-text: #e6e6e6;
+  --sb-text-strong: #ffffff;
+  --sb-text-muted: #969696;
+  --sb-border: rgba(255, 255, 255, 0.1);
+  --sb-font: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --sb-radius-pill: 999px;
+  --sb-radius: 16px;
+  --sb-container: 1200px;
+  --sb-section-py: clamp(3rem, 6vw, 6rem);
+
+  background: var(--sb-bg);
+  color: var(--sb-text);
+  font-family: var(--sb-font);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.sb-root *,
+.sb-root *::before,
+.sb-root *::after {
+  box-sizing: border-box;
+}
+
+/* ---- Layout primitives ---- */
+.sb-section {
+  padding-block: var(--sb-section-py);
+  padding-inline: 1.25rem;
+}
+.sb-container {
+  max-width: var(--sb-container);
+  margin-inline: auto;
+  width: 100%;
+}
+
+/* ---- Typography ---- */
+.sb-h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--sb-text-strong);
+}
+.sb-h2 {
+  margin: 0 0 1.5rem;
+  font-size: clamp(1.5rem, 3.5vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--sb-text-strong);
+}
+.sb-lead {
+  margin: 0;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: var(--sb-text);
+  opacity: 0.9;
+}
+
+/* ---- Button ---- */
+.sb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.75rem;
+  border: 0;
+  border-radius: var(--sb-radius-pill);
+  background: var(--sb-accent);
+  color: var(--sb-accent-ink);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.sb-btn:hover {
+  opacity: 0.9;
+}
+.sb-btn:active {
+  transform: translateY(1px);
+}
+.sb-btn--ghost {
+  background: transparent;
+  color: var(--sb-text-strong);
+  border: 1px solid var(--sb-border);
+}
+
+/* ---- Hero ---- */
+.sb-hero {
+  position: relative;
+  display: flex;
+  min-height: 70vh;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sb-section-py) 1.25rem;
+  text-align: center;
+  background-color: var(--sb-bg);
+  background-size: cover;
+  background-position: center;
+}
+.sb-hero__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+.sb-hero__inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  max-width: 48rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+.sb-hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+/* ---- RichText ---- */
+.sb-richtext p {
+  margin: 0 0 1rem;
+  white-space: pre-line;
+}
+.sb-richtext p:last-child {
+  margin-bottom: 0;
+}

@@ -3,10 +3,7 @@ export interface RichTextProps {
   content: string;
 }
 
-/**
- * Simple text block. Framework-neutral plain HTML. Rich formatting (markdown)
- * can be layered later without changing the data contract.
- */
+/** Simple text section. Framework-neutral; styled by the shipped design CSS. */
 export function RichText({ content }: RichTextProps) {
   const paragraphs = (content ?? '')
     .split(/\n{2,}/)
@@ -14,12 +11,12 @@ export function RichText({ content }: RichTextProps) {
     .filter(Boolean);
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
-      {paragraphs.map((paragraph, index) => (
-        <p key={index} className="mb-4 whitespace-pre-line leading-relaxed last:mb-0">
-          {paragraph}
-        </p>
-      ))}
-    </div>
+    <section className="sb-section">
+      <div className="sb-container sb-richtext">
+        {paragraphs.map((paragraph, index) => (
+          <p key={index}>{paragraph}</p>
+        ))}
+      </div>
+    </section>
   );
 }

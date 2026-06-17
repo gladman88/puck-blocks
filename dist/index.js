@@ -1,6 +1,6 @@
-import { jsxs, jsx, Fragment } from 'react/jsx-runtime';
+import { jsxs, jsx } from 'react/jsx-runtime';
 
-// src/blocks/Hero.tsx
+// src/sanitize.ts
 var SAFE_HREF = /^(https?:\/\/|\/|#|mailto:|tel:)/i;
 var SAFE_IMAGE = /^(https?:\/\/|\/)/i;
 function safeHref(href) {
@@ -18,27 +18,14 @@ function Hero({ heading, subheading, backgroundImage, ctaLabel, ctaHref }) {
   return /* @__PURE__ */ jsxs(
     "section",
     {
-      className: "relative flex min-h-[60vh] flex-col items-center justify-center px-6 py-24 text-center text-white",
-      style: bg ? {
-        // Quoted + encoded to prevent CSS injection — the value comes from
-        // the editor and is rendered into inline CSS on a public page.
-        backgroundImage: `url("${encodeURI(bg)}")`,
-        backgroundSize: "cover",
-        backgroundPosition: "center"
-      } : { backgroundColor: "#111111" },
+      className: "sb-hero",
+      style: bg ? { backgroundImage: `url("${encodeURI(bg)}")` } : void 0,
       children: [
-        bg ? /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-black/40", "aria-hidden": "true" }) : null,
-        /* @__PURE__ */ jsxs("div", { className: "relative z-10 flex max-w-3xl flex-col items-center gap-6", children: [
-          /* @__PURE__ */ jsx("h1", { className: "text-balance text-4xl font-bold tracking-tight sm:text-5xl", children: heading }),
-          subheading ? /* @__PURE__ */ jsx("p", { className: "text-balance text-lg opacity-90", children: subheading }) : null,
-          hasCta ? /* @__PURE__ */ jsx(
-            "a",
-            {
-              href,
-              className: "inline-flex items-center rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:opacity-90",
-              children: ctaLabel
-            }
-          ) : null
+        bg ? /* @__PURE__ */ jsx("div", { className: "sb-hero__overlay", "aria-hidden": "true" }) : null,
+        /* @__PURE__ */ jsxs("div", { className: "sb-hero__inner", children: [
+          /* @__PURE__ */ jsx("h1", { className: "sb-h1", children: heading }),
+          subheading ? /* @__PURE__ */ jsx("p", { className: "sb-lead", children: subheading }) : null,
+          hasCta ? /* @__PURE__ */ jsx("div", { className: "sb-hero__cta", children: /* @__PURE__ */ jsx("a", { className: "sb-btn", href, children: ctaLabel }) }) : null
         ] })
       ]
     }
@@ -46,7 +33,7 @@ function Hero({ heading, subheading, backgroundImage, ctaLabel, ctaHref }) {
 }
 function RichText({ content }) {
   const paragraphs = (content ?? "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
-  return /* @__PURE__ */ jsx("div", { className: "mx-auto max-w-3xl px-6 py-12", children: paragraphs.map((paragraph, index) => /* @__PURE__ */ jsx("p", { className: "mb-4 whitespace-pre-line leading-relaxed last:mb-0", children: paragraph }, index)) });
+  return /* @__PURE__ */ jsx("section", { className: "sb-section", children: /* @__PURE__ */ jsx("div", { className: "sb-container sb-richtext", children: paragraphs.map((paragraph, index) => /* @__PURE__ */ jsx("p", { children: paragraph }, index)) }) });
 }
 var internalConfig = {
   root: {
@@ -55,21 +42,26 @@ var internalConfig = {
       description: { type: "textarea", label: "SEO description" },
       ogImage: { type: "text", label: "OG image URL" }
     },
-    render: ({ children }) => /* @__PURE__ */ jsx(Fragment, { children })
+    // Wrap the whole tree in the design-system root so tokens + base styles
+    // apply identically in the editor preview and on the live site.
+    render: ({ children }) => /* @__PURE__ */ jsx("div", { className: "sb-root", children })
+  },
+  categories: {
+    content: { title: "\u041A\u043E\u043D\u0442\u0435\u043D\u0442", components: ["Hero", "RichText"] }
   },
   components: {
     Hero: {
       label: "Hero",
       fields: {
-        heading: { type: "text", label: "Heading" },
-        subheading: { type: "textarea", label: "Subheading" },
-        backgroundImage: { type: "text", label: "Background image URL" },
-        ctaLabel: { type: "text", label: "CTA label" },
-        ctaHref: { type: "text", label: "CTA link" }
+        heading: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A", contentEditable: true },
+        subheading: { type: "textarea", label: "\u041F\u043E\u0434\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A", contentEditable: true },
+        backgroundImage: { type: "text", label: "\u0424\u043E\u043D \u2014 URL \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F" },
+        ctaLabel: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0442\u0435\u043A\u0441\u0442" },
+        ctaHref: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" }
       },
       defaultProps: {
         heading: "Shiba Cars",
-        subheading: "Car & motorbike rental in Phuket",
+        subheading: "\u0410\u0440\u0435\u043D\u0434\u0430 \u0430\u0432\u0442\u043E \u0438 \u0431\u0430\u0439\u043A\u043E\u0432 \u043D\u0430 \u041F\u0445\u0443\u043A\u0435\u0442\u0435",
         backgroundImage: "",
         ctaLabel: "",
         ctaHref: ""
@@ -77,12 +69,12 @@ var internalConfig = {
       render: Hero
     },
     RichText: {
-      label: "Rich text",
+      label: "\u0422\u0435\u043A\u0441\u0442",
       fields: {
-        content: { type: "textarea", label: "Content" }
+        content: { type: "textarea", label: "\u0422\u0435\u043A\u0441\u0442", contentEditable: true }
       },
       defaultProps: {
-        content: "Your text here."
+        content: "\u0422\u0435\u043A\u0441\u0442\u2026"
       },
       render: RichText
     }
