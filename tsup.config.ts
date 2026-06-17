@@ -7,5 +7,5 @@ export default defineConfig({
   clean: true,
   treeshake: true,
   // Consumers provide these — never bundle them into the library.
-  external: ['react', 'react-dom', '@measured/puck'],
+  external: ['react', 'react-dom', '@puckeditor/core'],
 });

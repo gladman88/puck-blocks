@@ -1,4 +1,4 @@
-import type { Config } from '@measured/puck';
+import type { Config } from '@puckeditor/core';
 import { Hero, type HeroProps } from './blocks/Hero';
 import { RichText, type RichTextProps } from './blocks/RichText';
 

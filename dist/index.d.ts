@@ -1,4 +1,4 @@
-import { Config } from '@measured/puck';
+import { Config } from '@puckeditor/core';
 import * as react from 'react';
 
 interface HeroProps {

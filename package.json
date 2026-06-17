@@ -1,7 +1,7 @@
 {
   "name": "puck-blocks",
-  "version": "0.1.3",
-  "description": "Shared content blocks and Puck visual-editor config for rendering marketing pages with @measured/puck. Framework-neutral React components usable from Next.js and Vite.",
+  "version": "0.2.0",
+  "description": "Shared content blocks and Puck visual-editor config for rendering marketing pages with @puckeditor/core. Framework-neutral React components usable from Next.js and Vite.",
   "license": "MIT",
   "author": "gladman88",
   "repository": {
@@ -38,12 +38,12 @@
     "cms"
   ],
   "peerDependencies": {
-    "@measured/puck": "^0.20.0",
+    "@puckeditor/core": "^0.21.0",
     "react": ">=18",
     "react-dom": ">=18"
   },
   "devDependencies": {
-    "@measured/puck": "^0.20.2",
+    "@puckeditor/core": "^0.21.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "react": "^19",

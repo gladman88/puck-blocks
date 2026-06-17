@@ -19,7 +19,7 @@ Consumed as a git dependency (no npm registry):
 // package.json
 {
   "dependencies": {
-    "puck-blocks": "github:gladman88/puck-blocks#v0.1.3"
+    "puck-blocks": "github:gladman88/puck-blocks#v0.2.0"
   }
 }
 ```
@@ -36,7 +36,7 @@ npm install ../puck-blocks   # or: "puck-blocks": "file:../puck-blocks"
 The host app provides these (they are **not** bundled):
 
 ```bash
-npm install @measured/puck react react-dom
+npm install @puckeditor/core react react-dom
 ```
 
 ### Tailwind
@@ -65,7 +65,7 @@ content: ['./src/**/*.{ts,tsx}', './node_modules/puck-blocks/dist/**/*.{js,cjs}'
 ### Render a published page (public site)
 
 ```tsx
-import { Render } from '@measured/puck';
+import { Render } from '@puckeditor/core';
 import { puckConfig } from 'puck-blocks';
 
 export default function Page({ data }) {
@@ -76,7 +76,7 @@ export default function Page({ data }) {
 ### Edit a page (admin)
 
 ```tsx
-import { Puck } from '@measured/puck';
+import { Puck } from '@puckeditor/core';
 import { puckConfig } from 'puck-blocks';
 
 export function SiteEditor({ data, onPublish }) {
