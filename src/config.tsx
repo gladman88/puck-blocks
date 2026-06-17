@@ -20,7 +20,7 @@ export interface RootProps {
  * (in frontend_site). Keeping it here guarantees the editor preview and the
  * live page render identically.
  */
-export const puckConfig: Config<Props, RootProps> = {
+const internalConfig: Config<Props, RootProps> = {
   root: {
     fields: {
       title: { type: 'text', label: 'SEO title' },
@@ -60,3 +60,9 @@ export const puckConfig: Config<Props, RootProps> = {
     },
   },
 };
+
+// Exported as the loose `Config` type so consumers' <Puck>/<Render> accept it
+// directly — a strongly-typed Config<Props, RootProps> isn't assignable because
+// Puck's render prop (PuckComponent<Props>) is invariant. Authoring safety is
+// preserved via the typed `internalConfig` above.
+export const puckConfig = internalConfig as unknown as Config;

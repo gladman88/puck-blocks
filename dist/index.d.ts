@@ -36,11 +36,6 @@ interface RootProps {
     description?: string;
     ogImage?: string;
 }
-/**
- * The single Puck config shared by the editor (in FMS) and the renderer
- * (in frontend_site). Keeping it here guarantees the editor preview and the
- * live page render identically.
- */
-declare const puckConfig: Config<Props, RootProps>;
+declare const puckConfig: Config;
 
 export { Hero, type HeroProps, type Props, RichText, type RichTextProps, type RootProps, puckConfig };

@@ -36,7 +36,7 @@ function RichText({ content }) {
   const paragraphs = (content ?? "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
   return /* @__PURE__ */ jsx("div", { className: "mx-auto max-w-3xl px-6 py-12", children: paragraphs.map((paragraph, index) => /* @__PURE__ */ jsx("p", { className: "mb-4 whitespace-pre-line leading-relaxed last:mb-0", children: paragraph }, index)) });
 }
-var puckConfig = {
+var internalConfig = {
   root: {
     fields: {
       title: { type: "text", label: "SEO title" },
@@ -76,5 +76,6 @@ var puckConfig = {
     }
   }
 };
+var puckConfig = internalConfig;
 
 export { Hero, RichText, puckConfig };
