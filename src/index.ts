@@ -21,3 +21,12 @@ export type { TermsAccordionProps, TermItem } from './blocks/TermsAccordion';
 
 export { ReviewsCarousel } from './blocks/ReviewsCarousel';
 export type { ReviewsCarouselProps, ReviewImage } from './blocks/ReviewsCarousel';
+
+export { SiteHeader } from './blocks/SiteHeader';
+export type { SiteHeaderProps, NavLink } from './blocks/SiteHeader';
+
+export { Footer } from './blocks/Footer';
+export type { FooterProps } from './blocks/Footer';
+
+export { LeadForm } from './blocks/LeadForm';
+export type { LeadFormProps } from './blocks/LeadForm';

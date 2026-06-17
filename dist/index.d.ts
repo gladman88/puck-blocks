@@ -77,6 +77,51 @@ interface ReviewsCarouselProps {
 /** Horizontal, scroll-snap photo carousel (CSS-only, no JS). */
 declare function ReviewsCarousel({ heading, images }: ReviewsCarouselProps): react.JSX.Element;
 
+interface NavLink {
+    label: string;
+    href: string;
+}
+interface SiteHeaderProps {
+    logoText?: string;
+    logoImage?: string;
+    links: NavLink[];
+    phone?: string;
+    whatsapp?: string;
+    telegram?: string;
+    instagram?: string;
+}
+/** Sticky, blurred dark header: brand + anchor nav + contact icon links. */
+declare function SiteHeader({ logoText, logoImage, links, phone, whatsapp, telegram, instagram, }: SiteHeaderProps): react.JSX.Element;
+
+interface FooterProps {
+    phone?: string;
+    email?: string;
+    whatsapp?: string;
+    telegram?: string;
+    instagram?: string;
+    mapUrl?: string;
+    links: NavLink[];
+    note?: string;
+}
+/** Footer: contacts + nav + socials. */
+declare function Footer({ phone, email, whatsapp, telegram, instagram, mapUrl, links, note, }: FooterProps): react.JSX.Element;
+
+interface LeadFormProps {
+    heading?: string;
+    text?: string;
+    buttonLabel?: string;
+    successMessage?: string;
+    /** Backend endpoint that receives { name, phone, contact_method }. */
+    endpoint?: string;
+}
+/**
+ * Lead/booking form. Client-interactive (manages its own state), posts JSON to
+ * `endpoint`. With no endpoint configured it just shows the success message
+ * (useful in the editor preview). The whole tree renders inside a client
+ * boundary on the site, so this needs no framework-specific directive.
+ */
+declare function LeadForm({ heading, text, buttonLabel, successMessage, endpoint, }: LeadFormProps): react.JSX.Element;
+
 /** Props for every editable component, keyed by component name. */
 interface Props {
     Hero: HeroProps;
@@ -86,6 +131,9 @@ interface Props {
     FeatureCards: FeatureCardsProps;
     TermsAccordion: TermsAccordionProps;
     ReviewsCarousel: ReviewsCarouselProps;
+    SiteHeader: SiteHeaderProps;
+    Footer: FooterProps;
+    LeadForm: LeadFormProps;
 }
 /** Page-level (root) fields — drive SEO metadata, not visible layout. */
 interface RootProps {
@@ -95,4 +143,4 @@ interface RootProps {
 }
 declare const puckConfig: Config;
 
-export { AboutPromo, type AboutPromoProps, FeatureCards, type FeatureCardsProps, type FeatureItem, Hero, type HeroProps, type Props, type ReviewImage, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, StatCounters, type StatCountersProps, type StatItem, type TermItem, TermsAccordion, type TermsAccordionProps, puckConfig };
+export { AboutPromo, type AboutPromoProps, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, type NavLink, type Props, type ReviewImage, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TermItem, TermsAccordion, type TermsAccordionProps, puckConfig };

@@ -6,6 +6,9 @@ import { AboutPromo, type AboutPromoProps } from './blocks/AboutPromo';
 import { FeatureCards, type FeatureCardsProps } from './blocks/FeatureCards';
 import { TermsAccordion, type TermsAccordionProps } from './blocks/TermsAccordion';
 import { ReviewsCarousel, type ReviewsCarouselProps } from './blocks/ReviewsCarousel';
+import { SiteHeader, type SiteHeaderProps } from './blocks/SiteHeader';
+import { Footer, type FooterProps } from './blocks/Footer';
+import { LeadForm, type LeadFormProps } from './blocks/LeadForm';
 
 /** Props for every editable component, keyed by component name. */
 export interface Props {
@@ -16,6 +19,9 @@ export interface Props {
   FeatureCards: FeatureCardsProps;
   TermsAccordion: TermsAccordionProps;
   ReviewsCarousel: ReviewsCarouselProps;
+  SiteHeader: SiteHeaderProps;
+  Footer: FooterProps;
+  LeadForm: LeadFormProps;
 }
 
 /** Page-level (root) fields — drive SEO metadata, not visible layout. */
@@ -37,7 +43,8 @@ const internalConfig: Config<Props, RootProps> = {
     render: ({ children }) => <div className="sb-root">{children}</div>,
   },
   categories: {
-    content: { title: 'Контент', components: ['Hero', 'AboutPromo', 'RichText'] },
+    layout: { title: 'Каркас', components: ['SiteHeader', 'Footer'] },
+    content: { title: 'Контент', components: ['Hero', 'AboutPromo', 'RichText', 'LeadForm'] },
     sections: {
       title: 'Секции',
       components: ['StatCounters', 'FeatureCards', 'TermsAccordion', 'ReviewsCarousel'],
@@ -194,6 +201,97 @@ const internalConfig: Config<Props, RootProps> = {
         images: [],
       },
       render: ReviewsCarousel,
+    },
+    SiteHeader: {
+      label: 'Шапка сайта',
+      fields: {
+        logoText: { type: 'text', label: 'Логотип — текст' },
+        logoImage: { type: 'text', label: 'Логотип — URL изображения' },
+        links: {
+          type: 'array',
+          label: 'Меню',
+          arrayFields: {
+            label: { type: 'text', label: 'Название' },
+            href: { type: 'text', label: 'Ссылка' },
+          },
+          defaultItemProps: { label: '', href: '' },
+          getItemSummary: (item) => item.label || 'Пункт',
+        },
+        phone: { type: 'text', label: 'Телефон' },
+        whatsapp: { type: 'text', label: 'WhatsApp — ссылка' },
+        telegram: { type: 'text', label: 'Telegram — ссылка' },
+        instagram: { type: 'text', label: 'Instagram — ссылка' },
+      },
+      defaultProps: {
+        logoText: 'SHIBA CARS',
+        logoImage: '',
+        links: [
+          { label: 'Автомобили', href: '#car' },
+          { label: 'Байки', href: '#bike' },
+          { label: 'Отзывы', href: '#reviews' },
+          { label: 'Контакты', href: '#contacts' },
+        ],
+        phone: '+66959657805',
+        whatsapp: 'https://wa.me/66959657805',
+        telegram: 'https://t.me/ShibaCars_Phuket',
+        instagram: 'https://www.instagram.com/shibacars_phuket',
+      },
+      render: SiteHeader,
+    },
+    Footer: {
+      label: 'Футер',
+      fields: {
+        phone: { type: 'text', label: 'Телефон' },
+        email: { type: 'text', label: 'Email' },
+        whatsapp: { type: 'text', label: 'WhatsApp — ссылка' },
+        telegram: { type: 'text', label: 'Telegram — ссылка' },
+        instagram: { type: 'text', label: 'Instagram — ссылка' },
+        mapUrl: { type: 'text', label: 'Карта — ссылка' },
+        links: {
+          type: 'array',
+          label: 'Навигация',
+          arrayFields: {
+            label: { type: 'text', label: 'Название' },
+            href: { type: 'text', label: 'Ссылка' },
+          },
+          defaultItemProps: { label: '', href: '' },
+          getItemSummary: (item) => item.label || 'Пункт',
+        },
+        note: { type: 'textarea', label: 'Примечание' },
+      },
+      defaultProps: {
+        phone: '+66959657805',
+        email: 'shibacars@gmail.com',
+        whatsapp: 'https://wa.me/66959657805',
+        telegram: 'https://t.me/ShibaCars_Phuket',
+        instagram: 'https://www.instagram.com/shibacars_phuket',
+        mapUrl: 'https://maps.app.goo.gl/eAvKTvF2KHJjC9ds8',
+        links: [
+          { label: 'Автомобили', href: '#car' },
+          { label: 'Байки', href: '#bike' },
+          { label: 'Отзывы', href: '#reviews' },
+        ],
+        note: '',
+      },
+      render: Footer,
+    },
+    LeadForm: {
+      label: 'Форма заявки',
+      fields: {
+        heading: { type: 'text', label: 'Заголовок' },
+        text: { type: 'textarea', label: 'Текст' },
+        buttonLabel: { type: 'text', label: 'Текст кнопки' },
+        successMessage: { type: 'text', label: 'Сообщение после отправки' },
+        endpoint: { type: 'text', label: 'Endpoint (URL приёма заявок)' },
+      },
+      defaultProps: {
+        heading: 'Забронировать',
+        text: 'Подача автомобиля в течение 2 часов',
+        buttonLabel: 'Отправить заявку',
+        successMessage: 'Спасибо! Мы скоро свяжемся с вами.',
+        endpoint: '',
+      },
+      render: LeadForm,
     },
   },
 };
