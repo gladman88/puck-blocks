@@ -1,0 +1,48 @@
+{
+  "name": "puck-blocks",
+  "version": "0.1.0",
+  "description": "Shared content blocks and Puck visual-editor config for rendering marketing pages with @measured/puck. Framework-neutral React components usable from Next.js and Vite.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepare": "tsup"
+  },
+  "keywords": [
+    "puck",
+    "page-builder",
+    "react",
+    "blocks",
+    "cms"
+  ],
+  "peerDependencies": {
+    "@measured/puck": "^0.20.0",
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@measured/puck": "^0.20.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "react": "^19",
+    "react-dom": "^19",
+    "tsup": "^8.5.0",
+    "typescript": "^5"
+  }
+}
