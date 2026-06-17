@@ -3,28 +3,40 @@
 var jsxRuntime = require('react/jsx-runtime');
 
 // src/blocks/Hero.tsx
+var SAFE_HREF = /^(https?:\/\/|\/|#|mailto:|tel:)/i;
+var SAFE_IMAGE = /^(https?:\/\/|\/)/i;
+function safeHref(href) {
+  const value = href?.trim();
+  return value && SAFE_HREF.test(value) ? value : void 0;
+}
+function safeImageUrl(url) {
+  const value = url?.trim();
+  return value && SAFE_IMAGE.test(value) ? value : void 0;
+}
 function Hero({ heading, subheading, backgroundImage, ctaLabel, ctaHref }) {
-  const hasCta = Boolean(ctaLabel && ctaHref);
+  const bg = safeImageUrl(backgroundImage);
+  const href = safeHref(ctaHref);
+  const hasCta = Boolean(ctaLabel && href);
   return /* @__PURE__ */ jsxRuntime.jsxs(
     "section",
     {
       className: "relative flex min-h-[60vh] flex-col items-center justify-center px-6 py-24 text-center text-white",
-      style: backgroundImage ? {
-        // Quoted + encoded to prevent CSS injection — this value comes
-        // from the editor and is rendered into inline CSS on a public page.
-        backgroundImage: `url("${encodeURI(backgroundImage)}")`,
+      style: bg ? {
+        // Quoted + encoded to prevent CSS injection — the value comes from
+        // the editor and is rendered into inline CSS on a public page.
+        backgroundImage: `url("${encodeURI(bg)}")`,
         backgroundSize: "cover",
         backgroundPosition: "center"
       } : { backgroundColor: "#111111" },
       children: [
-        backgroundImage ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "absolute inset-0 bg-black/40", "aria-hidden": "true" }) : null,
+        bg ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "absolute inset-0 bg-black/40", "aria-hidden": "true" }) : null,
         /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "relative z-10 flex max-w-3xl flex-col items-center gap-6", children: [
           /* @__PURE__ */ jsxRuntime.jsx("h1", { className: "text-balance text-4xl font-bold tracking-tight sm:text-5xl", children: heading }),
           subheading ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-balance text-lg opacity-90", children: subheading }) : null,
           hasCta ? /* @__PURE__ */ jsxRuntime.jsx(
             "a",
             {
-              href: ctaHref,
+              href,
               className: "inline-flex items-center rounded-full bg-white px-6 py-3 font-semibold text-black transition hover:opacity-90",
               children: ctaLabel
             }

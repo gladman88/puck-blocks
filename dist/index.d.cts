@@ -4,7 +4,7 @@ import * as react from 'react';
 interface HeroProps {
     heading: string;
     subheading?: string;
-    /** Optional background image URL. Plain <img>/CSS only — no framework-specific image component. */
+    /** Optional background image URL. Plain CSS only — no framework image component. */
     backgroundImage?: string;
     ctaLabel?: string;
     ctaHref?: string;

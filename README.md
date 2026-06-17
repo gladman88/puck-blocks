@@ -19,7 +19,7 @@ Consumed as a git dependency (no npm registry):
 // package.json
 {
   "dependencies": {
-    "puck-blocks": "github:gladman88/puck-blocks#v0.1.2"
+    "puck-blocks": "github:gladman88/puck-blocks#v0.1.3"
   }
 }
 ```
