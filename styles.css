@@ -252,23 +252,23 @@
 /* ---- FeatureCards ---- */
 .sb-features__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.5rem 2.5rem;
+  align-items: start;
 }
 .sb-feature {
-  padding: 1.75rem;
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius);
-  background: var(--sb-bg-alt);
+  display: flex;
+  flex-direction: column;
 }
 .sb-feature__icon {
-  width: 48px;
-  height: 48px;
+  width: auto;
+  height: 56px;
   object-fit: contain;
+  align-self: flex-start;
   margin-bottom: 1rem;
 }
 .sb-feature__title {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.6rem;
   font-size: 1.125rem;
   font-weight: 700;
   color: var(--sb-text-strong);
@@ -276,6 +276,24 @@
 .sb-feature__text {
   margin: 0;
   color: var(--sb-text-muted);
+  line-height: 1.55;
+}
+.sb-feature--video {
+  justify-content: center;
+}
+.sb-feature--video .sb-video {
+  border-radius: var(--sb-radius);
+  overflow: hidden;
+}
+@media (max-width: 900px) {
+  .sb-features__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .sb-features__grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---- TermsAccordion ---- */

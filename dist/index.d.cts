@@ -59,9 +59,17 @@ interface FeatureItem {
 interface FeatureCardsProps {
     heading?: string;
     items: FeatureItem[];
+    /** Optional video shown as a grid cell (YouTube). */
+    videoUrl?: string;
+    /** Index at which the video cell is inserted (0-based). Default: end. */
+    videoIndex?: number;
 }
-/** Grid of icon + title + text feature cards. */
-declare function FeatureCards({ heading, items }: FeatureCardsProps): react.JSX.Element;
+/**
+ * Advantage section: a heading and a grid of icon + title + text items, with an
+ * optional video occupying one grid cell — mirrors the site's «как в свою» block
+ * (heading + features + video together, NOT a separate promo block).
+ */
+declare function FeatureCards({ heading, items, videoUrl, videoIndex }: FeatureCardsProps): react.JSX.Element;
 
 interface TermItem {
     title: string;
