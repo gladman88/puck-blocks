@@ -510,7 +510,7 @@
   letter-spacing: 0.04em;
   color: #fff;
 }
-.sb-vcard__chip {
+.sb-vcard__count {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
@@ -520,6 +520,17 @@
   font-weight: 700;
   color: #fff;
   background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+.sb-vcard__status {
+  display: inline-block;
+  margin-bottom: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
 }
 .sb-vcard__overlay {

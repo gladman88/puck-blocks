@@ -305,6 +305,8 @@ var STRINGS = {
     busy: "\u0437\u0430\u043D\u044F\u0442\u0430",
     freeFrom: "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u0430 \u0441",
     onRequest: "\u043F\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0443",
+    available: "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u043E",
+    total: "\u0432\u0441\u0435\u0433\u043E",
     viewAll: "\u0421\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0432\u0435\u0441\u044C \u043A\u0430\u0442\u0430\u043B\u043E\u0433",
     empty: "\u041D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0445 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432",
     loading: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026",
@@ -317,12 +319,48 @@ var STRINGS = {
     busy: "busy",
     freeFrom: "free from",
     onRequest: "on request",
+    available: "available",
+    total: "total",
     viewAll: "View full catalog",
     empty: "No vehicles available",
     loading: "Loading\u2026",
     error: "Failed to load catalog"
   }
 };
+function groupVehicles(vehicles) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const v of vehicles) {
+    const key = `${v.brand}:${v.model}:${v.year ?? ""}:${v.color ?? ""}`;
+    const existing = groups.get(key);
+    if (existing) existing.push(v);
+    else groups.set(key, [v]);
+  }
+  return Array.from(groups.values()).map((group) => {
+    const available = group.filter((v) => v.is_available);
+    const availableCount = available.length;
+    let representative;
+    if (availableCount === 0) {
+      const withDate = group.filter((v) => v.free_from);
+      const candidates = withDate.length > 0 ? withDate : group;
+      representative = candidates.reduce((a, b) => {
+        if (a.free_from !== b.free_from) return (a.free_from ?? "9999") <= (b.free_from ?? "9999") ? a : b;
+        return (a.min_price_per_day ?? Infinity) <= (b.min_price_per_day ?? Infinity) ? a : b;
+      });
+    } else {
+      const withPrice = available.filter((v) => v.min_price_per_day !== null);
+      representative = withPrice.length > 0 ? withPrice.reduce((a, b) => (a.min_price_per_day ?? 0) <= (b.min_price_per_day ?? 0) ? a : b) : available[0];
+    }
+    return {
+      vehicle: {
+        ...representative,
+        is_available: availableCount > 0,
+        free_from: availableCount > 0 ? null : representative.free_from
+      },
+      total: group.length,
+      availableCount
+    };
+  });
+}
 function formatDate(iso, locale) {
   try {
     return new Date(iso).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-GB", {
@@ -361,10 +399,10 @@ function VehicleCatalog({
           return r.json();
         }
       )
-    ]).then(([cats, list2]) => {
+    ]).then(([cats, list]) => {
       if (cancelled) return;
       setCategories(Array.isArray(cats) ? cats : []);
-      setVehicles(Array.isArray(list2) ? list2 : []);
+      setVehicles(Array.isArray(list) ? list : []);
       setState("ready");
     }).catch(() => {
       if (!cancelled) setState("error");
@@ -377,7 +415,10 @@ function VehicleCatalog({
     vehicles.map((v) => v.category?.id).filter((id) => Boolean(id))
   );
   const tabs = categories.filter((c) => usedCats.has(c.id));
-  const list = activeCat ? vehicles.filter((v) => v.category?.id === activeCat) : vehicles;
+  const groups = react.useMemo(() => {
+    const list = activeCat ? vehicles.filter((v) => v.category?.id === activeCat) : vehicles;
+    return groupVehicles(list);
+  }, [vehicles, activeCat]);
   const base2 = safeHref(catalogUrl);
   return /* @__PURE__ */ jsxRuntime.jsxs(Section, { className: "sb-vcatalog", children: [
     heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: heading }) : null,
@@ -404,13 +445,16 @@ function VehicleCatalog({
     ] }) : null,
     state === "loading" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vcatalog__state", children: t.loading }) : null,
     state === "error" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vcatalog__state", children: t.error }) : null,
-    state === "ready" && (list.length === 0 ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vcatalog__state", children: t.empty }) : /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vcatalog__grid", children: list.map((v) => {
+    state === "ready" && (groups.length === 0 ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vcatalog__state", children: t.empty }) : /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vcatalog__grid", children: groups.map((g) => {
+      const v = g.vehicle;
       const href = base2 ? `${base2}${base2.includes("?") ? "&" : "?"}vehicle=${encodeURIComponent(v.id)}` : void 0;
+      const countLabel = g.total > 1 ? g.availableCount > 0 ? `${g.availableCount} ${t.available}` : `${g.total} ${t.total}` : null;
       const media = /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__media", children: [
         v.photo_url ? /* @__PURE__ */ jsxRuntime.jsx("img", { src: v.photo_url, alt: v.display_name, loading: "lazy" }) : null,
         v.category ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__badge", style: { backgroundColor: v.category.color }, children: v.category.name }) : null,
-        !v.is_available ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__chip", children: v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy }) : null,
+        countLabel ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__count", children: countLabel }) : null,
         /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__overlay", children: [
+          !v.is_available ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__status", children: v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy }) : null,
           /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "sb-vcard__name", children: v.display_name }),
           /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__meta", children: [
             /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vcard__year", children: [

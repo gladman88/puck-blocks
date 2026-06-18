@@ -24,6 +24,9 @@ const cat = { id: 'c1', name: 'Премиум', color: '#ff0000', vehicle_count:
 const vehicle = {
   id: 'v1',
   display_name: 'BMW Z4',
+  brand: 'BMW',
+  model: 'Z4',
+  color: 'black',
   photo_url: 'https://cdn.example/z4.jpg',
   vehicle_type: 'car',
   year: 2023,
@@ -31,6 +34,7 @@ const vehicle = {
   min_price_per_day: 5000,
   is_available: true,
   free_from: null,
+  free_from_time: null,
 };
 
 describe('VehicleCatalog', () => {
@@ -52,6 +56,15 @@ describe('VehicleCatalog', () => {
     stubFetch([], [], false);
     const { findByText } = render(<VehicleCatalog vehicleType="car" />);
     await findByText('Не удалось загрузить каталог');
+  });
+
+  it('groups identical units into one card with an availability count', async () => {
+    const busyUnit = { ...vehicle, id: 'v2', is_available: false, free_from: null };
+    stubFetch([cat], [vehicle, busyUnit]); // same brand/model/year/color → one group
+    const { container, findByText } = render(<VehicleCatalog vehicleType="car" />);
+    await findByText('BMW Z4');
+    expect(container.querySelectorAll('.sb-vcard').length).toBe(1); // grouped, not 2 cards
+    expect(container.querySelector('.sb-vcard__count')?.textContent).toContain('1'); // 1 available of 2
   });
 
   it('uses English labels when puck metadata locale is en', async () => {

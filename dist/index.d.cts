@@ -131,6 +131,9 @@ interface CatalogCategory {
 interface CatalogVehicle {
     id: string;
     display_name: string;
+    brand: string;
+    model: string;
+    color: string;
     photo_url: string | null;
     vehicle_type: 'car' | 'motorcycle';
     year: number | null;
@@ -138,6 +141,7 @@ interface CatalogVehicle {
     min_price_per_day: number | null;
     is_available: boolean;
     free_from: string | null;
+    free_from_time: string | null;
 }
 interface VehicleCatalogProps {
     heading?: string;
@@ -156,9 +160,9 @@ type PuckInjected = {
 };
 /**
  * Live vehicle catalog section. Fetches vehicles + categories from the public
- * FMS catalog API (single source of truth — prices/availability are never
- * hand-entered), with a per-section category filter. Used twice (cars / bikes).
- * Locale comes from Puck metadata passed by the host (page locale).
+ * FMS catalog API (single source of truth), groups identical units into one
+ * card (like frontend_catalog), with a per-section category filter. Used twice
+ * (cars / bikes). Locale comes from Puck metadata (page locale).
  */
 declare function VehicleCatalog({ heading, vehicleType, apiBase, catalogUrl, puck, }: VehicleCatalogProps & PuckInjected): react.JSX.Element;
 

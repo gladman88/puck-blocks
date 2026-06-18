@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Section } from '../components/Section';
 import { safeHref } from '../sanitize';
 
@@ -14,6 +14,9 @@ export interface CatalogCategory {
 export interface CatalogVehicle {
   id: string;
   display_name: string;
+  brand: string;
+  model: string;
+  color: string;
   photo_url: string | null;
   vehicle_type: 'car' | 'motorcycle';
   year: number | null;
@@ -21,6 +24,7 @@ export interface CatalogVehicle {
   min_price_per_day: number | null;
   is_available: boolean;
   free_from: string | null;
+  free_from_time: string | null;
 }
 
 export interface VehicleCatalogProps {
@@ -40,6 +44,8 @@ const STRINGS = {
     busy: 'занята',
     freeFrom: 'свободна с',
     onRequest: 'по запросу',
+    available: 'свободно',
+    total: 'всего',
     viewAll: 'Смотреть весь каталог',
     empty: 'Нет доступных вариантов',
     loading: 'Загрузка…',
@@ -52,12 +58,65 @@ const STRINGS = {
     busy: 'busy',
     freeFrom: 'free from',
     onRequest: 'on request',
+    available: 'available',
+    total: 'total',
     viewAll: 'View full catalog',
     empty: 'No vehicles available',
     loading: 'Loading…',
     error: 'Failed to load catalog',
   },
 } as const;
+
+interface VehicleGroup {
+  /** Representative unit (cheapest available, or earliest-freeing if all busy). */
+  vehicle: CatalogVehicle;
+  total: number;
+  availableCount: number;
+}
+
+// Group identical units (same brand/model/year/colour) into one card, mirroring
+// frontend_catalog: the card shows a representative + a count, not one card per
+// physical unit.
+function groupVehicles(vehicles: CatalogVehicle[]): VehicleGroup[] {
+  const groups = new Map<string, CatalogVehicle[]>();
+  for (const v of vehicles) {
+    const key = `${v.brand}:${v.model}:${v.year ?? ''}:${v.color ?? ''}`;
+    const existing = groups.get(key);
+    if (existing) existing.push(v);
+    else groups.set(key, [v]);
+  }
+
+  return Array.from(groups.values()).map((group) => {
+    const available = group.filter((v) => v.is_available);
+    const availableCount = available.length;
+
+    let representative: CatalogVehicle;
+    if (availableCount === 0) {
+      const withDate = group.filter((v) => v.free_from);
+      const candidates = withDate.length > 0 ? withDate : group;
+      representative = candidates.reduce((a, b) => {
+        if (a.free_from !== b.free_from) return (a.free_from ?? '9999') <= (b.free_from ?? '9999') ? a : b;
+        return (a.min_price_per_day ?? Infinity) <= (b.min_price_per_day ?? Infinity) ? a : b;
+      });
+    } else {
+      const withPrice = available.filter((v) => v.min_price_per_day !== null);
+      representative =
+        withPrice.length > 0
+          ? withPrice.reduce((a, b) => ((a.min_price_per_day ?? 0) <= (b.min_price_per_day ?? 0) ? a : b))
+          : available[0];
+    }
+
+    return {
+      vehicle: {
+        ...representative,
+        is_available: availableCount > 0,
+        free_from: availableCount > 0 ? null : representative.free_from,
+      },
+      total: group.length,
+      availableCount,
+    };
+  });
+}
 
 function formatDate(iso: string, locale: 'ru' | 'en'): string {
   try {
@@ -74,9 +133,9 @@ type PuckInjected = { puck?: { metadata?: { locale?: string } } };
 
 /**
  * Live vehicle catalog section. Fetches vehicles + categories from the public
- * FMS catalog API (single source of truth — prices/availability are never
- * hand-entered), with a per-section category filter. Used twice (cars / bikes).
- * Locale comes from Puck metadata passed by the host (page locale).
+ * FMS catalog API (single source of truth), groups identical units into one
+ * card (like frontend_catalog), with a per-section category filter. Used twice
+ * (cars / bikes). Locale comes from Puck metadata (page locale).
  */
 export function VehicleCatalog({
   heading,
@@ -129,7 +188,12 @@ export function VehicleCatalog({
     vehicles.map((v) => v.category?.id).filter((id): id is string => Boolean(id)),
   );
   const tabs = categories.filter((c) => usedCats.has(c.id));
-  const list = activeCat ? vehicles.filter((v) => v.category?.id === activeCat) : vehicles;
+
+  const groups = useMemo(() => {
+    const list = activeCat ? vehicles.filter((v) => v.category?.id === activeCat) : vehicles;
+    return groupVehicles(list);
+  }, [vehicles, activeCat]);
+
   const base = safeHref(catalogUrl);
 
   return (
@@ -162,14 +226,21 @@ export function VehicleCatalog({
       {state === 'error' ? <p className="sb-vcatalog__state">{t.error}</p> : null}
 
       {state === 'ready' &&
-        (list.length === 0 ? (
+        (groups.length === 0 ? (
           <p className="sb-vcatalog__state">{t.empty}</p>
         ) : (
           <div className="sb-vcatalog__grid">
-            {list.map((v) => {
+            {groups.map((g) => {
+              const v = g.vehicle;
               const href = base
                 ? `${base}${base.includes('?') ? '&' : '?'}vehicle=${encodeURIComponent(v.id)}`
                 : undefined;
+              const countLabel =
+                g.total > 1
+                  ? g.availableCount > 0
+                    ? `${g.availableCount} ${t.available}`
+                    : `${g.total} ${t.total}`
+                  : null;
               const media = (
                 <div className="sb-vcard__media">
                   {v.photo_url ? <img src={v.photo_url} alt={v.display_name} loading="lazy" /> : null}
@@ -178,12 +249,13 @@ export function VehicleCatalog({
                       {v.category.name}
                     </span>
                   ) : null}
-                  {!v.is_available ? (
-                    <span className="sb-vcard__chip">
-                      {v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy}
-                    </span>
-                  ) : null}
+                  {countLabel ? <span className="sb-vcard__count">{countLabel}</span> : null}
                   <div className="sb-vcard__overlay">
+                    {!v.is_available ? (
+                      <span className="sb-vcard__status">
+                        {v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy}
+                      </span>
+                    ) : null}
                     <h3 className="sb-vcard__name">{v.display_name}</h3>
                     <div className="sb-vcard__meta">
                       <span className="sb-vcard__year">
