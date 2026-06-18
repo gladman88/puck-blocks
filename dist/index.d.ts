@@ -38,10 +38,15 @@ interface AboutPromoProps {
     heading: string;
     text?: string;
     image?: string;
+    /** Optional video (YouTube). Shown in the media column above the image. */
+    videoUrl?: string;
     imagePosition?: 'left' | 'right';
 }
-/** Image + headline promo block (2-col on desktop, stacked on mobile). */
-declare function AboutPromo({ heading, text, image, imagePosition }: AboutPromoProps): react.JSX.Element;
+/**
+ * Headline promo block: text on one side, media (video and/or image) on the
+ * other. 2-col on desktop, stacked on mobile. Renders text-only when no media.
+ */
+declare function AboutPromo({ heading, text, image, videoUrl, imagePosition, }: AboutPromoProps): react.JSX.Element;
 
 interface FeatureItem {
     icon?: string;
@@ -66,16 +71,32 @@ interface TermsAccordionProps {
 /** Collapsible terms/conditions (native <details>, no JS, accessible). */
 declare function TermsAccordion({ heading, items }: TermsAccordionProps): react.JSX.Element;
 
-interface ReviewImage {
-    src: string;
-    alt?: string;
+interface ReviewItem {
+    /** Reviewer name. */
+    name?: string;
+    /** 1–5 stars. */
+    rating?: number;
+    /** Review text. */
+    text?: string;
+    /** Reviewer avatar image URL. */
+    avatar?: string;
+    /** Review photo / screenshot image URL (shown when there is no video). */
+    photo?: string;
+    /** Video review link (YouTube preferred — embeds inline). */
+    videoUrl?: string;
 }
 interface ReviewsCarouselProps {
     heading?: string;
-    images: ReviewImage[];
+    /** Section anchor id so the header nav can scroll here (e.g. "reviews"). */
+    anchorId?: string;
+    reviews?: ReviewItem[];
 }
-/** Horizontal, scroll-snap photo carousel (CSS-only, no JS). */
-declare function ReviewsCarousel({ heading, images }: ReviewsCarouselProps): react.JSX.Element;
+/**
+ * Reviews as a responsive grid of cards. Each card is one cohesive review —
+ * name + rating + text and, optionally, an inline video (YouTube) or photo —
+ * instead of disconnected "text reviews" and "video reviews" sections.
+ */
+declare function ReviewsCarousel({ heading, anchorId, reviews }: ReviewsCarouselProps): react.JSX.Element;
 
 interface NavLink {
     label: string;
@@ -188,4 +209,4 @@ interface RootProps {
 }
 declare const puckConfig: Config;
 
-export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogVehicle, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, type NavLink, type Props, type ReviewImage, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TermItem, TermsAccordion, type TermsAccordionProps, VehicleCatalog, type VehicleCatalogProps, puckConfig };
+export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogVehicle, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, type NavLink, type Props, type ReviewItem, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TermItem, TermsAccordion, type TermsAccordionProps, VehicleCatalog, type VehicleCatalogProps, puckConfig };

@@ -8,13 +8,15 @@ export function Section({
   children,
   className = '',
   containerClassName = '',
+  id,
 }: {
   children: ReactNode;
   className?: string;
   containerClassName?: string;
+  id?: string;
 }) {
   return (
-    <section className={`sb-section ${className}`.trim()}>
+    <section id={id || undefined} className={`sb-section ${className}`.trim()}>
       <div className={`sb-container ${containerClassName}`.trim()}>{children}</div>
     </section>
   );

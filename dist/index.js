@@ -40,9 +40,10 @@ function RichText({ content }) {
 function Section({
   children,
   className = "",
-  containerClassName = ""
+  containerClassName = "",
+  id
 }) {
-  return /* @__PURE__ */ jsx("section", { className: `sb-section ${className}`.trim(), children: /* @__PURE__ */ jsx("div", { className: `sb-container ${containerClassName}`.trim(), children }) });
+  return /* @__PURE__ */ jsx("section", { id: id || void 0, className: `sb-section ${className}`.trim(), children: /* @__PURE__ */ jsx("div", { className: `sb-container ${containerClassName}`.trim(), children }) });
 }
 function StatCounters({ heading, items }) {
   return /* @__PURE__ */ jsxs(Section, { children: [
@@ -53,17 +54,73 @@ function StatCounters({ heading, items }) {
     ] }, index)) })
   ] });
 }
-function AboutPromo({ heading, text, image, imagePosition = "right" }) {
+function youtubeId(url) {
+  const patterns = [
+    /youtu\.be\/([\w-]{11})/,
+    /[?&]v=([\w-]{11})/,
+    /youtube\.com\/(?:shorts|embed|live)\/([\w-]{11})/
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+function VideoEmbed({ url, title }) {
+  const [playing, setPlaying] = useState(false);
+  const id = youtubeId(url);
+  if (id) {
+    return /* @__PURE__ */ jsx("div", { className: "sb-video", children: playing ? /* @__PURE__ */ jsx(
+      "iframe",
+      {
+        className: "sb-video__iframe",
+        src: `https://www.youtube.com/embed/${id}?autoplay=1&rel=0`,
+        title: title ?? "\u0412\u0438\u0434\u0435\u043E",
+        allow: "autoplay; encrypted-media; picture-in-picture",
+        allowFullScreen: true
+      }
+    ) : /* @__PURE__ */ jsxs(
+      "button",
+      {
+        type: "button",
+        className: "sb-video__poster",
+        onClick: () => setPlaying(true),
+        "aria-label": "\u0421\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0432\u0438\u0434\u0435\u043E",
+        children: [
+          /* @__PURE__ */ jsx("img", { src: `https://img.youtube.com/vi/${id}/hqdefault.jpg`, alt: "", loading: "lazy" }),
+          /* @__PURE__ */ jsx("span", { className: "sb-video__play", "aria-hidden": true, children: "\u25B6" })
+        ]
+      }
+    ) });
+  }
+  const href = safeHref(url);
+  if (!href) return null;
+  return /* @__PURE__ */ jsxs("a", { className: "sb-video sb-video__link", href, target: "_blank", rel: "noopener noreferrer", children: [
+    /* @__PURE__ */ jsx("span", { className: "sb-video__play", "aria-hidden": true, children: "\u25B6" }),
+    "\u0421\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0432\u0438\u0434\u0435\u043E"
+  ] });
+}
+function AboutPromo({
+  heading,
+  text,
+  image,
+  videoUrl,
+  imagePosition = "right"
+}) {
   const img = safeImageUrl(image);
+  const hasVideo = Boolean(videoUrl && videoUrl.trim());
   const body = /* @__PURE__ */ jsxs("div", { className: "sb-about__body", children: [
     /* @__PURE__ */ jsx("h2", { className: "sb-h2", children: heading }),
     text ? /* @__PURE__ */ jsx("p", { className: "sb-lead", children: text }) : null
   ] });
-  if (!img) {
+  if (!img && !hasVideo) {
     return /* @__PURE__ */ jsx(Section, { children: body });
   }
   return /* @__PURE__ */ jsx(Section, { className: imagePosition === "left" ? "sb-about--reverse" : "", children: /* @__PURE__ */ jsxs("div", { className: "sb-about__grid", children: [
-    /* @__PURE__ */ jsx("div", { className: "sb-about__media", children: /* @__PURE__ */ jsx("img", { className: "sb-about__img", src: img, alt: heading, loading: "lazy" }) }),
+    /* @__PURE__ */ jsxs("div", { className: "sb-about__media", children: [
+      hasVideo ? /* @__PURE__ */ jsx(VideoEmbed, { url: videoUrl, title: heading }) : null,
+      img ? /* @__PURE__ */ jsx("img", { className: "sb-about__img", src: img, alt: heading, loading: "lazy" }) : null
+    ] }),
     body
   ] }) });
 }
@@ -89,11 +146,55 @@ function TermsAccordion({ heading, items }) {
     ] }, index))
   ] });
 }
-function ReviewsCarousel({ heading, images }) {
-  const safe = (images ?? []).map((image) => ({ src: safeImageUrl(image.src), alt: image.alt })).filter((image) => Boolean(image.src));
-  return /* @__PURE__ */ jsxs(Section, { children: [
+function Stars({ rating }) {
+  const full = Math.max(0, Math.min(5, Math.round(rating)));
+  return /* @__PURE__ */ jsxs("span", { className: "sb-review__stars", "aria-label": `${full} \u0438\u0437 5`, children: [
+    "\u2605\u2605\u2605\u2605\u2605".slice(0, full),
+    /* @__PURE__ */ jsx("span", { className: "sb-review__stars-empty", children: "\u2605\u2605\u2605\u2605\u2605".slice(0, 5 - full) })
+  ] });
+}
+function ReviewCard({ review }) {
+  const hasHead = Boolean(review.name || review.avatar || review.rating);
+  return /* @__PURE__ */ jsxs("article", { className: "sb-review", children: [
+    review.videoUrl ? /* @__PURE__ */ jsx(
+      VideoEmbed,
+      {
+        url: review.videoUrl,
+        title: review.name ? `\u0412\u0438\u0434\u0435\u043E-\u043E\u0442\u0437\u044B\u0432 \u2014 ${review.name}` : "\u0412\u0438\u0434\u0435\u043E-\u043E\u0442\u0437\u044B\u0432"
+      }
+    ) : review.photo ? /* @__PURE__ */ jsx("div", { className: "sb-review__media", children: /* @__PURE__ */ jsx(
+      "img",
+      {
+        className: "sb-review__photo",
+        src: review.photo,
+        alt: review.name ?? "",
+        loading: "lazy"
+      }
+    ) }) : null,
+    /* @__PURE__ */ jsxs("div", { className: "sb-review__body", children: [
+      hasHead ? /* @__PURE__ */ jsxs("div", { className: "sb-review__head", children: [
+        review.avatar ? /* @__PURE__ */ jsx("img", { className: "sb-review__avatar", src: review.avatar, alt: "", loading: "lazy" }) : null,
+        /* @__PURE__ */ jsxs("div", { className: "sb-review__meta", children: [
+          review.name ? /* @__PURE__ */ jsx("p", { className: "sb-review__name", children: review.name }) : null,
+          review.rating ? /* @__PURE__ */ jsx(Stars, { rating: review.rating }) : null
+        ] })
+      ] }) : null,
+      review.text ? /* @__PURE__ */ jsx("p", { className: "sb-review__text", children: review.text }) : null
+    ] })
+  ] });
+}
+function ReviewsCarousel({ heading, anchorId, reviews }) {
+  const safe = (reviews ?? []).map((r) => ({
+    name: r.name?.trim() || void 0,
+    rating: typeof r.rating === "number" && r.rating > 0 ? r.rating : void 0,
+    text: r.text?.trim() || void 0,
+    avatar: safeImageUrl(r.avatar ?? "") || void 0,
+    photo: safeImageUrl(r.photo ?? "") || void 0,
+    videoUrl: r.videoUrl?.trim() || void 0
+  })).filter((r) => r.name || r.text || r.photo || r.videoUrl);
+  return /* @__PURE__ */ jsxs(Section, { id: anchorId || "reviews", children: [
     heading ? /* @__PURE__ */ jsx("h2", { className: "sb-h2", children: heading }) : null,
-    /* @__PURE__ */ jsx("div", { className: "sb-reviews__track", children: safe.map((image, index) => /* @__PURE__ */ jsx("div", { className: "sb-reviews__item", children: /* @__PURE__ */ jsx("img", { className: "sb-reviews__img", src: image.src, alt: image.alt ?? "", loading: "lazy" }) }, index)) })
+    safe.length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-reviews-grid", children: safe.map((r, i) => /* @__PURE__ */ jsx(ReviewCard, { review: r }, i)) }) : null
   ] });
 }
 var base = {
@@ -594,14 +695,15 @@ var internalConfig = {
       render: Hero
     },
     AboutPromo: {
-      label: "\u041F\u0440\u043E\u043C\u043E (\u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0430 + \u0442\u0435\u043A\u0441\u0442)",
+      label: "\u041F\u0440\u043E\u043C\u043E (\u043C\u0435\u0434\u0438\u0430 + \u0442\u0435\u043A\u0441\u0442)",
       fields: {
         heading: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" },
         text: { type: "textarea", label: "\u0422\u0435\u043A\u0441\u0442" },
         image: imageField("\u0418\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435"),
+        videoUrl: { type: "text", label: "\u0412\u0438\u0434\u0435\u043E \u2014 \u0441\u0441\u044B\u043B\u043A\u0430 YouTube (\u043E\u043F\u0446.)" },
         imagePosition: {
           type: "radio",
-          label: "\u041A\u0430\u0440\u0442\u0438\u043D\u043A\u0430",
+          label: "\u041C\u0435\u0434\u0438\u0430",
           options: [
             { label: "\u0421\u043F\u0440\u0430\u0432\u0430", value: "right" },
             { label: "\u0421\u043B\u0435\u0432\u0430", value: "left" }
@@ -612,6 +714,7 @@ var internalConfig = {
         heading: "\u0412\u044B \u0441\u0430\u0434\u0438\u0442\u0435\u0441\u044C \u0432 \u0430\u0440\u0435\u043D\u0434\u043D\u0443\u044E \u043C\u0430\u0448\u0438\u043D\u0443, \u043A\u0430\u043A \u0432 \u0441\u0432\u043E\u044E!",
         text: "",
         image: "",
+        videoUrl: "",
         imagePosition: "right"
       },
       render: AboutPromo
@@ -708,23 +811,29 @@ var internalConfig = {
       render: TermsAccordion
     },
     ReviewsCarousel: {
-      label: "\u041E\u0442\u0437\u044B\u0432\u044B (\u043A\u0430\u0440\u0443\u0441\u0435\u043B\u044C)",
+      label: "\u041E\u0442\u0437\u044B\u0432\u044B",
       fields: {
         heading: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A (\u043E\u043F\u0446.)" },
-        images: {
+        anchorId: { type: "text", label: "\u042F\u043A\u043E\u0440\u044C \u0434\u043B\u044F \u043C\u0435\u043D\u044E (\u043D\u0430\u043F\u0440. reviews)" },
+        reviews: {
           type: "array",
-          label: "\u0424\u043E\u0442\u043E",
+          label: "\u041E\u0442\u0437\u044B\u0432\u044B",
           arrayFields: {
-            src: imageField("\u0424\u043E\u0442\u043E"),
-            alt: { type: "text", label: "\u041F\u043E\u0434\u043F\u0438\u0441\u044C (alt)" }
+            name: { type: "text", label: "\u0418\u043C\u044F" },
+            rating: { type: "number", label: "\u041E\u0446\u0435\u043D\u043A\u0430 (1\u20135)", min: 1, max: 5 },
+            text: { type: "textarea", label: "\u0422\u0435\u043A\u0441\u0442 \u043E\u0442\u0437\u044B\u0432\u0430" },
+            avatar: imageField("\u0410\u0432\u0430\u0442\u0430\u0440"),
+            photo: imageField("\u0424\u043E\u0442\u043E / \u0441\u043A\u0440\u0438\u043D\u0448\u043E\u0442 \u043E\u0442\u0437\u044B\u0432\u0430"),
+            videoUrl: { type: "text", label: "\u0412\u0438\u0434\u0435\u043E \u2014 \u0441\u0441\u044B\u043B\u043A\u0430 YouTube" }
           },
-          defaultItemProps: { src: "", alt: "" },
-          getItemSummary: (item, index) => item.alt || `\u0424\u043E\u0442\u043E ${(index ?? 0) + 1}`
+          defaultItemProps: { name: "", rating: 5, text: "", avatar: "", photo: "", videoUrl: "" },
+          getItemSummary: (item, index) => item.name || (item.videoUrl ? "\u0412\u0438\u0434\u0435\u043E-\u043E\u0442\u0437\u044B\u0432" : `\u041E\u0442\u0437\u044B\u0432 ${(index ?? 0) + 1}`)
         }
       },
       defaultProps: {
         heading: "\u041E\u0442\u0437\u044B\u0432\u044B",
-        images: []
+        anchorId: "reviews",
+        reviews: []
       },
       render: ReviewsCarousel
     },

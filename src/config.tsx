@@ -74,14 +74,15 @@ const internalConfig: Config<Props, RootProps> = {
       render: Hero,
     },
     AboutPromo: {
-      label: 'Промо (картинка + текст)',
+      label: 'Промо (медиа + текст)',
       fields: {
         heading: { type: 'text', label: 'Заголовок' },
         text: { type: 'textarea', label: 'Текст' },
         image: imageField('Изображение'),
+        videoUrl: { type: 'text', label: 'Видео — ссылка YouTube (опц.)' },
         imagePosition: {
           type: 'radio',
-          label: 'Картинка',
+          label: 'Медиа',
           options: [
             { label: 'Справа', value: 'right' },
             { label: 'Слева', value: 'left' },
@@ -92,6 +93,7 @@ const internalConfig: Config<Props, RootProps> = {
         heading: 'Вы садитесь в арендную машину, как в свою!',
         text: '',
         image: '',
+        videoUrl: '',
         imagePosition: 'right',
       },
       render: AboutPromo,
@@ -188,23 +190,30 @@ const internalConfig: Config<Props, RootProps> = {
       render: TermsAccordion,
     },
     ReviewsCarousel: {
-      label: 'Отзывы (карусель)',
+      label: 'Отзывы',
       fields: {
         heading: { type: 'text', label: 'Заголовок (опц.)' },
-        images: {
+        anchorId: { type: 'text', label: 'Якорь для меню (напр. reviews)' },
+        reviews: {
           type: 'array',
-          label: 'Фото',
+          label: 'Отзывы',
           arrayFields: {
-            src: imageField('Фото'),
-            alt: { type: 'text', label: 'Подпись (alt)' },
+            name: { type: 'text', label: 'Имя' },
+            rating: { type: 'number', label: 'Оценка (1–5)', min: 1, max: 5 },
+            text: { type: 'textarea', label: 'Текст отзыва' },
+            avatar: imageField('Аватар'),
+            photo: imageField('Фото / скриншот отзыва'),
+            videoUrl: { type: 'text', label: 'Видео — ссылка YouTube' },
           },
-          defaultItemProps: { src: '', alt: '' },
-          getItemSummary: (item, index) => item.alt || `Фото ${(index ?? 0) + 1}`,
+          defaultItemProps: { name: '', rating: 5, text: '', avatar: '', photo: '', videoUrl: '' },
+          getItemSummary: (item, index) =>
+            item.name || (item.videoUrl ? 'Видео-отзыв' : `Отзыв ${(index ?? 0) + 1}`),
         },
       },
       defaultProps: {
         heading: 'Отзывы',
-        images: [],
+        anchorId: 'reviews',
+        reviews: [],
       },
       render: ReviewsCarousel,
     },
