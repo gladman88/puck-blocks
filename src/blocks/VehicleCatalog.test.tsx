@@ -40,15 +40,14 @@ const vehicle = {
 describe('VehicleCatalog', () => {
   it('renders vehicle cards and category tabs from the API', async () => {
     stubFetch([cat], [vehicle]);
-    const { container, findByText } = render(
-      <VehicleCatalog vehicleType="car" catalogUrl="https://catalog.example" />,
-    );
+    const { container, findByText } = render(<VehicleCatalog vehicleType="car" />);
     await findByText('BMW Z4');
     expect(container.querySelectorAll('.sb-vcard').length).toBe(1);
     // category tab (+ "Все")
     expect(container.querySelectorAll('.sb-vcatalog__tab').length).toBe(2);
-    // card links into the full catalog with the vehicle id
-    expect(container.querySelector('a.sb-vcard')?.getAttribute('href')).toContain('vehicle=v1');
+    // card is a clickable button (opens the booking modal), not an external link
+    expect(container.querySelector('button.sb-vcard')).not.toBeNull();
+    expect(container.querySelector('a.sb-vcard')).toBeNull();
     expect(container.textContent).toContain('5,000');
   });
 

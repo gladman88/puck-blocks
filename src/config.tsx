@@ -385,7 +385,7 @@ const internalConfig: Config<Props, RootProps> = {
             { label: 'Байки', value: 'motorcycle' },
           ],
         },
-        catalogUrl: { type: 'text', label: 'Ссылка на полный каталог' },
+        telegramBot: { type: 'text', label: 'Telegram-бот (для быстрого заказа в попапе)' },
         defaultCategory: {
           type: 'text',
           label: 'Вкладка по умолчанию (название категории, напр. «Премиум»)',
@@ -395,7 +395,7 @@ const internalConfig: Config<Props, RootProps> = {
         heading: 'Автомобили',
         anchorId: '',
         vehicleType: 'car',
-        catalogUrl: '',
+        telegramBot: 'shiba_cars_rental_bot',
         defaultCategory: '',
       },
       render: VehicleCatalog,

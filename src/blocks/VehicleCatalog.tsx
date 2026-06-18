@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Section } from '../components/Section';
-import { safeHref } from '../sanitize';
+import { VehicleBookingModal } from './catalog/VehicleBookingModal';
 
 // Mirrors the public catalog API shape (apps/fleet/catalog_serializers.py),
 // reused from frontend_catalog so we don't reinvent the data layer.
@@ -34,8 +34,8 @@ export interface VehicleCatalogProps {
   vehicleType?: 'car' | 'motorcycle';
   /** API origin; '' = relative path (proxied by the host app). */
   apiBase?: string;
-  /** Link to the full catalog app (card click + "view all"). */
-  catalogUrl?: string;
+  /** Telegram bot username for the quick-booking deep link in the card popup. */
+  telegramBot?: string;
   /**
    * Category name preselected on load and shown first in the tab row (e.g.
    * «Премиум» for cars, «Мотоциклы» for bikes). The «Все» tab is always last.
@@ -150,7 +150,7 @@ export function VehicleCatalog({
   anchorId,
   vehicleType = 'car',
   apiBase = '',
-  catalogUrl,
+  telegramBot = 'shiba_cars_rental_bot',
   defaultCategory,
   puck,
 }: VehicleCatalogProps & PuckInjected) {
@@ -161,6 +161,7 @@ export function VehicleCatalog({
   const [vehicles, setVehicles] = useState<CatalogVehicle[]>([]);
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [selected, setSelected] = useState<CatalogVehicle | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -226,8 +227,6 @@ export function VehicleCatalog({
     return groupVehicles(list);
   }, [vehicles, activeCat]);
 
-  const base = safeHref(catalogUrl);
-
   return (
     <Section className="sb-vcatalog" id={anchorId || undefined}>
       {heading ? <h2 className="sb-h2">{heading}</h2> : null}
@@ -264,16 +263,14 @@ export function VehicleCatalog({
           <div className="sb-vcatalog__grid">
             {groups.map((g) => {
               const v = g.vehicle;
-              const href = base
-                ? `${base}${base.includes('?') ? '&' : '?'}vehicle=${encodeURIComponent(v.id)}`
-                : undefined;
               const countLabel =
                 g.total > 1
                   ? g.availableCount > 0
                     ? `${g.availableCount} ${t.available}`
                     : `${g.total} ${t.total}`
                   : null;
-              const media = (
+              return (
+                <button type="button" className="sb-vcard" key={v.id} onClick={() => setSelected(v)}>
                 <div className="sb-vcard__media">
                   {v.photo_url ? <img src={v.photo_url} alt={v.display_name} loading="lazy" /> : null}
                   {v.category ? (
@@ -308,26 +305,20 @@ export function VehicleCatalog({
                     </div>
                   </div>
                 </div>
-              );
-              return href ? (
-                <a className="sb-vcard" key={v.id} href={href}>
-                  {media}
-                </a>
-              ) : (
-                <div className="sb-vcard" key={v.id}>
-                  {media}
-                </div>
+                </button>
               );
             })}
           </div>
         ))}
 
-      {state === 'ready' && base ? (
-        <div className="sb-vcatalog__foot">
-          <a className="sb-btn sb-btn--ghost" href={base}>
-            {t.viewAll}
-          </a>
-        </div>
+      {selected ? (
+        <VehicleBookingModal
+          vehicle={selected}
+          apiBase={apiBase}
+          locale={locale}
+          botUsername={telegramBot}
+          onClose={() => setSelected(null)}
+        />
       ) : null}
     </Section>
   );

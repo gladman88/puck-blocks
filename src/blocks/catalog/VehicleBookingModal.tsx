@@ -1,0 +1,446 @@
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
+import type { CatalogVehicle } from '../VehicleCatalog';
+import { safeHref, safeImageUrl } from '../../sanitize';
+import { addDays, buildTelegramDeepLink, daysBetween, nextDay, todayISO } from './dates';
+
+interface GalleryImage {
+  image_url: string;
+  position: number;
+}
+interface Deposit {
+  currency_code: string;
+  amount: string;
+}
+interface PricingRow {
+  period_label: string;
+  min_days: number;
+  max_days: number | null;
+  price_per_day: string;
+  is_monthly: boolean;
+  monthly_price?: string;
+}
+export interface CatalogVehicleDetail extends CatalogVehicle {
+  fuel_type?: string;
+  transmission?: string;
+  drive_type?: string;
+  engine_volume?: string;
+  horse_power?: string;
+  sprint_0_100?: string;
+  max_speed?: string;
+  clearance?: string;
+  weight?: string;
+  tank_volume?: string;
+  fuel_consumption?: string;
+  options?: string[];
+  advantages?: string[];
+  insurance_class?: string;
+  gallery_images?: GalleryImage[];
+  deposits?: Deposit[];
+  pricing_table?: PricingRow[];
+  pricing_season_name?: string | null;
+}
+
+const SPEC_KEYS = [
+  'fuel_type',
+  'transmission',
+  'drive_type',
+  'engine_volume',
+  'horse_power',
+  'sprint_0_100',
+  'max_speed',
+  'clearance',
+  'weight',
+  'tank_volume',
+  'fuel_consumption',
+] as const;
+
+const S = {
+  ru: {
+    close: 'Закрыть',
+    from: 'от',
+    perDay: '฿/день',
+    available: 'Свободна сейчас',
+    freesUp: 'Освободится',
+    busy: 'Занята',
+    specs: 'Характеристики',
+    options: 'Опции',
+    deposit: 'Депозит',
+    loading: 'Загрузка…',
+    error: 'Не удалось загрузить',
+    start: 'Дата начала',
+    end: 'Дата конца',
+    name: 'Ваше имя',
+    contact: 'Как с вами связаться?',
+    send: 'Отправить заявку',
+    tgQuick: 'Быстрый заказ в Telegram',
+    or: 'или',
+    successTitle: 'Заявка отправлена!',
+    successText: 'Мы скоро свяжемся с вами.',
+    tooMany: 'Слишком много запросов, попробуйте позже',
+    sendErr: 'Не удалось отправить. Попробуйте ещё раз.',
+    phonePh: '+66...',
+    tgPh: '@username',
+    labels: {
+      fuel_type: 'Топливо',
+      transmission: 'Коробка',
+      drive_type: 'Привод',
+      engine_volume: 'Двигатель',
+      horse_power: 'Мощность',
+      sprint_0_100: 'Разгон 0–100',
+      max_speed: 'Макс. скорость',
+      clearance: 'Клиренс',
+      weight: 'Масса',
+      tank_volume: 'Бак',
+      fuel_consumption: 'Расход',
+    } as Record<string, string>,
+  },
+  en: {
+    close: 'Close',
+    from: 'from',
+    perDay: '฿/day',
+    available: 'Available now',
+    freesUp: 'Frees up',
+    busy: 'Busy',
+    specs: 'Specs',
+    options: 'Options',
+    deposit: 'Deposit',
+    loading: 'Loading…',
+    error: 'Failed to load',
+    start: 'Start date',
+    end: 'End date',
+    name: 'Your name',
+    contact: 'How to contact you?',
+    send: 'Send request',
+    tgQuick: 'Quick booking in Telegram',
+    or: 'or',
+    successTitle: 'Request sent!',
+    successText: 'We will contact you shortly.',
+    tooMany: 'Too many requests, try later',
+    sendErr: 'Could not send. Please try again.',
+    phonePh: '+66...',
+    tgPh: '@username',
+    labels: {
+      fuel_type: 'Fuel',
+      transmission: 'Transmission',
+      drive_type: 'Drive',
+      engine_volume: 'Engine',
+      horse_power: 'Power',
+      sprint_0_100: '0–100',
+      max_speed: 'Top speed',
+      clearance: 'Clearance',
+      weight: 'Weight',
+      tank_volume: 'Tank',
+      fuel_consumption: 'Consumption',
+    } as Record<string, string>,
+  },
+} as const;
+
+const HEADERS = { 'ngrok-skip-browser-warning': 'true' };
+
+interface Props {
+  vehicle: CatalogVehicle;
+  apiBase: string;
+  locale: 'ru' | 'en';
+  botUsername: string;
+  onClose: () => void;
+}
+
+/**
+ * Vehicle detail + booking modal — mirrors frontend_catalog's flow, reusing the
+ * SAME backend endpoints: GET /catalog/vehicles/{id}/ and
+ * POST /catalog/booking-requests/. Rendered in a portal to document.body.
+ */
+export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose }: Props) {
+  const t = S[locale];
+  const [detail, setDetail] = useState<CatalogVehicleDetail | null>(null);
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [gi, setGi] = useState(0);
+
+  const minStart =
+    !vehicle.is_available && vehicle.free_from && vehicle.free_from > todayISO()
+      ? vehicle.free_from
+      : todayISO();
+  const [start, setStart] = useState(minStart);
+  const [end, setEnd] = useState(nextDay(minStart));
+  const [name, setName] = useState('');
+  const [channel, setChannel] = useState<'whatsapp' | 'telegram'>('whatsapp');
+  const [contact, setContact] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState('');
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setState('loading');
+    fetch(`${apiBase}/api/v1/catalog/vehicles/${vehicle.id}/`, { headers: HEADERS })
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json() as Promise<CatalogVehicleDetail>;
+      })
+      .then((d) => {
+        if (!cancelled) {
+          setDetail(d);
+          setState('ready');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setState('error');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, vehicle.id]);
+
+  // Keep end strictly after start.
+  useEffect(() => {
+    if (start && (!end || end <= start)) setEnd(nextDay(start));
+  }, [start, end]);
+
+  const datesValid = Boolean(start && end && start >= minStart && end > start);
+
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!datesValid || !name.trim() || !contact.trim()) return;
+    setSubmitting(true);
+    setErr('');
+    try {
+      const res = await fetch(`${apiBase}/api/v1/catalog/booking-requests/`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...HEADERS },
+        body: JSON.stringify({
+          vehicle_id: vehicle.id,
+          start_date: start,
+          end_date: end,
+          customer_name: name.trim(),
+          contact_channel: channel,
+          contact_identifier: contact.trim(),
+        }),
+      });
+      if (res.ok) {
+        setDone(true);
+      } else {
+        setErr(res.status === 429 ? t.tooMany : t.sendErr);
+      }
+    } catch {
+      setErr(t.sendErr);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const d = detail;
+  const images = (d?.gallery_images ?? [])
+    .map((g) => safeImageUrl(g.image_url))
+    .filter((u): u is string => Boolean(u));
+  const mainImg = images[gi] || safeImageUrl(vehicle.photo_url ?? '') || '';
+  const tgHref = safeHref(
+    buildTelegramDeepLink(botUsername, vehicle.id, datesValid ? { from: start, to: end } : undefined),
+  );
+  const price = d?.min_price_per_day ?? vehicle.min_price_per_day;
+
+  return createPortal(
+    // Wrap in .sb-root so the design tokens (--sb-*) cascade into the portal,
+    // which lives outside the page's .sb-root.
+    <div className="sb-root">
+    <div className="sb-modal" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="sb-modal__dialog" ref={dialogRef} onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="sb-modal__close" aria-label={t.close} onClick={onClose}>
+          ×
+        </button>
+
+        {state === 'loading' ? <p className="sb-modal__state">{t.loading}</p> : null}
+        {state === 'error' ? <p className="sb-modal__state">{t.error}</p> : null}
+
+        {state === 'ready' && d ? (
+          done ? (
+            <div className="sb-modal__success">
+              <div className="sb-modal__check" aria-hidden>
+                ✓
+              </div>
+              <h3>{t.successTitle}</h3>
+              <p>{t.successText}</p>
+              <button type="button" className="sb-btn" onClick={onClose}>
+                OK
+              </button>
+            </div>
+          ) : (
+            <div className="sb-modal__body">
+              {/* Gallery */}
+              {mainImg ? (
+                <div className="sb-vd__media">
+                  <img className="sb-vd__photo" src={mainImg} alt={d.display_name} />
+                  {images.length > 1 ? (
+                    <div className="sb-vd__thumbs">
+                      {images.map((u, i) => (
+                        <button
+                          type="button"
+                          key={i}
+                          className={`sb-vd__thumb ${i === gi ? 'is-active' : ''}`}
+                          onClick={() => setGi(i)}
+                          aria-label={`${i + 1}`}
+                        >
+                          <img src={u} alt="" loading="lazy" />
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="sb-vd__info">
+                <h3 className="sb-vd__name">
+                  {d.display_name}
+                  {d.year ? <span className="sb-vd__year"> {d.year}</span> : null}
+                </h3>
+                {d.category ? (
+                  <span className="sb-vd__badge" style={{ backgroundColor: d.category.color }}>
+                    {d.category.name}
+                  </span>
+                ) : null}
+
+                {price != null ? (
+                  <p className="sb-vd__price">
+                    <small>{t.from} </small>
+                    {Math.round(price).toLocaleString('en-US')}
+                    <small> {t.perDay}</small>
+                  </p>
+                ) : null}
+
+                <p className={`sb-vd__avail ${d.is_available ? 'is-free' : 'is-busy'}`}>
+                  {d.is_available
+                    ? t.available
+                    : d.free_from
+                      ? `${t.freesUp}: ${d.free_from}`
+                      : t.busy}
+                </p>
+
+                {(d.advantages ?? []).length > 0 ? (
+                  <div className="sb-vd__chips">
+                    {d.advantages!.map((a, i) => (
+                      <span className="sb-chip" key={i}>
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                {/* Specs */}
+                {SPEC_KEYS.some((k) => d[k]) ? (
+                  <div className="sb-vd__specs">
+                    {SPEC_KEYS.filter((k) => d[k]).map((k) => (
+                      <div className="sb-vd__spec" key={k}>
+                        <span>{t.labels[k]}</span>
+                        <b>{d[k]}</b>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {(d.options ?? []).length > 0 ? (
+                  <div className="sb-vd__chips">
+                    {d.options!.map((o, i) => (
+                      <span className="sb-chip sb-chip--ghost" key={i}>
+                        {o}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                {(d.deposits ?? []).length > 0 ? (
+                  <p className="sb-vd__deposit">
+                    {t.deposit}:{' '}
+                    {d.deposits!.map((dep) => `${dep.amount} ${dep.currency_code}`).join(' · ')}
+                  </p>
+                ) : null}
+              </div>
+
+              {/* Booking */}
+              <form className="sb-vd__book" onSubmit={submit}>
+                <div className="sb-vd__dates">
+                  <label>
+                    {t.start}
+                    <input
+                      type="date"
+                      className="sb-input"
+                      value={start}
+                      min={minStart}
+                      onChange={(e) => setStart(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    {t.end}
+                    <input
+                      type="date"
+                      className="sb-input"
+                      value={end}
+                      min={nextDay(start)}
+                      onChange={(e) => setEnd(e.target.value)}
+                    />
+                  </label>
+                </div>
+
+                {tgHref ? (
+                  <a
+                    className="sb-btn sb-vd__tg"
+                    href={tgHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t.tgQuick}
+                  </a>
+                ) : null}
+
+                <div className="sb-vd__or">{t.or}</div>
+
+                <input
+                  className="sb-input"
+                  type="text"
+                  placeholder={t.name}
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <div className="sb-vd__channel" role="group" aria-label={t.contact}>
+                  <button
+                    type="button"
+                    className={channel === 'whatsapp' ? 'is-active' : ''}
+                    onClick={() => setChannel('whatsapp')}
+                  >
+                    WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    className={channel === 'telegram' ? 'is-active' : ''}
+                    onClick={() => setChannel('telegram')}
+                  >
+                    Telegram
+                  </button>
+                </div>
+                <input
+                  className="sb-input"
+                  type="text"
+                  placeholder={channel === 'whatsapp' ? t.phonePh : t.tgPh}
+                  required
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                />
+                <button
+                  className="sb-btn sb-btn--block"
+                  type="submit"
+                  disabled={submitting || !datesValid}
+                >
+                  {t.send}
+                </button>
+                {err ? <p className="sb-form__status sb-form__status--err">{err}</p> : null}
+              </form>
+            </div>
+          )
+        ) : null}
+      </div>
+    </div>
+    </div>,
+    document.body,
+  );
+}

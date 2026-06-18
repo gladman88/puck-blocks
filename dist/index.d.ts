@@ -205,8 +205,8 @@ interface VehicleCatalogProps {
     vehicleType?: 'car' | 'motorcycle';
     /** API origin; '' = relative path (proxied by the host app). */
     apiBase?: string;
-    /** Link to the full catalog app (card click + "view all"). */
-    catalogUrl?: string;
+    /** Telegram bot username for the quick-booking deep link in the card popup. */
+    telegramBot?: string;
     /**
      * Category name preselected on load and shown first in the tab row (e.g.
      * «Премиум» for cars, «Мотоциклы» for bikes). The «Все» tab is always last.
@@ -227,7 +227,7 @@ type PuckInjected = {
  * card (like frontend_catalog), with a per-section category filter. Used twice
  * (cars / bikes). Locale comes from Puck metadata (page locale).
  */
-declare function VehicleCatalog({ heading, anchorId, vehicleType, apiBase, catalogUrl, defaultCategory, puck, }: VehicleCatalogProps & PuckInjected): react.JSX.Element;
+declare function VehicleCatalog({ heading, anchorId, vehicleType, apiBase, telegramBot, defaultCategory, puck, }: VehicleCatalogProps & PuckInjected): react.JSX.Element;
 
 interface MapContactsProps {
     /** Section anchor id (e.g. "contacts"). */

@@ -516,6 +516,354 @@ function LeadForm({
     img ? /* @__PURE__ */ jsx("div", { className: "sb-leadform__media", children: /* @__PURE__ */ jsx("img", { src: img, alt: heading ?? "", loading: "lazy" }) }) : null
   ] }) });
 }
+
+// src/blocks/catalog/dates.ts
+function todayISO() {
+  const d = /* @__PURE__ */ new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function addDays(isoDate, n) {
+  if (!isoDate) return "";
+  const [y, m, d] = isoDate.split("-").map(Number);
+  if (!y || !m || !d) return "";
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().split("T")[0];
+}
+function nextDay(isoDate) {
+  return addDays(isoDate, 1);
+}
+function buildTelegramDeepLink(botUsername, vehicleId, dates) {
+  let payload = `bk_${vehicleId.replace(/-/g, "")}`;
+  if (dates?.from && dates?.to) {
+    payload += `_${dates.from.replace(/-/g, "")}_${dates.to.replace(/-/g, "")}`;
+  }
+  return `https://t.me/${botUsername}?start=${payload}`;
+}
+var SPEC_KEYS = [
+  "fuel_type",
+  "transmission",
+  "drive_type",
+  "engine_volume",
+  "horse_power",
+  "sprint_0_100",
+  "max_speed",
+  "clearance",
+  "weight",
+  "tank_volume",
+  "fuel_consumption"
+];
+var S = {
+  ru: {
+    close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
+    from: "\u043E\u0442",
+    perDay: "\u0E3F/\u0434\u0435\u043D\u044C",
+    available: "\u0421\u0432\u043E\u0431\u043E\u0434\u043D\u0430 \u0441\u0435\u0439\u0447\u0430\u0441",
+    freesUp: "\u041E\u0441\u0432\u043E\u0431\u043E\u0434\u0438\u0442\u0441\u044F",
+    busy: "\u0417\u0430\u043D\u044F\u0442\u0430",
+    specs: "\u0425\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438",
+    options: "\u041E\u043F\u0446\u0438\u0438",
+    deposit: "\u0414\u0435\u043F\u043E\u0437\u0438\u0442",
+    loading: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026",
+    error: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C",
+    start: "\u0414\u0430\u0442\u0430 \u043D\u0430\u0447\u0430\u043B\u0430",
+    end: "\u0414\u0430\u0442\u0430 \u043A\u043E\u043D\u0446\u0430",
+    name: "\u0412\u0430\u0448\u0435 \u0438\u043C\u044F",
+    contact: "\u041A\u0430\u043A \u0441 \u0432\u0430\u043C\u0438 \u0441\u0432\u044F\u0437\u0430\u0442\u044C\u0441\u044F?",
+    send: "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u044F\u0432\u043A\u0443",
+    tgQuick: "\u0411\u044B\u0441\u0442\u0440\u044B\u0439 \u0437\u0430\u043A\u0430\u0437 \u0432 Telegram",
+    or: "\u0438\u043B\u0438",
+    successTitle: "\u0417\u0430\u044F\u0432\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0430!",
+    successText: "\u041C\u044B \u0441\u043A\u043E\u0440\u043E \u0441\u0432\u044F\u0436\u0435\u043C\u0441\u044F \u0441 \u0432\u0430\u043C\u0438.",
+    tooMany: "\u0421\u043B\u0438\u0448\u043A\u043E\u043C \u043C\u043D\u043E\u0433\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u043E\u0432, \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u043F\u043E\u0437\u0436\u0435",
+    sendErr: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437.",
+    phonePh: "+66...",
+    tgPh: "@username",
+    labels: {
+      fuel_type: "\u0422\u043E\u043F\u043B\u0438\u0432\u043E",
+      transmission: "\u041A\u043E\u0440\u043E\u0431\u043A\u0430",
+      drive_type: "\u041F\u0440\u0438\u0432\u043E\u0434",
+      engine_volume: "\u0414\u0432\u0438\u0433\u0430\u0442\u0435\u043B\u044C",
+      horse_power: "\u041C\u043E\u0449\u043D\u043E\u0441\u0442\u044C",
+      sprint_0_100: "\u0420\u0430\u0437\u0433\u043E\u043D 0\u2013100",
+      max_speed: "\u041C\u0430\u043A\u0441. \u0441\u043A\u043E\u0440\u043E\u0441\u0442\u044C",
+      clearance: "\u041A\u043B\u0438\u0440\u0435\u043D\u0441",
+      weight: "\u041C\u0430\u0441\u0441\u0430",
+      tank_volume: "\u0411\u0430\u043A",
+      fuel_consumption: "\u0420\u0430\u0441\u0445\u043E\u0434"
+    }
+  },
+  en: {
+    close: "Close",
+    from: "from",
+    perDay: "\u0E3F/day",
+    available: "Available now",
+    freesUp: "Frees up",
+    busy: "Busy",
+    specs: "Specs",
+    options: "Options",
+    deposit: "Deposit",
+    loading: "Loading\u2026",
+    error: "Failed to load",
+    start: "Start date",
+    end: "End date",
+    name: "Your name",
+    contact: "How to contact you?",
+    send: "Send request",
+    tgQuick: "Quick booking in Telegram",
+    or: "or",
+    successTitle: "Request sent!",
+    successText: "We will contact you shortly.",
+    tooMany: "Too many requests, try later",
+    sendErr: "Could not send. Please try again.",
+    phonePh: "+66...",
+    tgPh: "@username",
+    labels: {
+      fuel_type: "Fuel",
+      transmission: "Transmission",
+      drive_type: "Drive",
+      engine_volume: "Engine",
+      horse_power: "Power",
+      sprint_0_100: "0\u2013100",
+      max_speed: "Top speed",
+      clearance: "Clearance",
+      weight: "Weight",
+      tank_volume: "Tank",
+      fuel_consumption: "Consumption"
+    }
+  }
+};
+var HEADERS = { "ngrok-skip-browser-warning": "true" };
+function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose }) {
+  const t = S[locale];
+  const [detail, setDetail] = useState(null);
+  const [state, setState] = useState("loading");
+  const [gi, setGi] = useState(0);
+  const minStart = !vehicle.is_available && vehicle.free_from && vehicle.free_from > todayISO() ? vehicle.free_from : todayISO();
+  const [start, setStart] = useState(minStart);
+  const [end, setEnd] = useState(nextDay(minStart));
+  const [name, setName] = useState("");
+  const [channel, setChannel] = useState("whatsapp");
+  const [contact, setContact] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState("");
+  const dialogRef = useRef(null);
+  useEffect(() => {
+    let cancelled = false;
+    setState("loading");
+    fetch(`${apiBase}/api/v1/catalog/vehicles/${vehicle.id}/`, { headers: HEADERS }).then((r) => {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    }).then((d2) => {
+      if (!cancelled) {
+        setDetail(d2);
+        setState("ready");
+      }
+    }).catch(() => {
+      if (!cancelled) setState("error");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, vehicle.id]);
+  useEffect(() => {
+    if (start && (!end || end <= start)) setEnd(nextDay(start));
+  }, [start, end]);
+  const datesValid = Boolean(start && end && start >= minStart && end > start);
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!datesValid || !name.trim() || !contact.trim()) return;
+    setSubmitting(true);
+    setErr("");
+    try {
+      const res = await fetch(`${apiBase}/api/v1/catalog/booking-requests/`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...HEADERS },
+        body: JSON.stringify({
+          vehicle_id: vehicle.id,
+          start_date: start,
+          end_date: end,
+          customer_name: name.trim(),
+          contact_channel: channel,
+          contact_identifier: contact.trim()
+        })
+      });
+      if (res.ok) {
+        setDone(true);
+      } else {
+        setErr(res.status === 429 ? t.tooMany : t.sendErr);
+      }
+    } catch {
+      setErr(t.sendErr);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const d = detail;
+  const images = (d?.gallery_images ?? []).map((g) => safeImageUrl(g.image_url)).filter((u) => Boolean(u));
+  const mainImg = images[gi] || safeImageUrl(vehicle.photo_url ?? "") || "";
+  const tgHref = safeHref(
+    buildTelegramDeepLink(botUsername, vehicle.id, datesValid ? { from: start, to: end } : void 0)
+  );
+  const price = d?.min_price_per_day ?? vehicle.min_price_per_day;
+  return createPortal(
+    // Wrap in .sb-root so the design tokens (--sb-*) cascade into the portal,
+    // which lives outside the page's .sb-root.
+    /* @__PURE__ */ jsx("div", { className: "sb-root", children: /* @__PURE__ */ jsx("div", { className: "sb-modal", role: "dialog", "aria-modal": "true", onClick: onClose, children: /* @__PURE__ */ jsxs("div", { className: "sb-modal__dialog", ref: dialogRef, onClick: (e) => e.stopPropagation(), children: [
+      /* @__PURE__ */ jsx("button", { type: "button", className: "sb-modal__close", "aria-label": t.close, onClick: onClose, children: "\xD7" }),
+      state === "loading" ? /* @__PURE__ */ jsx("p", { className: "sb-modal__state", children: t.loading }) : null,
+      state === "error" ? /* @__PURE__ */ jsx("p", { className: "sb-modal__state", children: t.error }) : null,
+      state === "ready" && d ? done ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__success", children: [
+        /* @__PURE__ */ jsx("div", { className: "sb-modal__check", "aria-hidden": true, children: "\u2713" }),
+        /* @__PURE__ */ jsx("h3", { children: t.successTitle }),
+        /* @__PURE__ */ jsx("p", { children: t.successText }),
+        /* @__PURE__ */ jsx("button", { type: "button", className: "sb-btn", onClick: onClose, children: "OK" })
+      ] }) : /* @__PURE__ */ jsxs("div", { className: "sb-modal__body", children: [
+        mainImg ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__media", children: [
+          /* @__PURE__ */ jsx("img", { className: "sb-vd__photo", src: mainImg, alt: d.display_name }),
+          images.length > 1 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__thumbs", children: images.map((u, i) => /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              className: `sb-vd__thumb ${i === gi ? "is-active" : ""}`,
+              onClick: () => setGi(i),
+              "aria-label": `${i + 1}`,
+              children: /* @__PURE__ */ jsx("img", { src: u, alt: "", loading: "lazy" })
+            },
+            i
+          )) }) : null
+        ] }) : null,
+        /* @__PURE__ */ jsxs("div", { className: "sb-vd__info", children: [
+          /* @__PURE__ */ jsxs("h3", { className: "sb-vd__name", children: [
+            d.display_name,
+            d.year ? /* @__PURE__ */ jsxs("span", { className: "sb-vd__year", children: [
+              " ",
+              d.year
+            ] }) : null
+          ] }),
+          d.category ? /* @__PURE__ */ jsx("span", { className: "sb-vd__badge", style: { backgroundColor: d.category.color }, children: d.category.name }) : null,
+          price != null ? /* @__PURE__ */ jsxs("p", { className: "sb-vd__price", children: [
+            /* @__PURE__ */ jsxs("small", { children: [
+              t.from,
+              " "
+            ] }),
+            Math.round(price).toLocaleString("en-US"),
+            /* @__PURE__ */ jsxs("small", { children: [
+              " ",
+              t.perDay
+            ] })
+          ] }) : null,
+          /* @__PURE__ */ jsx("p", { className: `sb-vd__avail ${d.is_available ? "is-free" : "is-busy"}`, children: d.is_available ? t.available : d.free_from ? `${t.freesUp}: ${d.free_from}` : t.busy }),
+          (d.advantages ?? []).length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.advantages.map((a, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip", children: a }, i)) }) : null,
+          SPEC_KEYS.some((k) => d[k]) ? /* @__PURE__ */ jsx("div", { className: "sb-vd__specs", children: SPEC_KEYS.filter((k) => d[k]).map((k) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__spec", children: [
+            /* @__PURE__ */ jsx("span", { children: t.labels[k] }),
+            /* @__PURE__ */ jsx("b", { children: d[k] })
+          ] }, k)) }) : null,
+          (d.options ?? []).length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.options.map((o, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip sb-chip--ghost", children: o }, i)) }) : null,
+          (d.deposits ?? []).length > 0 ? /* @__PURE__ */ jsxs("p", { className: "sb-vd__deposit", children: [
+            t.deposit,
+            ":",
+            " ",
+            d.deposits.map((dep) => `${dep.amount} ${dep.currency_code}`).join(" \xB7 ")
+          ] }) : null
+        ] }),
+        /* @__PURE__ */ jsxs("form", { className: "sb-vd__book", onSubmit: submit, children: [
+          /* @__PURE__ */ jsxs("div", { className: "sb-vd__dates", children: [
+            /* @__PURE__ */ jsxs("label", { children: [
+              t.start,
+              /* @__PURE__ */ jsx(
+                "input",
+                {
+                  type: "date",
+                  className: "sb-input",
+                  value: start,
+                  min: minStart,
+                  onChange: (e) => setStart(e.target.value)
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxs("label", { children: [
+              t.end,
+              /* @__PURE__ */ jsx(
+                "input",
+                {
+                  type: "date",
+                  className: "sb-input",
+                  value: end,
+                  min: nextDay(start),
+                  onChange: (e) => setEnd(e.target.value)
+                }
+              )
+            ] })
+          ] }),
+          tgHref ? /* @__PURE__ */ jsx(
+            "a",
+            {
+              className: "sb-btn sb-vd__tg",
+              href: tgHref,
+              target: "_blank",
+              rel: "noopener noreferrer",
+              children: t.tgQuick
+            }
+          ) : null,
+          /* @__PURE__ */ jsx("div", { className: "sb-vd__or", children: t.or }),
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              className: "sb-input",
+              type: "text",
+              placeholder: t.name,
+              required: true,
+              value: name,
+              onChange: (e) => setName(e.target.value)
+            }
+          ),
+          /* @__PURE__ */ jsxs("div", { className: "sb-vd__channel", role: "group", "aria-label": t.contact, children: [
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                type: "button",
+                className: channel === "whatsapp" ? "is-active" : "",
+                onClick: () => setChannel("whatsapp"),
+                children: "WhatsApp"
+              }
+            ),
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                type: "button",
+                className: channel === "telegram" ? "is-active" : "",
+                onClick: () => setChannel("telegram"),
+                children: "Telegram"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              className: "sb-input",
+              type: "text",
+              placeholder: channel === "whatsapp" ? t.phonePh : t.tgPh,
+              required: true,
+              value: contact,
+              onChange: (e) => setContact(e.target.value)
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              className: "sb-btn sb-btn--block",
+              type: "submit",
+              disabled: submitting || !datesValid,
+              children: t.send
+            }
+          ),
+          err ? /* @__PURE__ */ jsx("p", { className: "sb-form__status sb-form__status--err", children: err }) : null
+        ] })
+      ] }) : null
+    ] }) }) }),
+    document.body
+  );
+}
 var STRINGS = {
   ru: {
     all: "\u0412\u0441\u0435",
@@ -595,7 +943,7 @@ function VehicleCatalog({
   anchorId,
   vehicleType = "car",
   apiBase = "",
-  catalogUrl,
+  telegramBot = "shiba_cars_rental_bot",
   defaultCategory,
   puck
 }) {
@@ -605,6 +953,7 @@ function VehicleCatalog({
   const [vehicles, setVehicles] = useState([]);
   const [activeCat, setActiveCat] = useState(null);
   const [state, setState] = useState("loading");
+  const [selected, setSelected] = useState(null);
   useEffect(() => {
     let cancelled = false;
     setState("loading");
@@ -655,7 +1004,6 @@ function VehicleCatalog({
     const list = activeCat ? vehicles.filter((v) => v.category?.id === activeCat) : vehicles;
     return groupVehicles(list);
   }, [vehicles, activeCat]);
-  const base2 = safeHref(catalogUrl);
   return /* @__PURE__ */ jsxs(Section, { className: "sb-vcatalog", id: anchorId || void 0, children: [
     heading ? /* @__PURE__ */ jsx("h2", { className: "sb-h2", children: heading }) : null,
     state === "ready" && tabs.length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vcatalog__tabs", children: [
@@ -683,9 +1031,8 @@ function VehicleCatalog({
     state === "error" ? /* @__PURE__ */ jsx("p", { className: "sb-vcatalog__state", children: t.error }) : null,
     state === "ready" && (groups.length === 0 ? /* @__PURE__ */ jsx("p", { className: "sb-vcatalog__state", children: t.empty }) : /* @__PURE__ */ jsx("div", { className: "sb-vcatalog__grid", children: groups.map((g) => {
       const v = g.vehicle;
-      const href = base2 ? `${base2}${base2.includes("?") ? "&" : "?"}vehicle=${encodeURIComponent(v.id)}` : void 0;
       const countLabel = g.total > 1 ? g.availableCount > 0 ? `${g.availableCount} ${t.available}` : `${g.total} ${t.total}` : null;
-      const media = /* @__PURE__ */ jsxs("div", { className: "sb-vcard__media", children: [
+      return /* @__PURE__ */ jsx("button", { type: "button", className: "sb-vcard", onClick: () => setSelected(v), children: /* @__PURE__ */ jsxs("div", { className: "sb-vcard__media", children: [
         v.photo_url ? /* @__PURE__ */ jsx("img", { src: v.photo_url, alt: v.display_name, loading: "lazy" }) : null,
         v.category ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__badge", style: { backgroundColor: v.category.color }, children: v.category.name }) : null,
         countLabel ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__count", children: countLabel }) : null,
@@ -710,10 +1057,18 @@ function VehicleCatalog({
             ] }) : /* @__PURE__ */ jsx("small", { children: t.onRequest }) })
           ] })
         ] })
-      ] });
-      return href ? /* @__PURE__ */ jsx("a", { className: "sb-vcard", href, children: media }, v.id) : /* @__PURE__ */ jsx("div", { className: "sb-vcard", children: media }, v.id);
+      ] }) }, v.id);
     }) })),
-    state === "ready" && base2 ? /* @__PURE__ */ jsx("div", { className: "sb-vcatalog__foot", children: /* @__PURE__ */ jsx("a", { className: "sb-btn sb-btn--ghost", href: base2, children: t.viewAll }) }) : null
+    selected ? /* @__PURE__ */ jsx(
+      VehicleBookingModal,
+      {
+        vehicle: selected,
+        apiBase,
+        locale,
+        botUsername: telegramBot,
+        onClose: () => setSelected(null)
+      }
+    ) : null
   ] });
 }
 function MapContacts({
@@ -1182,7 +1537,7 @@ var internalConfig = {
             { label: "\u0411\u0430\u0439\u043A\u0438", value: "motorcycle" }
           ]
         },
-        catalogUrl: { type: "text", label: "\u0421\u0441\u044B\u043B\u043A\u0430 \u043D\u0430 \u043F\u043E\u043B\u043D\u044B\u0439 \u043A\u0430\u0442\u0430\u043B\u043E\u0433" },
+        telegramBot: { type: "text", label: "Telegram-\u0431\u043E\u0442 (\u0434\u043B\u044F \u0431\u044B\u0441\u0442\u0440\u043E\u0433\u043E \u0437\u0430\u043A\u0430\u0437\u0430 \u0432 \u043F\u043E\u043F\u0430\u043F\u0435)" },
         defaultCategory: {
           type: "text",
           label: "\u0412\u043A\u043B\u0430\u0434\u043A\u0430 \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E (\u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438, \u043D\u0430\u043F\u0440. \xAB\u041F\u0440\u0435\u043C\u0438\u0443\u043C\xBB)"
@@ -1192,7 +1547,7 @@ var internalConfig = {
         heading: "\u0410\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u0438",
         anchorId: "",
         vehicleType: "car",
-        catalogUrl: "",
+        telegramBot: "shiba_cars_rental_bot",
         defaultCategory: ""
       },
       render: VehicleCatalog
