@@ -1,5 +1,5 @@
 import { jsxs, jsx, Fragment } from 'react/jsx-runtime';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 
 // src/sanitize.ts
 var SAFE_HREF = /^(https?:\/\/|\/|#|mailto:|tel:)/i;
@@ -165,55 +165,59 @@ function TermsAccordion({ heading, items }) {
     ] }, index))
   ] });
 }
+function Carousel({ title, children }) {
+  const ref = useRef(null);
+  const scrollByDir = (dir) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: "smooth" });
+  };
+  return /* @__PURE__ */ jsxs("div", { className: "sb-carousel", children: [
+    /* @__PURE__ */ jsxs("div", { className: "sb-carousel__head", children: [
+      /* @__PURE__ */ jsx("div", { className: "sb-carousel__title", children: title }),
+      /* @__PURE__ */ jsxs("div", { className: "sb-carousel__nav", children: [
+        /* @__PURE__ */ jsx("button", { type: "button", onClick: () => scrollByDir(-1), "aria-label": "\u041D\u0430\u0437\u0430\u0434", children: "\u2039" }),
+        /* @__PURE__ */ jsx("button", { type: "button", onClick: () => scrollByDir(1), "aria-label": "\u0412\u043F\u0435\u0440\u0451\u0434", children: "\u203A" })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx("div", { className: "sb-carousel__track", ref, children })
+  ] });
+}
 function Stars({ rating }) {
   const full = Math.max(0, Math.min(5, Math.round(rating)));
-  return /* @__PURE__ */ jsxs("span", { className: "sb-review__stars", "aria-label": `${full} \u0438\u0437 5`, children: [
+  return /* @__PURE__ */ jsxs("span", { className: "sb-rcard__stars", "aria-label": `${full} \u0438\u0437 5`, children: [
     "\u2605\u2605\u2605\u2605\u2605".slice(0, full),
-    /* @__PURE__ */ jsx("span", { className: "sb-review__stars-empty", children: "\u2605\u2605\u2605\u2605\u2605".slice(0, 5 - full) })
+    /* @__PURE__ */ jsx("span", { className: "sb-rcard__stars-empty", children: "\u2605\u2605\u2605\u2605\u2605".slice(0, 5 - full) })
   ] });
 }
-function ReviewCard({ review }) {
-  const hasHead = Boolean(review.name || review.avatar || review.rating);
-  return /* @__PURE__ */ jsxs("article", { className: "sb-review", children: [
-    review.videoUrl ? /* @__PURE__ */ jsx(
-      VideoEmbed,
-      {
-        url: review.videoUrl,
-        title: review.name ? `\u0412\u0438\u0434\u0435\u043E-\u043E\u0442\u0437\u044B\u0432 \u2014 ${review.name}` : "\u0412\u0438\u0434\u0435\u043E-\u043E\u0442\u0437\u044B\u0432"
-      }
-    ) : review.photo ? /* @__PURE__ */ jsx("div", { className: "sb-review__media", children: /* @__PURE__ */ jsx(
-      "img",
-      {
-        className: "sb-review__photo",
-        src: review.photo,
-        alt: review.name ?? "",
-        loading: "lazy"
-      }
-    ) }) : null,
-    /* @__PURE__ */ jsxs("div", { className: "sb-review__body", children: [
-      hasHead ? /* @__PURE__ */ jsxs("div", { className: "sb-review__head", children: [
-        review.avatar ? /* @__PURE__ */ jsx("img", { className: "sb-review__avatar", src: review.avatar, alt: "", loading: "lazy" }) : null,
-        /* @__PURE__ */ jsxs("div", { className: "sb-review__meta", children: [
-          review.name ? /* @__PURE__ */ jsx("p", { className: "sb-review__name", children: review.name }) : null,
-          review.rating ? /* @__PURE__ */ jsx(Stars, { rating: review.rating }) : null
-        ] })
-      ] }) : null,
-      review.text ? /* @__PURE__ */ jsx("p", { className: "sb-review__text", children: review.text }) : null
-    ] })
+function TextCard({ review }) {
+  const name = review.name?.trim();
+  const avatar = safeImageUrl(review.avatar ?? "");
+  const initial = (name || "?").trim().charAt(0).toUpperCase();
+  return /* @__PURE__ */ jsxs("article", { className: "sb-rcard", children: [
+    /* @__PURE__ */ jsxs("div", { className: "sb-rcard__head", children: [
+      avatar ? /* @__PURE__ */ jsx("img", { className: "sb-rcard__avatar", src: avatar, alt: "", loading: "lazy" }) : /* @__PURE__ */ jsx("span", { className: "sb-rcard__avatar sb-rcard__avatar--initial", "aria-hidden": true, children: initial }),
+      /* @__PURE__ */ jsxs("div", { className: "sb-rcard__meta", children: [
+        name ? /* @__PURE__ */ jsx("p", { className: "sb-rcard__name", children: name }) : null,
+        review.rating ? /* @__PURE__ */ jsx(Stars, { rating: review.rating }) : null
+      ] })
+    ] }),
+    review.text ? /* @__PURE__ */ jsx("p", { className: "sb-rcard__text", children: review.text }) : null
   ] });
 }
-function ReviewsCarousel({ heading, anchorId, reviews }) {
-  const safe = (reviews ?? []).map((r) => ({
-    name: r.name?.trim() || void 0,
-    rating: typeof r.rating === "number" && r.rating > 0 ? r.rating : void 0,
-    text: r.text?.trim() || void 0,
-    avatar: safeImageUrl(r.avatar ?? "") || void 0,
-    photo: safeImageUrl(r.photo ?? "") || void 0,
-    videoUrl: r.videoUrl?.trim() || void 0
-  })).filter((r) => r.name || r.text || r.photo || r.videoUrl);
+function MediaCard({ item }) {
+  const photo = safeImageUrl(item.photo ?? "");
+  return /* @__PURE__ */ jsxs("figure", { className: "sb-rmedia", children: [
+    item.videoUrl ? /* @__PURE__ */ jsx(VideoEmbed, { url: item.videoUrl, title: item.caption || "\u0412\u0438\u0434\u0435\u043E-\u043E\u0442\u0437\u044B\u0432" }) : photo ? /* @__PURE__ */ jsx("img", { className: "sb-rmedia__photo", src: photo, alt: item.caption ?? "", loading: "lazy" }) : null,
+    item.caption ? /* @__PURE__ */ jsx("figcaption", { className: "sb-rmedia__caption", children: item.caption }) : null
+  ] });
+}
+function ReviewsCarousel({ heading, anchorId, textReviews, mediaReviews }) {
+  const texts = (textReviews ?? []).filter((r) => r.name || r.text);
+  const media = (mediaReviews ?? []).filter((m) => m.videoUrl || m.photo);
   return /* @__PURE__ */ jsxs(Section, { id: anchorId || "reviews", children: [
-    heading ? /* @__PURE__ */ jsx("h2", { className: "sb-h2", children: heading }) : null,
-    safe.length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-reviews-grid", children: safe.map((r, i) => /* @__PURE__ */ jsx(ReviewCard, { review: r }, i)) }) : null
+    texts.length > 0 ? /* @__PURE__ */ jsx(Carousel, { title: heading ? /* @__PURE__ */ jsx("h2", { className: "sb-h2 sb-h2--inline", children: heading }) : null, children: texts.map((r, i) => /* @__PURE__ */ jsx("div", { className: "sb-carousel__cell sb-carousel__cell--text", children: /* @__PURE__ */ jsx(TextCard, { review: r }) }, i)) }) : heading ? /* @__PURE__ */ jsx("h2", { className: "sb-h2", children: heading }) : null,
+    media.length > 0 ? /* @__PURE__ */ jsx(Carousel, { children: media.map((m, i) => /* @__PURE__ */ jsx("div", { className: "sb-carousel__cell sb-carousel__cell--media", children: /* @__PURE__ */ jsx(MediaCard, { item: m }) }, i)) }) : null
   ] });
 }
 var base = {
@@ -598,6 +602,48 @@ function VehicleCatalog({
     state === "ready" && base2 ? /* @__PURE__ */ jsx("div", { className: "sb-vcatalog__foot", children: /* @__PURE__ */ jsx("a", { className: "sb-btn sb-btn--ghost", href: base2, children: t.viewAll }) }) : null
   ] });
 }
+function MapContacts({
+  anchorId,
+  heading,
+  mapEmbedUrl,
+  phone,
+  email,
+  address,
+  whatsapp,
+  telegram,
+  instagram
+}) {
+  const socials = [];
+  const wa = safeHref(whatsapp);
+  const tg = safeHref(telegram);
+  const ig = safeHref(instagram);
+  if (ig) socials.push({ kind: "instagram", href: ig });
+  if (tg) socials.push({ kind: "telegram", href: tg });
+  if (wa) socials.push({ kind: "whatsapp", href: wa });
+  const map = safeHref(mapEmbedUrl);
+  return /* @__PURE__ */ jsxs("section", { className: "sb-map", id: anchorId || "contacts", children: [
+    map ? /* @__PURE__ */ jsx(
+      "iframe",
+      {
+        className: "sb-map__frame",
+        src: map,
+        title: heading || "\u041A\u0430\u0440\u0442\u0430",
+        loading: "lazy",
+        referrerPolicy: "no-referrer-when-downgrade",
+        allowFullScreen: true
+      }
+    ) : null,
+    /* @__PURE__ */ jsxs("div", { className: "sb-map__card", children: [
+      heading ? /* @__PURE__ */ jsx("h2", { className: "sb-h2", children: heading }) : null,
+      /* @__PURE__ */ jsxs("div", { className: "sb-map__lines", children: [
+        phone ? /* @__PURE__ */ jsx("a", { className: "sb-map__line", href: `tel:${phone.replace(/[^\d+]/g, "")}`, children: phone }) : null,
+        email ? /* @__PURE__ */ jsx("a", { className: "sb-map__line", href: `mailto:${email}`, children: email }) : null,
+        address ? /* @__PURE__ */ jsx("p", { className: "sb-map__line sb-map__address", children: address }) : null
+      ] }),
+      socials.length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-map__socials", children: socials.map((s) => /* @__PURE__ */ jsx("a", { href: s.href, target: "_blank", rel: "noopener noreferrer", "aria-label": s.kind, children: /* @__PURE__ */ jsx(ContactIcon, { kind: s.kind }) }, s.kind)) }) : null
+    ] })
+  ] });
+}
 var UPLOAD_URL = "/api/v1/fms/site/upload-image/";
 function readCookie(name) {
   if (typeof document === "undefined") return void 0;
@@ -686,7 +732,7 @@ var internalConfig = {
     render: ({ children }) => /* @__PURE__ */ jsx("div", { className: "sb-root", children })
   },
   categories: {
-    layout: { title: "\u041A\u0430\u0440\u043A\u0430\u0441", components: ["SiteHeader", "Footer"] },
+    layout: { title: "\u041A\u0430\u0440\u043A\u0430\u0441", components: ["SiteHeader", "Footer", "MapContacts"] },
     content: { title: "\u041A\u043E\u043D\u0442\u0435\u043D\u0442", components: ["Hero", "AboutPromo", "RichText", "LeadForm"] },
     catalog: { title: "\u041A\u0430\u0442\u0430\u043B\u043E\u0433", components: ["VehicleCatalog"] },
     sections: {
@@ -834,25 +880,35 @@ var internalConfig = {
       fields: {
         heading: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A (\u043E\u043F\u0446.)" },
         anchorId: { type: "text", label: "\u042F\u043A\u043E\u0440\u044C \u0434\u043B\u044F \u043C\u0435\u043D\u044E (\u043D\u0430\u043F\u0440. reviews)" },
-        reviews: {
+        textReviews: {
           type: "array",
-          label: "\u041E\u0442\u0437\u044B\u0432\u044B",
+          label: "\u0422\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0435 \u043E\u0442\u0437\u044B\u0432\u044B",
           arrayFields: {
             name: { type: "text", label: "\u0418\u043C\u044F" },
             rating: { type: "number", label: "\u041E\u0446\u0435\u043D\u043A\u0430 (1\u20135)", min: 1, max: 5 },
             text: { type: "textarea", label: "\u0422\u0435\u043A\u0441\u0442 \u043E\u0442\u0437\u044B\u0432\u0430" },
-            avatar: imageField("\u0410\u0432\u0430\u0442\u0430\u0440"),
-            photo: imageField("\u0424\u043E\u0442\u043E / \u0441\u043A\u0440\u0438\u043D\u0448\u043E\u0442 \u043E\u0442\u0437\u044B\u0432\u0430"),
-            videoUrl: { type: "text", label: "\u0412\u0438\u0434\u0435\u043E \u2014 \u0441\u0441\u044B\u043B\u043A\u0430 YouTube" }
+            avatar: imageField("\u0410\u0432\u0430\u0442\u0430\u0440")
           },
-          defaultItemProps: { name: "", rating: 5, text: "", avatar: "", photo: "", videoUrl: "" },
-          getItemSummary: (item, index) => item.name || (item.videoUrl ? "\u0412\u0438\u0434\u0435\u043E-\u043E\u0442\u0437\u044B\u0432" : `\u041E\u0442\u0437\u044B\u0432 ${(index ?? 0) + 1}`)
+          defaultItemProps: { name: "", rating: 5, text: "", avatar: "" },
+          getItemSummary: (item, index) => item.name || `\u041E\u0442\u0437\u044B\u0432 ${(index ?? 0) + 1}`
+        },
+        mediaReviews: {
+          type: "array",
+          label: "\u041C\u0435\u0434\u0438\u0430-\u043E\u0442\u0437\u044B\u0432\u044B (\u0432\u0438\u0434\u0435\u043E / \u0444\u043E\u0442\u043E)",
+          arrayFields: {
+            videoUrl: { type: "text", label: "\u0412\u0438\u0434\u0435\u043E \u2014 \u0441\u0441\u044B\u043B\u043A\u0430 YouTube" },
+            photo: imageField("\u0424\u043E\u0442\u043E / \u0441\u043A\u0440\u0438\u043D\u0448\u043E\u0442"),
+            caption: { type: "text", label: "\u041F\u043E\u0434\u043F\u0438\u0441\u044C (\u043E\u043F\u0446.)" }
+          },
+          defaultItemProps: { videoUrl: "", photo: "", caption: "" },
+          getItemSummary: (item, index) => item.caption || (item.videoUrl ? "\u0412\u0438\u0434\u0435\u043E" : `\u041C\u0435\u0434\u0438\u0430 ${(index ?? 0) + 1}`)
         }
       },
       defaultProps: {
         heading: "\u041E\u0442\u0437\u044B\u0432\u044B",
         anchorId: "reviews",
-        reviews: []
+        textReviews: [],
+        mediaReviews: []
       },
       render: ReviewsCarousel
     },
@@ -967,9 +1023,35 @@ var internalConfig = {
         catalogUrl: ""
       },
       render: VehicleCatalog
+    },
+    MapContacts: {
+      label: "\u041A\u0430\u0440\u0442\u0430 + \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u044B",
+      fields: {
+        heading: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" },
+        anchorId: { type: "text", label: "\u042F\u043A\u043E\u0440\u044C \u0434\u043B\u044F \u043C\u0435\u043D\u044E (\u043D\u0430\u043F\u0440. contacts)" },
+        mapEmbedUrl: { type: "textarea", label: "Google Maps \u2014 \u0441\u0441\u044B\u043B\u043A\u0430 embed (\u2026/maps/embed?pb=\u2026)" },
+        phone: { type: "text", label: "\u0422\u0435\u043B\u0435\u0444\u043E\u043D" },
+        email: { type: "text", label: "Email" },
+        address: { type: "textarea", label: "\u0410\u0434\u0440\u0435\u0441" },
+        whatsapp: { type: "text", label: "WhatsApp \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" },
+        telegram: { type: "text", label: "Telegram \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" },
+        instagram: { type: "text", label: "Instagram \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" }
+      },
+      defaultProps: {
+        heading: "\u041A\u043E\u043D\u0442\u0430\u043A\u0442\u044B",
+        anchorId: "contacts",
+        mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3674.4538436663242!2d98.361052!3d7.858001000000001!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x30502f7913f0e6e7%3A0x75b4dc07a4f93826!2sShiba%20Cars%20Carwash%20%26%20Detailing!5e1!3m2!1sru!2sru!4v1748868294470!5m2!1sru!2sru",
+        phone: "+66959657805",
+        email: "shibacars@gmail.com",
+        address: "24/31 Wichit, Mueang District, Phuket 83000, Thailand",
+        whatsapp: "https://wa.me/66959657805",
+        telegram: "https://t.me/ShibaCars_Phuket",
+        instagram: "https://www.instagram.com/shibacars_phuket"
+      },
+      render: MapContacts
     }
   }
 };
 var puckConfig = internalConfig;
 
-export { AboutPromo, FeatureCards, Footer, Hero, LeadForm, ReviewsCarousel, RichText, SiteHeader, StatCounters, TermsAccordion, VehicleCatalog, puckConfig };
+export { AboutPromo, FeatureCards, Footer, Hero, LeadForm, MapContacts, ReviewsCarousel, RichText, SiteHeader, StatCounters, TermsAccordion, VehicleCatalog, puckConfig };

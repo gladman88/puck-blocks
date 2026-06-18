@@ -10,6 +10,7 @@ import { SiteHeader, type SiteHeaderProps } from './blocks/SiteHeader';
 import { Footer, type FooterProps } from './blocks/Footer';
 import { LeadForm, type LeadFormProps } from './blocks/LeadForm';
 import { VehicleCatalog, type VehicleCatalogProps } from './blocks/VehicleCatalog';
+import { MapContacts, type MapContactsProps } from './blocks/MapContacts';
 import { imageField } from './fields/imageField';
 
 /** Props for every editable component, keyed by component name. */
@@ -25,6 +26,7 @@ export interface Props {
   Footer: FooterProps;
   LeadForm: LeadFormProps;
   VehicleCatalog: VehicleCatalogProps;
+  MapContacts: MapContactsProps;
 }
 
 /** Page-level (root) fields — drive SEO metadata, not visible layout. */
@@ -46,7 +48,7 @@ const internalConfig: Config<Props, RootProps> = {
     render: ({ children }) => <div className="sb-root">{children}</div>,
   },
   categories: {
-    layout: { title: 'Каркас', components: ['SiteHeader', 'Footer'] },
+    layout: { title: 'Каркас', components: ['SiteHeader', 'Footer', 'MapContacts'] },
     content: { title: 'Контент', components: ['Hero', 'AboutPromo', 'RichText', 'LeadForm'] },
     catalog: { title: 'Каталог', components: ['VehicleCatalog'] },
     sections: {
@@ -194,26 +196,36 @@ const internalConfig: Config<Props, RootProps> = {
       fields: {
         heading: { type: 'text', label: 'Заголовок (опц.)' },
         anchorId: { type: 'text', label: 'Якорь для меню (напр. reviews)' },
-        reviews: {
+        textReviews: {
           type: 'array',
-          label: 'Отзывы',
+          label: 'Текстовые отзывы',
           arrayFields: {
             name: { type: 'text', label: 'Имя' },
             rating: { type: 'number', label: 'Оценка (1–5)', min: 1, max: 5 },
             text: { type: 'textarea', label: 'Текст отзыва' },
             avatar: imageField('Аватар'),
-            photo: imageField('Фото / скриншот отзыва'),
-            videoUrl: { type: 'text', label: 'Видео — ссылка YouTube' },
           },
-          defaultItemProps: { name: '', rating: 5, text: '', avatar: '', photo: '', videoUrl: '' },
+          defaultItemProps: { name: '', rating: 5, text: '', avatar: '' },
+          getItemSummary: (item, index) => item.name || `Отзыв ${(index ?? 0) + 1}`,
+        },
+        mediaReviews: {
+          type: 'array',
+          label: 'Медиа-отзывы (видео / фото)',
+          arrayFields: {
+            videoUrl: { type: 'text', label: 'Видео — ссылка YouTube' },
+            photo: imageField('Фото / скриншот'),
+            caption: { type: 'text', label: 'Подпись (опц.)' },
+          },
+          defaultItemProps: { videoUrl: '', photo: '', caption: '' },
           getItemSummary: (item, index) =>
-            item.name || (item.videoUrl ? 'Видео-отзыв' : `Отзыв ${(index ?? 0) + 1}`),
+            item.caption || (item.videoUrl ? 'Видео' : `Медиа ${(index ?? 0) + 1}`),
         },
       },
       defaultProps: {
         heading: 'Отзывы',
         anchorId: 'reviews',
-        reviews: [],
+        textReviews: [],
+        mediaReviews: [],
       },
       render: ReviewsCarousel,
     },
@@ -328,6 +340,33 @@ const internalConfig: Config<Props, RootProps> = {
         catalogUrl: '',
       },
       render: VehicleCatalog,
+    },
+    MapContacts: {
+      label: 'Карта + контакты',
+      fields: {
+        heading: { type: 'text', label: 'Заголовок' },
+        anchorId: { type: 'text', label: 'Якорь для меню (напр. contacts)' },
+        mapEmbedUrl: { type: 'textarea', label: 'Google Maps — ссылка embed (…/maps/embed?pb=…)' },
+        phone: { type: 'text', label: 'Телефон' },
+        email: { type: 'text', label: 'Email' },
+        address: { type: 'textarea', label: 'Адрес' },
+        whatsapp: { type: 'text', label: 'WhatsApp — ссылка' },
+        telegram: { type: 'text', label: 'Telegram — ссылка' },
+        instagram: { type: 'text', label: 'Instagram — ссылка' },
+      },
+      defaultProps: {
+        heading: 'Контакты',
+        anchorId: 'contacts',
+        mapEmbedUrl:
+          'https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3674.4538436663242!2d98.361052!3d7.858001000000001!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x30502f7913f0e6e7%3A0x75b4dc07a4f93826!2sShiba%20Cars%20Carwash%20%26%20Detailing!5e1!3m2!1sru!2sru!4v1748868294470!5m2!1sru!2sru',
+        phone: '+66959657805',
+        email: 'shibacars@gmail.com',
+        address: '24/31 Wichit, Mueang District, Phuket 83000, Thailand',
+        whatsapp: 'https://wa.me/66959657805',
+        telegram: 'https://t.me/ShibaCars_Phuket',
+        instagram: 'https://www.instagram.com/shibacars_phuket',
+      },
+      render: MapContacts,
     },
   },
 };

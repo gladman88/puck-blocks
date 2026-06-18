@@ -20,7 +20,7 @@ export { TermsAccordion } from './blocks/TermsAccordion';
 export type { TermsAccordionProps, TermItem } from './blocks/TermsAccordion';
 
 export { ReviewsCarousel } from './blocks/ReviewsCarousel';
-export type { ReviewsCarouselProps, ReviewItem } from './blocks/ReviewsCarousel';
+export type { ReviewsCarouselProps, TextReview, MediaReview } from './blocks/ReviewsCarousel';
 
 export { SiteHeader } from './blocks/SiteHeader';
 export type { SiteHeaderProps, NavLink } from './blocks/SiteHeader';
@@ -33,3 +33,6 @@ export type { LeadFormProps } from './blocks/LeadForm';
 
 export { VehicleCatalog } from './blocks/VehicleCatalog';
 export type { VehicleCatalogProps, CatalogVehicle, CatalogCategory } from './blocks/VehicleCatalog';
+
+export { MapContacts } from './blocks/MapContacts';
+export type { MapContactsProps } from './blocks/MapContacts';

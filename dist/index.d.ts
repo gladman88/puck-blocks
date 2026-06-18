@@ -74,32 +74,32 @@ interface TermsAccordionProps {
 /** Collapsible terms/conditions (native <details>, no JS, accessible). */
 declare function TermsAccordion({ heading, items }: TermsAccordionProps): react.JSX.Element;
 
-interface ReviewItem {
-    /** Reviewer name. */
+interface TextReview {
     name?: string;
-    /** 1–5 stars. */
     rating?: number;
-    /** Review text. */
     text?: string;
-    /** Reviewer avatar image URL. */
     avatar?: string;
-    /** Review photo / screenshot image URL (shown when there is no video). */
-    photo?: string;
-    /** Video review link (YouTube preferred — embeds inline). */
+}
+interface MediaReview {
+    /** Video link (YouTube preferred — plays inline). */
     videoUrl?: string;
+    /** Photo / screenshot (used when there is no video). */
+    photo?: string;
+    caption?: string;
 }
 interface ReviewsCarouselProps {
     heading?: string;
     /** Section anchor id so the header nav can scroll here (e.g. "reviews"). */
     anchorId?: string;
-    reviews?: ReviewItem[];
+    textReviews?: TextReview[];
+    mediaReviews?: MediaReview[];
 }
 /**
- * Reviews as a responsive grid of cards. Each card is one cohesive review —
- * name + rating + text and, optionally, an inline video (YouTube) or photo —
- * instead of disconnected "text reviews" and "video reviews" sections.
+ * Reviews section with TWO independent carousels: text testimonials (cards with
+ * avatar + stars + text) and media reviews (portrait video / photo). Mirrors
+ * the original site, where the two are separate rows.
  */
-declare function ReviewsCarousel({ heading, anchorId, reviews }: ReviewsCarouselProps): react.JSX.Element;
+declare function ReviewsCarousel({ heading, anchorId, textReviews, mediaReviews }: ReviewsCarouselProps): react.JSX.Element;
 
 interface NavLink {
     label: string;
@@ -190,6 +190,25 @@ type PuckInjected = {
  */
 declare function VehicleCatalog({ heading, vehicleType, apiBase, catalogUrl, puck, }: VehicleCatalogProps & PuckInjected): react.JSX.Element;
 
+interface MapContactsProps {
+    /** Section anchor id (e.g. "contacts"). */
+    anchorId?: string;
+    heading?: string;
+    /** Google Maps EMBED url (the `…/maps/embed?pb=…` iframe src). */
+    mapEmbedUrl?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    whatsapp?: string;
+    telegram?: string;
+    instagram?: string;
+}
+/**
+ * Contacts on a full-width Google Map with a dark info card overlaid on the
+ * left — mirrors the original site's contacts section.
+ */
+declare function MapContacts({ anchorId, heading, mapEmbedUrl, phone, email, address, whatsapp, telegram, instagram, }: MapContactsProps): react.JSX.Element;
+
 /** Props for every editable component, keyed by component name. */
 interface Props {
     Hero: HeroProps;
@@ -203,6 +222,7 @@ interface Props {
     Footer: FooterProps;
     LeadForm: LeadFormProps;
     VehicleCatalog: VehicleCatalogProps;
+    MapContacts: MapContactsProps;
 }
 /** Page-level (root) fields — drive SEO metadata, not visible layout. */
 interface RootProps {
@@ -212,4 +232,4 @@ interface RootProps {
 }
 declare const puckConfig: Config;
 
-export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogVehicle, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, type NavLink, type Props, type ReviewItem, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TermItem, TermsAccordion, type TermsAccordionProps, VehicleCatalog, type VehicleCatalogProps, puckConfig };
+export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogVehicle, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, MapContacts, type MapContactsProps, type MediaReview, type NavLink, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, VehicleCatalog, type VehicleCatalogProps, puckConfig };

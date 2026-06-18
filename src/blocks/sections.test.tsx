@@ -44,30 +44,36 @@ describe('TermsAccordion', () => {
 });
 
 describe('ReviewsCarousel', () => {
-  it('renders one card per non-empty review', () => {
+  it('renders one text card per non-empty review', () => {
     const { container } = render(
       <ReviewsCarousel
-        reviews={[
+        textReviews={[
           { name: 'Иван', rating: 5, text: 'Отлично' },
-          { videoUrl: 'https://youtu.be/dQw4w9WgXcQ' },
+          { name: 'Пётр', text: 'Класс' },
           { name: '', text: '' }, // empty → dropped
         ]}
       />,
     );
-    expect(container.querySelectorAll('.sb-review').length).toBe(2);
+    expect(container.querySelectorAll('.sb-rcard').length).toBe(2);
   });
 
-  it('embeds a YouTube poster for a video review', () => {
+  it('embeds a YouTube poster for a media review', () => {
     const { container } = render(
-      <ReviewsCarousel reviews={[{ videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }]} />,
+      <ReviewsCarousel mediaReviews={[{ videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }]} />,
     );
     const poster = container.querySelector('.sb-video__poster img') as HTMLImageElement | null;
     expect(poster?.src).toContain('img.youtube.com/vi/dQw4w9WgXcQ');
   });
 
-  it('renders stars for the rating', () => {
-    const { container } = render(<ReviewsCarousel reviews={[{ name: 'A', rating: 4 }]} />);
-    expect(container.querySelector('.sb-review__stars')?.getAttribute('aria-label')).toBe('4 из 5');
+  it('renders text and media in two separate carousels', () => {
+    const { container } = render(
+      <ReviewsCarousel
+        textReviews={[{ name: 'A', rating: 4, text: 'ok' }]}
+        mediaReviews={[{ videoUrl: 'https://youtu.be/dQw4w9WgXcQ' }]}
+      />,
+    );
+    expect(container.querySelectorAll('.sb-carousel').length).toBe(2);
+    expect(container.querySelector('.sb-rcard__stars')?.getAttribute('aria-label')).toBe('4 из 5');
   });
 });
 
