@@ -1,28 +1,41 @@
 import { safeHref } from '../sanitize';
 import { ContactIcon, type ContactKind } from '../components/ContactIcon';
+import { BrandLogo } from '../components/BrandLogo';
 import type { NavLink } from './SiteHeader';
 
+export interface FooterColumn {
+  title: string;
+  /** Optional link for the column heading itself (e.g. «Отзывы» → #reviews). */
+  titleHref?: string;
+  links?: NavLink[];
+}
+
 export interface FooterProps {
+  logoText?: string;
+  /** Legal line under the logo, e.g. «SHIBA TRAVEL CO. LTD». */
+  note?: string;
+  columns?: FooterColumn[];
+  contactsTitle?: string;
   phone?: string;
   email?: string;
+  address?: string;
   whatsapp?: string;
   telegram?: string;
   instagram?: string;
-  mapUrl?: string;
-  links: NavLink[];
-  note?: string;
 }
 
-/** Footer: contacts + nav + socials. */
+/** Multi-column footer: wordmark + nav columns + a contacts column. */
 export function Footer({
+  logoText,
+  note,
+  columns,
+  contactsTitle = 'Контакты',
   phone,
   email,
+  address,
   whatsapp,
   telegram,
   instagram,
-  mapUrl,
-  links,
-  note,
 }: FooterProps) {
   const phoneHref = phone
     ? safeHref(phone.startsWith('tel:') ? phone : `tel:${phone.replace(/\s+/g, '')}`)
@@ -30,70 +43,69 @@ export function Footer({
   const emailHref = email
     ? safeHref(email.startsWith('mailto:') ? email : `mailto:${email}`)
     : undefined;
-  const mapHref = safeHref(mapUrl);
 
   const socials: { kind: ContactKind; href: string }[] = [];
-  const wa = safeHref(whatsapp);
-  if (wa) socials.push({ kind: 'whatsapp', href: wa });
-  const tg = safeHref(telegram);
-  if (tg) socials.push({ kind: 'telegram', href: tg });
   const ig = safeHref(instagram);
   if (ig) socials.push({ kind: 'instagram', href: ig });
-
-  const navLinks = (links ?? [])
-    .map((link) => ({ label: link.label, href: safeHref(link.href) }))
-    .filter((link): link is { label: string; href: string } => Boolean(link.href));
+  const tg = safeHref(telegram);
+  if (tg) socials.push({ kind: 'telegram', href: tg });
+  const wa = safeHref(whatsapp);
+  if (wa) socials.push({ kind: 'whatsapp', href: wa });
 
   return (
-    <footer className="sb-footer" id="contacts">
+    <footer className="sb-footer">
       <div className="sb-footer__inner">
-        <div className="sb-footer__col">
-          <h4>Контакты</h4>
+        <div className="sb-footer__brand">
+          <BrandLogo text={logoText || 'SHIBA CARS'} className="sb-footer__logo" />
+          {note ? <p className="sb-footer__note">{note}</p> : null}
+        </div>
+
+        {(columns ?? []).map((col, index) => {
+          const titleHref = safeHref(col.titleHref);
+          const links = (col.links ?? [])
+            .map((l) => ({ label: l.label, href: safeHref(l.href) }))
+            .filter((l): l is { label: string; href: string } => Boolean(l.href));
+          return (
+            <div className="sb-footer__col" key={index}>
+              <h4>{titleHref ? <a href={titleHref}>{col.title}</a> : col.title}</h4>
+              {links.length > 0 ? (
+                <div className="sb-footer__list">
+                  {links.map((l, i) => (
+                    <a key={i} href={l.href}>
+                      {l.label}
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+
+        <div className="sb-footer__col sb-footer__col--contacts">
+          <h4>{contactsTitle}</h4>
           <div className="sb-footer__list">
             {phoneHref ? <a href={phoneHref}>{phone}</a> : null}
             {emailHref ? <a href={emailHref}>{email}</a> : null}
-            {mapHref ? (
-              <a href={mapHref} target="_blank" rel="noopener noreferrer">
-                На карте
-              </a>
-            ) : null}
+            {address ? <p className="sb-footer__address">{address}</p> : null}
           </div>
-        </div>
-
-        {navLinks.length > 0 ? (
-          <div className="sb-footer__col">
-            <h4>Навигация</h4>
-            <div className="sb-footer__list">
-              {navLinks.map((link, index) => (
-                <a key={index} href={link.href}>
-                  {link.label}
-                </a>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {socials.length > 0 ? (
-          <div className="sb-footer__col">
-            <h4>Мы в соцсетях</h4>
+          {socials.length > 0 ? (
             <div className="sb-footer__socials">
-              {socials.map((social, index) => (
+              {socials.map((s) => (
                 <a
-                  key={index}
+                  key={s.kind}
                   className="sb-icon-link"
-                  href={social.href}
-                  aria-label={social.kind}
+                  href={s.href}
+                  aria-label={s.kind}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <ContactIcon kind={social.kind} />
+                  <ContactIcon kind={s.kind} />
                 </a>
               ))}
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
-      {note ? <p className="sb-footer__note">{note}</p> : null}
     </footer>
   );
 }

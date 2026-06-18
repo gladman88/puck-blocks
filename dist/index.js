@@ -372,58 +372,60 @@ function SiteHeader({
   ] }) });
 }
 function Footer({
+  logoText,
+  note,
+  columns,
+  contactsTitle = "\u041A\u043E\u043D\u0442\u0430\u043A\u0442\u044B",
   phone,
   email,
+  address,
   whatsapp,
   telegram,
-  instagram,
-  mapUrl,
-  links,
-  note
+  instagram
 }) {
   const phoneHref = phone ? safeHref(phone.startsWith("tel:") ? phone : `tel:${phone.replace(/\s+/g, "")}`) : void 0;
   const emailHref = email ? safeHref(email.startsWith("mailto:") ? email : `mailto:${email}`) : void 0;
-  const mapHref = safeHref(mapUrl);
   const socials = [];
-  const wa = safeHref(whatsapp);
-  if (wa) socials.push({ kind: "whatsapp", href: wa });
-  const tg = safeHref(telegram);
-  if (tg) socials.push({ kind: "telegram", href: tg });
   const ig = safeHref(instagram);
   if (ig) socials.push({ kind: "instagram", href: ig });
-  const navLinks = (links ?? []).map((link) => ({ label: link.label, href: safeHref(link.href) })).filter((link) => Boolean(link.href));
-  return /* @__PURE__ */ jsxs("footer", { className: "sb-footer", id: "contacts", children: [
-    /* @__PURE__ */ jsxs("div", { className: "sb-footer__inner", children: [
-      /* @__PURE__ */ jsxs("div", { className: "sb-footer__col", children: [
-        /* @__PURE__ */ jsx("h4", { children: "\u041A\u043E\u043D\u0442\u0430\u043A\u0442\u044B" }),
-        /* @__PURE__ */ jsxs("div", { className: "sb-footer__list", children: [
-          phoneHref ? /* @__PURE__ */ jsx("a", { href: phoneHref, children: phone }) : null,
-          emailHref ? /* @__PURE__ */ jsx("a", { href: emailHref, children: email }) : null,
-          mapHref ? /* @__PURE__ */ jsx("a", { href: mapHref, target: "_blank", rel: "noopener noreferrer", children: "\u041D\u0430 \u043A\u0430\u0440\u0442\u0435" }) : null
-        ] })
-      ] }),
-      navLinks.length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-footer__col", children: [
-        /* @__PURE__ */ jsx("h4", { children: "\u041D\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u044F" }),
-        /* @__PURE__ */ jsx("div", { className: "sb-footer__list", children: navLinks.map((link, index) => /* @__PURE__ */ jsx("a", { href: link.href, children: link.label }, index)) })
-      ] }) : null,
-      socials.length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-footer__col", children: [
-        /* @__PURE__ */ jsx("h4", { children: "\u041C\u044B \u0432 \u0441\u043E\u0446\u0441\u0435\u0442\u044F\u0445" }),
-        /* @__PURE__ */ jsx("div", { className: "sb-footer__socials", children: socials.map((social, index) => /* @__PURE__ */ jsx(
-          "a",
-          {
-            className: "sb-icon-link",
-            href: social.href,
-            "aria-label": social.kind,
-            target: "_blank",
-            rel: "noopener noreferrer",
-            children: /* @__PURE__ */ jsx(ContactIcon, { kind: social.kind })
-          },
-          index
-        )) })
-      ] }) : null
+  const tg = safeHref(telegram);
+  if (tg) socials.push({ kind: "telegram", href: tg });
+  const wa = safeHref(whatsapp);
+  if (wa) socials.push({ kind: "whatsapp", href: wa });
+  return /* @__PURE__ */ jsx("footer", { className: "sb-footer", children: /* @__PURE__ */ jsxs("div", { className: "sb-footer__inner", children: [
+    /* @__PURE__ */ jsxs("div", { className: "sb-footer__brand", children: [
+      /* @__PURE__ */ jsx(BrandLogo, { text: logoText || "SHIBA CARS", className: "sb-footer__logo" }),
+      note ? /* @__PURE__ */ jsx("p", { className: "sb-footer__note", children: note }) : null
     ] }),
-    note ? /* @__PURE__ */ jsx("p", { className: "sb-footer__note", children: note }) : null
-  ] });
+    (columns ?? []).map((col, index) => {
+      const titleHref = safeHref(col.titleHref);
+      const links = (col.links ?? []).map((l) => ({ label: l.label, href: safeHref(l.href) })).filter((l) => Boolean(l.href));
+      return /* @__PURE__ */ jsxs("div", { className: "sb-footer__col", children: [
+        /* @__PURE__ */ jsx("h4", { children: titleHref ? /* @__PURE__ */ jsx("a", { href: titleHref, children: col.title }) : col.title }),
+        links.length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-footer__list", children: links.map((l, i) => /* @__PURE__ */ jsx("a", { href: l.href, children: l.label }, i)) }) : null
+      ] }, index);
+    }),
+    /* @__PURE__ */ jsxs("div", { className: "sb-footer__col sb-footer__col--contacts", children: [
+      /* @__PURE__ */ jsx("h4", { children: contactsTitle }),
+      /* @__PURE__ */ jsxs("div", { className: "sb-footer__list", children: [
+        phoneHref ? /* @__PURE__ */ jsx("a", { href: phoneHref, children: phone }) : null,
+        emailHref ? /* @__PURE__ */ jsx("a", { href: emailHref, children: email }) : null,
+        address ? /* @__PURE__ */ jsx("p", { className: "sb-footer__address", children: address }) : null
+      ] }),
+      socials.length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-footer__socials", children: socials.map((s) => /* @__PURE__ */ jsx(
+        "a",
+        {
+          className: "sb-icon-link",
+          href: s.href,
+          "aria-label": s.kind,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          children: /* @__PURE__ */ jsx(ContactIcon, { kind: s.kind })
+        },
+        s.kind
+      )) }) : null
+    ] })
+  ] }) });
 }
 function LeadForm({
   heading,
@@ -1068,37 +1070,70 @@ var internalConfig = {
     Footer: {
       label: "\u0424\u0443\u0442\u0435\u0440",
       fields: {
+        logoText: { type: "text", label: "\u041B\u043E\u0433\u043E\u0442\u0438\u043F \u2014 \u0442\u0435\u043A\u0441\u0442" },
+        note: { type: "text", label: "\u041F\u0440\u0438\u043C\u0435\u0447\u0430\u043D\u0438\u0435 \u043F\u043E\u0434 \u043B\u043E\u0433\u043E (\u043D\u0430\u043F\u0440. SHIBA TRAVEL CO. LTD)" },
+        columns: {
+          type: "array",
+          label: "\u041A\u043E\u043B\u043E\u043D\u043A\u0438",
+          arrayFields: {
+            title: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A \u043A\u043E\u043B\u043E\u043D\u043A\u0438" },
+            titleHref: { type: "text", label: "\u0421\u0441\u044B\u043B\u043A\u0430 \u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043A\u0430 (\u043E\u043F\u0446., \u043D\u0430\u043F\u0440. #car)" },
+            links: {
+              type: "array",
+              label: "\u0421\u0441\u044B\u043B\u043A\u0438",
+              arrayFields: {
+                label: { type: "text", label: "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435" },
+                href: { type: "text", label: "\u0421\u0441\u044B\u043B\u043A\u0430" }
+              },
+              defaultItemProps: { label: "", href: "" },
+              getItemSummary: (item) => item.label || "\u0421\u0441\u044B\u043B\u043A\u0430"
+            }
+          },
+          defaultItemProps: { title: "", titleHref: "", links: [] },
+          getItemSummary: (item) => item.title || "\u041A\u043E\u043B\u043E\u043D\u043A\u0430"
+        },
+        contactsTitle: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u043E\u0432" },
         phone: { type: "text", label: "\u0422\u0435\u043B\u0435\u0444\u043E\u043D" },
         email: { type: "text", label: "Email" },
+        address: { type: "textarea", label: "\u0410\u0434\u0440\u0435\u0441" },
         whatsapp: { type: "text", label: "WhatsApp \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" },
         telegram: { type: "text", label: "Telegram \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" },
-        instagram: { type: "text", label: "Instagram \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" },
-        mapUrl: { type: "text", label: "\u041A\u0430\u0440\u0442\u0430 \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" },
-        links: {
-          type: "array",
-          label: "\u041D\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u044F",
-          arrayFields: {
-            label: { type: "text", label: "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435" },
-            href: { type: "text", label: "\u0421\u0441\u044B\u043B\u043A\u0430" }
-          },
-          defaultItemProps: { label: "", href: "" },
-          getItemSummary: (item) => item.label || "\u041F\u0443\u043D\u043A\u0442"
-        },
-        note: { type: "textarea", label: "\u041F\u0440\u0438\u043C\u0435\u0447\u0430\u043D\u0438\u0435" }
+        instagram: { type: "text", label: "Instagram \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" }
       },
       defaultProps: {
+        logoText: "SHIBA CARS",
+        note: "SHIBA TRAVEL CO. LTD",
+        columns: [
+          {
+            title: "\u0410\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u0438",
+            titleHref: "#car",
+            links: [
+              { label: "\u041F\u0440\u0435\u043C\u0438\u0443\u043C", href: "#car" },
+              { label: "\u042D\u043B\u0435\u043A\u0442\u0440\u043E\u043A\u0430\u0440\u044B", href: "#car" },
+              { label: "\u0412\u043D\u0435\u0434\u043E\u0440\u043E\u0436\u043D\u0438\u043A\u0438", href: "#car" },
+              { label: "\u041A\u0440\u043E\u0441\u0441\u043E\u0432\u0435\u0440\u044B", href: "#car" },
+              { label: "\u041A\u043E\u043C\u0444\u043E\u0440\u0442", href: "#car" }
+            ]
+          },
+          {
+            title: "\u0411\u0430\u0439\u043A\u0438",
+            titleHref: "#bike",
+            links: [
+              { label: "\u041C\u043E\u0442\u043E\u0446\u0438\u043A\u043B\u044B", href: "#bike" },
+              { label: "\u0411\u0438\u0433 \u0431\u0430\u0439\u043A\u0438", href: "#bike" },
+              { label: "\u041C\u0438\u043D\u0438 \u0431\u0430\u0439\u043A\u0438", href: "#bike" }
+            ]
+          },
+          { title: "\u041E\u0442\u0437\u044B\u0432\u044B", titleHref: "#reviews", links: [] },
+          { title: "\u0423\u0441\u043B\u043E\u0432\u0438\u044F", titleHref: "#conditions", links: [] }
+        ],
+        contactsTitle: "\u041A\u043E\u043D\u0442\u0430\u043A\u0442\u044B",
         phone: "+66959657805",
         email: "shibacars@gmail.com",
+        address: "24/31 Wichit, Mueang District, Phuket 83000, Thailand",
         whatsapp: "https://wa.me/66959657805",
         telegram: "https://t.me/ShibaCars_Phuket",
-        instagram: "https://www.instagram.com/shibacars_phuket",
-        mapUrl: "https://maps.app.goo.gl/eAvKTvF2KHJjC9ds8",
-        links: [
-          { label: "\u0410\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u0438", href: "#car" },
-          { label: "\u0411\u0430\u0439\u043A\u0438", href: "#bike" },
-          { label: "\u041E\u0442\u0437\u044B\u0432\u044B", href: "#reviews" }
-        ],
-        note: ""
+        instagram: "https://www.instagram.com/shibacars_phuket"
       },
       render: Footer
     },

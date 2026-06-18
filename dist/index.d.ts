@@ -134,18 +134,27 @@ interface SiteHeaderProps {
 /** Sticky, blurred dark header: brand + anchor nav + contact icon links. */
 declare function SiteHeader({ logoText, logoImage, links, phone, whatsapp, telegram, instagram, }: SiteHeaderProps): react.JSX.Element;
 
+interface FooterColumn {
+    title: string;
+    /** Optional link for the column heading itself (e.g. «Отзывы» → #reviews). */
+    titleHref?: string;
+    links?: NavLink[];
+}
 interface FooterProps {
+    logoText?: string;
+    /** Legal line under the logo, e.g. «SHIBA TRAVEL CO. LTD». */
+    note?: string;
+    columns?: FooterColumn[];
+    contactsTitle?: string;
     phone?: string;
     email?: string;
+    address?: string;
     whatsapp?: string;
     telegram?: string;
     instagram?: string;
-    mapUrl?: string;
-    links: NavLink[];
-    note?: string;
 }
-/** Footer: contacts + nav + socials. */
-declare function Footer({ phone, email, whatsapp, telegram, instagram, mapUrl, links, note, }: FooterProps): react.JSX.Element;
+/** Multi-column footer: wordmark + nav columns + a contacts column. */
+declare function Footer({ logoText, note, columns, contactsTitle, phone, email, address, whatsapp, telegram, instagram, }: FooterProps): react.JSX.Element;
 
 interface LeadFormProps {
     heading?: string;

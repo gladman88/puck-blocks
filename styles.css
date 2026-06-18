@@ -790,7 +790,7 @@ a.sb-map__line:hover {
 }
 .sb-footer__inner {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 1.6fr repeat(4, 1fr) 1.4fr;
   gap: 2rem;
   max-width: var(--sb-container);
   margin-inline: auto;
@@ -802,25 +802,59 @@ a.sb-map__line:hover {
 .sb-footer a:hover {
   color: var(--sb-accent);
 }
+.sb-footer__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.sb-footer__logo {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
 .sb-footer__col h4 {
   margin: 0 0 0.9rem;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--sb-text-strong);
+}
+.sb-footer__col h4 a {
+  color: inherit;
+}
+.sb-footer__col h4 a:hover {
+  color: var(--sb-accent);
 }
 .sb-footer__list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
+.sb-footer__address {
+  margin: 0;
+  color: var(--sb-text-muted);
+  line-height: 1.5;
+}
 .sb-footer__socials {
   display: flex;
   gap: 0.6rem;
+  margin-top: 1rem;
 }
 .sb-footer__note {
-  max-width: var(--sb-container);
-  margin: 2rem auto 0;
+  margin: 0;
   color: var(--sb-text-muted);
   font-size: 0.85rem;
+}
+@media (max-width: 900px) {
+  .sb-footer__inner {
+    grid-template-columns: 1fr 1fr;
+  }
+  .sb-footer__brand {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 520px) {
+  .sb-footer__inner {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---- LeadForm ---- */

@@ -35,7 +35,7 @@ describe('Footer', () => {
         phone="+66959657805"
         email="a@b.com"
         whatsapp="https://wa.me/1"
-        links={[{ label: 'Авто', href: '#car' }]}
+        columns={[{ title: 'Авто', titleHref: '#car', links: [] }]}
       />,
     );
     expect(getByText('a@b.com')).toBeTruthy();
