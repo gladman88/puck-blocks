@@ -2,6 +2,7 @@
 
 var jsxRuntime = require('react/jsx-runtime');
 var react = require('react');
+var reactDom = require('react-dom');
 
 // src/sanitize.ts
 var SAFE_HREF = /^(https?:\/\/|\/|#|mailto:|tel:)/i;
@@ -280,26 +281,29 @@ function TextCard({ review }) {
     review.text ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-rcard__text", children: review.text }) : null,
     screenshot ? /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
       /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-rcard__more", onClick: () => setOpen(true), children: "\u0427\u0438\u0442\u0430\u0442\u044C \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E" }),
-      open ? /* @__PURE__ */ jsxRuntime.jsxs(
-        "div",
-        {
-          className: "sb-lightbox",
-          role: "dialog",
-          "aria-modal": "true",
-          onClick: () => setOpen(false),
-          children: [
-            /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-lightbox__close", "aria-label": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C", children: "\xD7" }),
-            /* @__PURE__ */ jsxRuntime.jsx(
-              "img",
-              {
-                className: "sb-lightbox__img",
-                src: screenshot,
-                alt: name ? `\u041E\u0442\u0437\u044B\u0432 \u2014 ${name}` : "\u041E\u0442\u0437\u044B\u0432",
-                onClick: (e) => e.stopPropagation()
-              }
-            )
-          ]
-        }
+      open && typeof document !== "undefined" ? reactDom.createPortal(
+        /* @__PURE__ */ jsxRuntime.jsxs(
+          "div",
+          {
+            className: "sb-lightbox",
+            role: "dialog",
+            "aria-modal": "true",
+            onClick: () => setOpen(false),
+            children: [
+              /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-lightbox__close", "aria-label": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C", children: "\xD7" }),
+              /* @__PURE__ */ jsxRuntime.jsx(
+                "img",
+                {
+                  className: "sb-lightbox__img",
+                  src: screenshot,
+                  alt: name ? `\u041E\u0442\u0437\u044B\u0432 \u2014 ${name}` : "\u041E\u0442\u0437\u044B\u0432",
+                  onClick: (e) => e.stopPropagation()
+                }
+              )
+            ]
+          }
+        ),
+        document.body
       ) : null
     ] }) : null
   ] });
@@ -414,14 +418,17 @@ function Footer({
 function LeadForm({
   heading,
   text,
-  buttonLabel = "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u044F\u0432\u043A\u0443",
+  contactLabel = "\u041A\u0430\u043A \u0441 \u0432\u0430\u043C\u0438 \u0441\u0432\u044F\u0437\u0430\u0442\u044C\u0441\u044F?",
+  buttonLabel = "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
   successMessage = "\u0421\u043F\u0430\u0441\u0438\u0431\u043E! \u041C\u044B \u0441\u043A\u043E\u0440\u043E \u0441\u0432\u044F\u0436\u0435\u043C\u0441\u044F \u0441 \u0432\u0430\u043C\u0438.",
-  endpoint
+  endpoint,
+  image
 }) {
   const [name, setName] = react.useState("");
   const [phone, setPhone] = react.useState("");
   const [method, setMethod] = react.useState("whatsapp");
   const [status, setStatus] = react.useState("idle");
+  const img = safeImageUrl(image);
   const onSubmit = async (event) => {
     event.preventDefault();
     if (!phone.trim()) return;
@@ -441,48 +448,52 @@ function LeadForm({
       setStatus("err");
     }
   };
-  return /* @__PURE__ */ jsxRuntime.jsx(Section, { className: "sb-leadform", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-leadform__inner", id: "leadform", children: [
-    heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: heading }) : null,
-    text ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-lead", children: text }) : null,
-    status === "ok" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-form__status sb-form__status--ok", children: successMessage }) : /* @__PURE__ */ jsxRuntime.jsxs("form", { className: "sb-form", onSubmit, children: [
-      /* @__PURE__ */ jsxRuntime.jsx(
-        "input",
-        {
-          className: "sb-input",
-          type: "text",
-          placeholder: "\u0412\u0430\u0448\u0435 \u0438\u043C\u044F",
-          value: name,
-          onChange: (event) => setName(event.target.value)
-        }
-      ),
-      /* @__PURE__ */ jsxRuntime.jsx(
-        "input",
-        {
-          className: "sb-input",
-          type: "tel",
-          placeholder: "\u0422\u0435\u043B\u0435\u0444\u043E\u043D",
-          required: true,
-          value: phone,
-          onChange: (event) => setPhone(event.target.value)
-        }
-      ),
-      /* @__PURE__ */ jsxRuntime.jsxs(
-        "select",
-        {
-          className: "sb-select",
-          "aria-label": "\u0421\u043F\u043E\u0441\u043E\u0431 \u0441\u0432\u044F\u0437\u0438",
-          value: method,
-          onChange: (event) => setMethod(event.target.value),
-          children: [
-            /* @__PURE__ */ jsxRuntime.jsx("option", { value: "whatsapp", children: "WhatsApp" }),
-            /* @__PURE__ */ jsxRuntime.jsx("option", { value: "telegram", children: "Telegram" }),
-            /* @__PURE__ */ jsxRuntime.jsx("option", { value: "phone", children: "\u0422\u0435\u043B\u0435\u0444\u043E\u043D" })
-          ]
-        }
-      ),
-      /* @__PURE__ */ jsxRuntime.jsx("button", { className: "sb-btn", type: "submit", disabled: status === "sending", children: buttonLabel }),
-      status === "err" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-form__status sb-form__status--err", children: "\u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437." }) : null
-    ] })
+  return /* @__PURE__ */ jsxRuntime.jsx(Section, { className: "sb-leadform", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: `sb-leadform__card ${img ? "" : "sb-leadform__card--solo"}`, id: "leadform", children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-leadform__form", children: [
+      heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: heading }) : null,
+      text ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-lead", children: text }) : null,
+      status === "ok" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-form__status sb-form__status--ok", children: successMessage }) : /* @__PURE__ */ jsxRuntime.jsxs("form", { className: "sb-form", onSubmit, children: [
+        /* @__PURE__ */ jsxRuntime.jsx(
+          "input",
+          {
+            className: "sb-input",
+            type: "text",
+            placeholder: "\u0412\u0430\u0448\u0435 \u0438\u043C\u044F",
+            value: name,
+            onChange: (event) => setName(event.target.value)
+          }
+        ),
+        /* @__PURE__ */ jsxRuntime.jsx(
+          "input",
+          {
+            className: "sb-input",
+            type: "tel",
+            placeholder: "\u0422\u0435\u043B\u0435\u0444\u043E\u043D",
+            required: true,
+            value: phone,
+            onChange: (event) => setPhone(event.target.value)
+          }
+        ),
+        contactLabel ? /* @__PURE__ */ jsxRuntime.jsx("label", { className: "sb-leadform__label", children: contactLabel }) : null,
+        /* @__PURE__ */ jsxRuntime.jsxs(
+          "select",
+          {
+            className: "sb-select",
+            "aria-label": contactLabel || "\u0421\u043F\u043E\u0441\u043E\u0431 \u0441\u0432\u044F\u0437\u0438",
+            value: method,
+            onChange: (event) => setMethod(event.target.value),
+            children: [
+              /* @__PURE__ */ jsxRuntime.jsx("option", { value: "whatsapp", children: "WhatsApp" }),
+              /* @__PURE__ */ jsxRuntime.jsx("option", { value: "telegram", children: "Telegram" }),
+              /* @__PURE__ */ jsxRuntime.jsx("option", { value: "phone", children: "\u0422\u0435\u043B\u0435\u0444\u043E\u043D" })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntime.jsx("button", { className: "sb-btn", type: "submit", disabled: status === "sending", children: buttonLabel }),
+        status === "err" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-form__status sb-form__status--err", children: "\u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437." }) : null
+      ] })
+    ] }),
+    img ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-leadform__media", children: /* @__PURE__ */ jsxRuntime.jsx("img", { src: img, alt: heading ?? "", loading: "lazy" }) }) : null
   ] }) });
 }
 var STRINGS = {
@@ -561,9 +572,11 @@ function formatDate(iso, locale) {
 }
 function VehicleCatalog({
   heading,
+  anchorId,
   vehicleType = "car",
   apiBase = "",
   catalogUrl,
+  defaultCategory,
   puck
 }) {
   const locale = puck?.metadata?.locale === "en" ? "en" : "ru";
@@ -589,8 +602,14 @@ function VehicleCatalog({
       )
     ]).then(([cats, list]) => {
       if (cancelled) return;
-      setCategories(Array.isArray(cats) ? cats : []);
-      setVehicles(Array.isArray(list) ? list : []);
+      const catList = Array.isArray(cats) ? cats : [];
+      const vehList = Array.isArray(list) ? list : [];
+      setCategories(catList);
+      setVehicles(vehList);
+      const want = (defaultCategory ?? "").trim().toLowerCase();
+      const usedIds = new Set(vehList.map((v) => v.category?.id).filter(Boolean));
+      const def = want ? catList.find((c) => usedIds.has(c.id) && c.name.trim().toLowerCase() === want) : void 0;
+      setActiveCat(def ? def.id : null);
       setState("ready");
     }).catch(() => {
       if (!cancelled) setState("error");
@@ -598,28 +617,28 @@ function VehicleCatalog({
     return () => {
       cancelled = true;
     };
-  }, [apiBase, vehicleType]);
+  }, [apiBase, vehicleType, defaultCategory]);
   const usedCats = new Set(
     vehicles.map((v) => v.category?.id).filter((id) => Boolean(id))
   );
-  const tabs = categories.filter((c) => usedCats.has(c.id));
+  const tabs = react.useMemo(() => {
+    const used = categories.filter((c) => usedCats.has(c.id));
+    const want = (defaultCategory ?? "").trim().toLowerCase();
+    if (!want) return used;
+    const idx = used.findIndex((c) => c.name.trim().toLowerCase() === want);
+    if (idx <= 0) return used;
+    const copy = [...used];
+    const [d] = copy.splice(idx, 1);
+    return [d, ...copy];
+  }, [categories, vehicles, defaultCategory]);
   const groups = react.useMemo(() => {
     const list = activeCat ? vehicles.filter((v) => v.category?.id === activeCat) : vehicles;
     return groupVehicles(list);
   }, [vehicles, activeCat]);
   const base2 = safeHref(catalogUrl);
-  return /* @__PURE__ */ jsxRuntime.jsxs(Section, { className: "sb-vcatalog", children: [
+  return /* @__PURE__ */ jsxRuntime.jsxs(Section, { className: "sb-vcatalog", id: anchorId || void 0, children: [
     heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: heading }) : null,
     state === "ready" && tabs.length > 0 ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcatalog__tabs", children: [
-      /* @__PURE__ */ jsxRuntime.jsx(
-        "button",
-        {
-          type: "button",
-          className: `sb-vcatalog__tab ${activeCat === null ? "sb-vcatalog__tab--active" : ""}`,
-          onClick: () => setActiveCat(null),
-          children: t.all
-        }
-      ),
       tabs.map((c) => /* @__PURE__ */ jsxRuntime.jsx(
         "button",
         {
@@ -629,7 +648,16 @@ function VehicleCatalog({
           children: c.name
         },
         c.id
-      ))
+      )),
+      /* @__PURE__ */ jsxRuntime.jsx(
+        "button",
+        {
+          type: "button",
+          className: `sb-vcatalog__tab ${activeCat === null ? "sb-vcatalog__tab--active" : ""}`,
+          onClick: () => setActiveCat(null),
+          children: t.all
+        }
+      )
     ] }) : null,
     state === "loading" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vcatalog__state", children: t.loading }) : null,
     state === "error" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vcatalog__state", children: t.error }) : null,
@@ -1066,15 +1094,19 @@ var internalConfig = {
       label: "\u0424\u043E\u0440\u043C\u0430 \u0437\u0430\u044F\u0432\u043A\u0438",
       fields: {
         heading: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" },
-        text: { type: "textarea", label: "\u0422\u0435\u043A\u0441\u0442" },
+        text: { type: "textarea", label: "\u0422\u0435\u043A\u0441\u0442 (\u043E\u043F\u0446.)" },
+        contactLabel: { type: "text", label: "\u041F\u043E\u0434\u043F\u0438\u0441\u044C \u043D\u0430\u0434 \u0432\u044B\u0431\u043E\u0440\u043E\u043C \u043C\u0435\u0441\u0441\u0435\u043D\u0434\u0436\u0435\u0440\u0430" },
         buttonLabel: { type: "text", label: "\u0422\u0435\u043A\u0441\u0442 \u043A\u043D\u043E\u043F\u043A\u0438" },
+        image: imageField("\u0424\u043E\u0442\u043E (\u0441\u043F\u0440\u0430\u0432\u0430 \u043E\u0442 \u0444\u043E\u0440\u043C\u044B)"),
         successMessage: { type: "text", label: "\u0421\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435 \u043F\u043E\u0441\u043B\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438" },
         endpoint: { type: "text", label: "Endpoint (URL \u043F\u0440\u0438\u0451\u043C\u0430 \u0437\u0430\u044F\u0432\u043E\u043A)" }
       },
       defaultProps: {
-        heading: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
-        text: "\u041F\u043E\u0434\u0430\u0447\u0430 \u0430\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u044F \u0432 \u0442\u0435\u0447\u0435\u043D\u0438\u0435 2 \u0447\u0430\u0441\u043E\u0432",
-        buttonLabel: "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u044F\u0432\u043A\u0443",
+        heading: "\u041F\u043E\u0434\u0430\u0447\u0430 \u0430\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u044F \u0432 \u0442\u0435\u0447\u0435\u043D\u0438\u0438 2-\u0445 \u0447\u0430\u0441\u043E\u0432",
+        text: "",
+        contactLabel: "\u041A\u0430\u043A \u0441 \u0432\u0430\u043C\u0438 \u0441\u0432\u044F\u0437\u0430\u0442\u044C\u0441\u044F?",
+        buttonLabel: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
+        image: "",
         successMessage: "\u0421\u043F\u0430\u0441\u0438\u0431\u043E! \u041C\u044B \u0441\u043A\u043E\u0440\u043E \u0441\u0432\u044F\u0436\u0435\u043C\u0441\u044F \u0441 \u0432\u0430\u043C\u0438.",
         endpoint: ""
       },
@@ -1084,6 +1116,7 @@ var internalConfig = {
       label: "\u041A\u0430\u0442\u0430\u043B\u043E\u0433 \u0422\u0421",
       fields: {
         heading: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" },
+        anchorId: { type: "text", label: "\u042F\u043A\u043E\u0440\u044C \u0434\u043B\u044F \u043C\u0435\u043D\u044E (\u043D\u0430\u043F\u0440. car / bike)" },
         vehicleType: {
           type: "radio",
           label: "\u0422\u0438\u043F",
@@ -1092,12 +1125,18 @@ var internalConfig = {
             { label: "\u0411\u0430\u0439\u043A\u0438", value: "motorcycle" }
           ]
         },
-        catalogUrl: { type: "text", label: "\u0421\u0441\u044B\u043B\u043A\u0430 \u043D\u0430 \u043F\u043E\u043B\u043D\u044B\u0439 \u043A\u0430\u0442\u0430\u043B\u043E\u0433" }
+        catalogUrl: { type: "text", label: "\u0421\u0441\u044B\u043B\u043A\u0430 \u043D\u0430 \u043F\u043E\u043B\u043D\u044B\u0439 \u043A\u0430\u0442\u0430\u043B\u043E\u0433" },
+        defaultCategory: {
+          type: "text",
+          label: "\u0412\u043A\u043B\u0430\u0434\u043A\u0430 \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E (\u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438, \u043D\u0430\u043F\u0440. \xAB\u041F\u0440\u0435\u043C\u0438\u0443\u043C\xBB)"
+        }
       },
       defaultProps: {
         heading: "\u0410\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u0438",
+        anchorId: "",
         vehicleType: "car",
-        catalogUrl: ""
+        catalogUrl: "",
+        defaultCategory: ""
       },
       render: VehicleCatalog
     },

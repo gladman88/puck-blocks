@@ -29,11 +29,19 @@ export interface CatalogVehicle {
 
 export interface VehicleCatalogProps {
   heading?: string;
+  /** Section anchor id so the header nav can scroll here (e.g. "car"). */
+  anchorId?: string;
   vehicleType?: 'car' | 'motorcycle';
   /** API origin; '' = relative path (proxied by the host app). */
   apiBase?: string;
   /** Link to the full catalog app (card click + "view all"). */
   catalogUrl?: string;
+  /**
+   * Category name preselected on load and shown first in the tab row (e.g.
+   * «Премиум» for cars, «Мотоциклы» for bikes). The «Все» tab is always last.
+   * Empty / not found → «Все» is preselected.
+   */
+  defaultCategory?: string;
 }
 
 const STRINGS = {
@@ -139,9 +147,11 @@ type PuckInjected = { puck?: { metadata?: { locale?: string } } };
  */
 export function VehicleCatalog({
   heading,
+  anchorId,
   vehicleType = 'car',
   apiBase = '',
   catalogUrl,
+  defaultCategory,
   puck,
 }: VehicleCatalogProps & PuckInjected) {
   const locale: 'ru' | 'en' = puck?.metadata?.locale === 'en' ? 'en' : 'ru';
@@ -171,8 +181,18 @@ export function VehicleCatalog({
     ])
       .then(([cats, list]) => {
         if (cancelled) return;
-        setCategories(Array.isArray(cats) ? cats : []);
-        setVehicles(Array.isArray(list) ? list : []);
+        const catList = Array.isArray(cats) ? cats : [];
+        const vehList = Array.isArray(list) ? list : [];
+        setCategories(catList);
+        setVehicles(vehList);
+        // Preselect the configured default category (if present AND actually
+        // used by a vehicle); otherwise fall back to «Все» (null).
+        const want = (defaultCategory ?? '').trim().toLowerCase();
+        const usedIds = new Set(vehList.map((v) => v.category?.id).filter(Boolean));
+        const def = want
+          ? catList.find((c) => usedIds.has(c.id) && c.name.trim().toLowerCase() === want)
+          : undefined;
+        setActiveCat(def ? def.id : null);
         setState('ready');
       })
       .catch(() => {
@@ -182,12 +202,24 @@ export function VehicleCatalog({
     return () => {
       cancelled = true;
     };
-  }, [apiBase, vehicleType]);
+  }, [apiBase, vehicleType, defaultCategory]);
 
   const usedCats = new Set(
     vehicles.map((v) => v.category?.id).filter((id): id is string => Boolean(id)),
   );
-  const tabs = categories.filter((c) => usedCats.has(c.id));
+  // Category tabs, default category moved to the front («Все» is rendered last,
+  // separately).
+  const tabs = useMemo(() => {
+    const used = categories.filter((c) => usedCats.has(c.id));
+    const want = (defaultCategory ?? '').trim().toLowerCase();
+    if (!want) return used;
+    const idx = used.findIndex((c) => c.name.trim().toLowerCase() === want);
+    if (idx <= 0) return used;
+    const copy = [...used];
+    const [d] = copy.splice(idx, 1);
+    return [d, ...copy];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories, vehicles, defaultCategory]);
 
   const groups = useMemo(() => {
     const list = activeCat ? vehicles.filter((v) => v.category?.id === activeCat) : vehicles;
@@ -197,18 +229,11 @@ export function VehicleCatalog({
   const base = safeHref(catalogUrl);
 
   return (
-    <Section className="sb-vcatalog">
+    <Section className="sb-vcatalog" id={anchorId || undefined}>
       {heading ? <h2 className="sb-h2">{heading}</h2> : null}
 
       {state === 'ready' && tabs.length > 0 ? (
         <div className="sb-vcatalog__tabs">
-          <button
-            type="button"
-            className={`sb-vcatalog__tab ${activeCat === null ? 'sb-vcatalog__tab--active' : ''}`}
-            onClick={() => setActiveCat(null)}
-          >
-            {t.all}
-          </button>
           {tabs.map((c) => (
             <button
               key={c.id}
@@ -219,6 +244,13 @@ export function VehicleCatalog({
               {c.name}
             </button>
           ))}
+          <button
+            type="button"
+            className={`sb-vcatalog__tab ${activeCat === null ? 'sb-vcatalog__tab--active' : ''}`}
+            onClick={() => setActiveCat(null)}
+          >
+            {t.all}
+          </button>
         </div>
       ) : null}
 

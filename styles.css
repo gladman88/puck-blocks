@@ -131,13 +131,14 @@
   position: relative;
   z-index: 1;
   display: flex;
-  max-width: 42rem;
+  max-width: 52rem;
   flex-direction: column;
   align-items: flex-start;
   gap: 1.5rem;
 }
 .sb-hero .sb-h1 {
   text-transform: uppercase;
+  text-wrap: balance;
 }
 .sb-hero__accent {
   color: var(--sb-accent);
@@ -625,6 +626,7 @@
   position: relative;
   z-index: 1;
   margin: 2.5rem;
+  margin-left: auto;
   align-self: center;
   max-width: 360px;
   padding: 2rem;
@@ -792,10 +794,55 @@ a.sb-map__line:hover {
 }
 
 /* ---- LeadForm ---- */
-.sb-leadform__inner {
-  max-width: 36rem;
+.sb-leadform__card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: center;
+  background: var(--sb-surface);
+  border-radius: var(--sb-radius);
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+.sb-leadform__card--solo {
+  grid-template-columns: 1fr;
+  max-width: 40rem;
   margin-inline: auto;
-  text-align: center;
+}
+.sb-leadform__form {
+  min-width: 0;
+}
+.sb-leadform__form .sb-h2 {
+  margin-bottom: 1.5rem;
+}
+.sb-leadform__label {
+  display: block;
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: var(--sb-accent);
+}
+.sb-leadform__media {
+  align-self: stretch;
+}
+.sb-leadform__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  max-height: 400px;
+  object-fit: cover;
+  border-radius: var(--sb-radius);
+}
+@media (max-width: 768px) {
+  .sb-leadform__card {
+    grid-template-columns: 1fr;
+  }
+  .sb-leadform__media {
+    order: -1;
+  }
+  .sb-leadform__media img {
+    min-height: 0;
+    max-height: 220px;
+  }
 }
 .sb-form {
   display: flex;

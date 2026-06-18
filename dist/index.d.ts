@@ -148,18 +148,22 @@ declare function Footer({ phone, email, whatsapp, telegram, instagram, mapUrl, l
 interface LeadFormProps {
     heading?: string;
     text?: string;
+    /** Label above the messenger select. */
+    contactLabel?: string;
     buttonLabel?: string;
     successMessage?: string;
     /** Backend endpoint that receives { name, phone, contact_method }. */
     endpoint?: string;
+    /** Photo shown beside the form (right column). */
+    image?: string;
 }
 /**
- * Lead/booking form. Client-interactive (manages its own state), posts JSON to
- * `endpoint`. With no endpoint configured it just shows the success message
- * (useful in the editor preview). The whole tree renders inside a client
- * boundary on the site, so this needs no framework-specific directive.
+ * Lead/booking card: title + form on the left, a photo on the right (matches
+ * the site's «подача за 2 часа» block). Client-interactive — posts JSON to
+ * `endpoint`; with no endpoint it just shows the success message (editor
+ * preview). Renders inside a client boundary, so no framework directive needed.
  */
-declare function LeadForm({ heading, text, buttonLabel, successMessage, endpoint, }: LeadFormProps): react.JSX.Element;
+declare function LeadForm({ heading, text, contactLabel, buttonLabel, successMessage, endpoint, image, }: LeadFormProps): react.JSX.Element;
 
 interface CatalogCategory {
     id: string;
@@ -184,11 +188,19 @@ interface CatalogVehicle {
 }
 interface VehicleCatalogProps {
     heading?: string;
+    /** Section anchor id so the header nav can scroll here (e.g. "car"). */
+    anchorId?: string;
     vehicleType?: 'car' | 'motorcycle';
     /** API origin; '' = relative path (proxied by the host app). */
     apiBase?: string;
     /** Link to the full catalog app (card click + "view all"). */
     catalogUrl?: string;
+    /**
+     * Category name preselected on load and shown first in the tab row (e.g.
+     * «Премиум» for cars, «Мотоциклы» for bikes). The «Все» tab is always last.
+     * Empty / not found → «Все» is preselected.
+     */
+    defaultCategory?: string;
 }
 type PuckInjected = {
     puck?: {
@@ -203,7 +215,7 @@ type PuckInjected = {
  * card (like frontend_catalog), with a per-section category filter. Used twice
  * (cars / bikes). Locale comes from Puck metadata (page locale).
  */
-declare function VehicleCatalog({ heading, vehicleType, apiBase, catalogUrl, puck, }: VehicleCatalogProps & PuckInjected): react.JSX.Element;
+declare function VehicleCatalog({ heading, anchorId, vehicleType, apiBase, catalogUrl, defaultCategory, puck, }: VehicleCatalogProps & PuckInjected): react.JSX.Element;
 
 interface MapContactsProps {
     /** Section anchor id (e.g. "contacts"). */

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Section } from '../components/Section';
 import { Carousel } from '../components/Carousel';
 import { VideoEmbed } from '../components/VideoEmbed';
@@ -66,24 +67,27 @@ function TextCard({ review }: { review: TextReview }) {
           <button type="button" className="sb-rcard__more" onClick={() => setOpen(true)}>
             Читать полностью
           </button>
-          {open ? (
-            <div
-              className="sb-lightbox"
-              role="dialog"
-              aria-modal="true"
-              onClick={() => setOpen(false)}
-            >
-              <button type="button" className="sb-lightbox__close" aria-label="Закрыть">
-                ×
-              </button>
-              <img
-                className="sb-lightbox__img"
-                src={screenshot}
-                alt={name ? `Отзыв — ${name}` : 'Отзыв'}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          ) : null}
+          {open && typeof document !== 'undefined'
+            ? createPortal(
+                <div
+                  className="sb-lightbox"
+                  role="dialog"
+                  aria-modal="true"
+                  onClick={() => setOpen(false)}
+                >
+                  <button type="button" className="sb-lightbox__close" aria-label="Закрыть">
+                    ×
+                  </button>
+                  <img
+                    className="sb-lightbox__img"
+                    src={screenshot}
+                    alt={name ? `Отзыв — ${name}` : 'Отзыв'}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>,
+                document.body,
+              )
+            : null}
         </>
       ) : null}
     </article>
