@@ -1,5 +1,6 @@
 import { safeHref, safeImageUrl } from '../sanitize';
 import { ContactIcon, type ContactKind } from '../components/ContactIcon';
+import { BrandLogo } from '../components/BrandLogo';
 
 export interface NavLink {
   label: string;
@@ -28,23 +29,28 @@ export function SiteHeader({
 }: SiteHeaderProps) {
   const logoImg = safeImageUrl(logoImage);
 
-  const contacts: { kind: ContactKind; href: string }[] = [];
+  // Social icons (phone is rendered separately, as text).
+  const socials: { kind: ContactKind; href: string }[] = [];
+  const ig = safeHref(instagram);
+  if (ig) socials.push({ kind: 'instagram', href: ig });
+  const wa = safeHref(whatsapp);
+  if (wa) socials.push({ kind: 'whatsapp', href: wa });
+  const tg = safeHref(telegram);
+  if (tg) socials.push({ kind: 'telegram', href: tg });
+
   const phoneHref = phone
     ? safeHref(phone.startsWith('tel:') ? phone : `tel:${phone.replace(/\s+/g, '')}`)
     : undefined;
-  if (phoneHref) contacts.push({ kind: 'phone', href: phoneHref });
-  const wa = safeHref(whatsapp);
-  if (wa) contacts.push({ kind: 'whatsapp', href: wa });
-  const tg = safeHref(telegram);
-  if (tg) contacts.push({ kind: 'telegram', href: tg });
-  const ig = safeHref(instagram);
-  if (ig) contacts.push({ kind: 'instagram', href: ig });
 
   return (
     <header className="sb-header">
       <div className="sb-header__inner">
         <a className="sb-header__brand" href="/">
-          {logoImg ? <img src={logoImg} alt={logoText || 'logo'} /> : logoText || 'SHIBA CARS'}
+          {logoImg ? (
+            <img src={logoImg} alt={logoText || 'logo'} />
+          ) : (
+            <BrandLogo text={logoText || 'SHIBA CARS'} />
+          )}
         </a>
         <nav className="sb-header__nav">
           {(links ?? []).map((link, index) => {
@@ -57,17 +63,23 @@ export function SiteHeader({
           })}
         </nav>
         <div className="sb-header__contacts">
-          {contacts.map((contact, index) => (
+          {socials.map((contact, index) => (
             <a
               key={index}
               className="sb-icon-link"
               href={contact.href}
               aria-label={contact.kind}
-              {...(contact.kind === 'phone' ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+              target="_blank"
+              rel="noopener noreferrer"
             >
               <ContactIcon kind={contact.kind} />
             </a>
           ))}
+          {phoneHref ? (
+            <a className="sb-header__phone" href={phoneHref}>
+              {phone}
+            </a>
+          ) : null}
         </div>
       </div>
     </header>

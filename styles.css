@@ -22,6 +22,7 @@
   --sb-radius: 16px;
   --sb-container: 1200px;
   --sb-section-py: clamp(3rem, 6vw, 6rem);
+  --sb-header-h: 4.75rem;
 
   background: var(--sb-bg);
   color: var(--sb-text);
@@ -35,6 +36,11 @@
 .sb-root *::before,
 .sb-root *::after {
   box-sizing: border-box;
+}
+
+/* Anchor targets clear the sticky header on nav-jump. */
+.sb-root [id] {
+  scroll-margin-top: calc(var(--sb-header-h) + 1rem);
 }
 
 /* ---- Layout primitives ---- */
@@ -109,7 +115,9 @@
 .sb-hero {
   position: relative;
   display: flex;
-  min-height: 88vh;
+  min-height: 100vh;
+  /* Pull up under the sticky header so the image fills the whole first screen. */
+  margin-top: calc(-1 * var(--sb-header-h));
   align-items: center;
   padding: var(--sb-section-py) clamp(1.25rem, 6vw, 5rem);
   text-align: left;
@@ -685,30 +693,52 @@ a.sb-map__line:hover {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(25, 25, 25, 0.85);
+  background: rgba(20, 20, 20, 0.55);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--sb-border);
 }
 .sb-header__inner {
   display: flex;
   align-items: center;
   gap: 1.5rem;
+  min-height: var(--sb-header-h);
   max-width: var(--sb-container);
   margin-inline: auto;
-  padding: 0.85rem 1.25rem;
+  padding: 0 1.25rem;
 }
 .sb-header__brand {
-  font-weight: 800;
-  font-size: 1.15rem;
-  letter-spacing: 0.02em;
-  color: var(--sb-text-strong);
+  font-size: 1.4rem;
   text-decoration: none;
 }
 .sb-header__brand img {
   display: block;
-  height: 32px;
+  height: 34px;
   width: auto;
+}
+/* ---- Two-tone wordmark (header + footer) ---- */
+.sb-logo {
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.sb-logo__a {
+  color: var(--sb-accent);
+}
+.sb-logo__b {
+  color: var(--sb-text-muted);
+  margin-left: 0.3em;
+}
+.sb-header__phone {
+  margin-left: 0.4rem;
+  color: var(--sb-text-strong);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.sb-header__phone:hover {
+  color: var(--sb-accent);
 }
 .sb-header__nav {
   display: flex;

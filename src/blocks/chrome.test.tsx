@@ -22,9 +22,9 @@ describe('SiteHeader', () => {
     expect(container.querySelector('.sb-header__contacts .sb-icon-link')).not.toBeNull();
   });
 
-  it('normalizes a bare phone number to a tel: link', () => {
+  it('normalizes a bare phone number to a tel: link (rendered as text)', () => {
     const { container } = render(<SiteHeader logoText="X" links={[]} phone="+66 95 965 7805" />);
-    expect(container.querySelector('a.sb-icon-link')?.getAttribute('href')).toBe('tel:+66959657805');
+    expect(container.querySelector('a.sb-header__phone')?.getAttribute('href')).toBe('tel:+66959657805');
   });
 });
 

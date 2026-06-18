@@ -178,6 +178,7 @@ const internalConfig: Config<Props, RootProps> = {
       label: 'Условия (аккордеон)',
       fields: {
         heading: { type: 'text', label: 'Заголовок (опц.)' },
+        anchorId: { type: 'text', label: 'Якорь для меню (напр. conditions)' },
         items: {
           type: 'array',
           label: 'Пункты',
@@ -191,6 +192,7 @@ const internalConfig: Config<Props, RootProps> = {
       },
       defaultProps: {
         heading: 'Условия',
+        anchorId: 'conditions',
         items: [
           { title: 'Возраст, стаж и документы', content: 'От 22 лет, стаж от 2 лет; загранпаспорт + международные права (МВУ). Без МВУ страховая может отказать в выплате.' },
           { title: 'Бронирование', content: 'Фото загранпаспорта, фото водительского удостоверения, аванс за 2 суток.' },

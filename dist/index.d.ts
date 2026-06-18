@@ -82,10 +82,12 @@ interface TermItem {
 }
 interface TermsAccordionProps {
     heading?: string;
+    /** Section anchor id so the header nav can scroll here (e.g. "conditions"). */
+    anchorId?: string;
     items: TermItem[];
 }
 /** Collapsible terms/conditions (native <details>, no JS, accessible). */
-declare function TermsAccordion({ heading, items }: TermsAccordionProps): react.JSX.Element;
+declare function TermsAccordion({ heading, anchorId, items }: TermsAccordionProps): react.JSX.Element;
 
 interface TextReview {
     name?: string;

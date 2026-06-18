@@ -230,8 +230,8 @@ function FeatureCards({ heading, items, videoUrl, videoIndex }) {
     /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-features__grid", children: cells })
   ] });
 }
-function TermsAccordion({ heading, items }) {
-  return /* @__PURE__ */ jsxRuntime.jsxs(Section, { containerClassName: "sb-terms", children: [
+function TermsAccordion({ heading, anchorId, items }) {
+  return /* @__PURE__ */ jsxRuntime.jsxs(Section, { containerClassName: "sb-terms", id: anchorId || void 0, children: [
     heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: heading }) : null,
     (items ?? []).map((item, index) => /* @__PURE__ */ jsxRuntime.jsxs("details", { className: "sb-term", children: [
       /* @__PURE__ */ jsxRuntime.jsx("summary", { className: "sb-term__summary", children: item.title }),
@@ -323,6 +323,15 @@ function ReviewsCarousel({ heading, anchorId, textReviews, mediaReviews }) {
     media.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx(Carousel, { children: media.map((m, i) => /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-carousel__cell sb-carousel__cell--media", children: /* @__PURE__ */ jsxRuntime.jsx(MediaCard, { item: m }) }, i)) }) : null
   ] });
 }
+function BrandLogo({ text = "SHIBA CARS", className = "" }) {
+  const parts = text.trim().split(/\s+/);
+  const first = parts[0] ?? "";
+  const rest = parts.slice(1).join(" ");
+  return /* @__PURE__ */ jsxRuntime.jsxs("span", { className: `sb-logo ${className}`.trim(), children: [
+    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-logo__a", children: first }),
+    rest ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-logo__b", children: rest }) : null
+  ] });
+}
 function SiteHeader({
   logoText,
   logoImage,
@@ -333,32 +342,35 @@ function SiteHeader({
   instagram
 }) {
   const logoImg = safeImageUrl(logoImage);
-  const contacts = [];
-  const phoneHref = phone ? safeHref(phone.startsWith("tel:") ? phone : `tel:${phone.replace(/\s+/g, "")}`) : void 0;
-  if (phoneHref) contacts.push({ kind: "phone", href: phoneHref });
-  const wa = safeHref(whatsapp);
-  if (wa) contacts.push({ kind: "whatsapp", href: wa });
-  const tg = safeHref(telegram);
-  if (tg) contacts.push({ kind: "telegram", href: tg });
+  const socials = [];
   const ig = safeHref(instagram);
-  if (ig) contacts.push({ kind: "instagram", href: ig });
+  if (ig) socials.push({ kind: "instagram", href: ig });
+  const wa = safeHref(whatsapp);
+  if (wa) socials.push({ kind: "whatsapp", href: wa });
+  const tg = safeHref(telegram);
+  if (tg) socials.push({ kind: "telegram", href: tg });
+  const phoneHref = phone ? safeHref(phone.startsWith("tel:") ? phone : `tel:${phone.replace(/\s+/g, "")}`) : void 0;
   return /* @__PURE__ */ jsxRuntime.jsx("header", { className: "sb-header", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-header__inner", children: [
-    /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-header__brand", href: "/", children: logoImg ? /* @__PURE__ */ jsxRuntime.jsx("img", { src: logoImg, alt: logoText || "logo" }) : logoText || "SHIBA CARS" }),
+    /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-header__brand", href: "/", children: logoImg ? /* @__PURE__ */ jsxRuntime.jsx("img", { src: logoImg, alt: logoText || "logo" }) : /* @__PURE__ */ jsxRuntime.jsx(BrandLogo, { text: logoText || "SHIBA CARS" }) }),
     /* @__PURE__ */ jsxRuntime.jsx("nav", { className: "sb-header__nav", children: (links ?? []).map((link, index) => {
       const href = safeHref(link.href);
       return href ? /* @__PURE__ */ jsxRuntime.jsx("a", { href, children: link.label }, index) : null;
     }) }),
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-header__contacts", children: contacts.map((contact, index) => /* @__PURE__ */ jsxRuntime.jsx(
-      "a",
-      {
-        className: "sb-icon-link",
-        href: contact.href,
-        "aria-label": contact.kind,
-        ...contact.kind === "phone" ? {} : { target: "_blank", rel: "noopener noreferrer" },
-        children: /* @__PURE__ */ jsxRuntime.jsx(ContactIcon, { kind: contact.kind })
-      },
-      index
-    )) })
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-header__contacts", children: [
+      socials.map((contact, index) => /* @__PURE__ */ jsxRuntime.jsx(
+        "a",
+        {
+          className: "sb-icon-link",
+          href: contact.href,
+          "aria-label": contact.kind,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          children: /* @__PURE__ */ jsxRuntime.jsx(ContactIcon, { kind: contact.kind })
+        },
+        index
+      )),
+      phoneHref ? /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-header__phone", href: phoneHref, children: phone }) : null
+    ] })
   ] }) });
 }
 function Footer({
@@ -956,6 +968,7 @@ var internalConfig = {
       label: "\u0423\u0441\u043B\u043E\u0432\u0438\u044F (\u0430\u043A\u043A\u043E\u0440\u0434\u0435\u043E\u043D)",
       fields: {
         heading: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A (\u043E\u043F\u0446.)" },
+        anchorId: { type: "text", label: "\u042F\u043A\u043E\u0440\u044C \u0434\u043B\u044F \u043C\u0435\u043D\u044E (\u043D\u0430\u043F\u0440. conditions)" },
         items: {
           type: "array",
           label: "\u041F\u0443\u043D\u043A\u0442\u044B",
@@ -969,6 +982,7 @@ var internalConfig = {
       },
       defaultProps: {
         heading: "\u0423\u0441\u043B\u043E\u0432\u0438\u044F",
+        anchorId: "conditions",
         items: [
           { title: "\u0412\u043E\u0437\u0440\u0430\u0441\u0442, \u0441\u0442\u0430\u0436 \u0438 \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u044B", content: "\u041E\u0442 22 \u043B\u0435\u0442, \u0441\u0442\u0430\u0436 \u043E\u0442 2 \u043B\u0435\u0442; \u0437\u0430\u0433\u0440\u0430\u043D\u043F\u0430\u0441\u043F\u043E\u0440\u0442 + \u043C\u0435\u0436\u0434\u0443\u043D\u0430\u0440\u043E\u0434\u043D\u044B\u0435 \u043F\u0440\u0430\u0432\u0430 (\u041C\u0412\u0423). \u0411\u0435\u0437 \u041C\u0412\u0423 \u0441\u0442\u0440\u0430\u0445\u043E\u0432\u0430\u044F \u043C\u043E\u0436\u0435\u0442 \u043E\u0442\u043A\u0430\u0437\u0430\u0442\u044C \u0432 \u0432\u044B\u043F\u043B\u0430\u0442\u0435." },
           { title: "\u0411\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435", content: "\u0424\u043E\u0442\u043E \u0437\u0430\u0433\u0440\u0430\u043D\u043F\u0430\u0441\u043F\u043E\u0440\u0442\u0430, \u0444\u043E\u0442\u043E \u0432\u043E\u0434\u0438\u0442\u0435\u043B\u044C\u0441\u043A\u043E\u0433\u043E \u0443\u0434\u043E\u0441\u0442\u043E\u0432\u0435\u0440\u0435\u043D\u0438\u044F, \u0430\u0432\u0430\u043D\u0441 \u0437\u0430 2 \u0441\u0443\u0442\u043E\u043A." },
