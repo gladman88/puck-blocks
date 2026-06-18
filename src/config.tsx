@@ -57,8 +57,8 @@ const internalConfig: Config<Props, RootProps> = {
     Hero: {
       label: 'Hero',
       fields: {
-        heading: { type: 'text', label: 'Заголовок', contentEditable: true },
-        subheading: { type: 'textarea', label: 'Подзаголовок', contentEditable: true },
+        heading: { type: 'text', label: 'Заголовок' },
+        subheading: { type: 'textarea', label: 'Подзаголовок' },
         backgroundImage: { type: 'text', label: 'Фон — URL изображения' },
         ctaLabel: { type: 'text', label: 'Кнопка — текст' },
         ctaHref: { type: 'text', label: 'Кнопка — ссылка' },
@@ -75,8 +75,8 @@ const internalConfig: Config<Props, RootProps> = {
     AboutPromo: {
       label: 'Промо (картинка + текст)',
       fields: {
-        heading: { type: 'text', label: 'Заголовок', contentEditable: true },
-        text: { type: 'textarea', label: 'Текст', contentEditable: true },
+        heading: { type: 'text', label: 'Заголовок' },
+        text: { type: 'textarea', label: 'Текст' },
         image: { type: 'text', label: 'URL изображения' },
         imagePosition: {
           type: 'radio',
