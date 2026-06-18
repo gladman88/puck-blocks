@@ -15,4 +15,9 @@ describe('RichText', () => {
     const { container } = render(<RichText content="" />);
     expect(container.querySelectorAll('p').length).toBe(0);
   });
+
+  it('does not crash on a non-string content value', () => {
+    const { container } = render(<RichText content={123 as unknown as string} />);
+    expect(container.querySelectorAll('p').length).toBe(0);
+  });
 });

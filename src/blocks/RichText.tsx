@@ -5,7 +5,9 @@ export interface RichTextProps {
 
 /** Simple text section. Framework-neutral; styled by the shipped design CSS. */
 export function RichText({ content }: RichTextProps) {
-  const paragraphs = (content ?? '')
+  // Robust to non-string values (e.g. anything an editor might pass).
+  const text = typeof content === 'string' ? content : '';
+  const paragraphs = text
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean);

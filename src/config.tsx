@@ -98,7 +98,9 @@ const internalConfig: Config<Props, RootProps> = {
     RichText: {
       label: 'Текст',
       fields: {
-        content: { type: 'textarea', label: 'Текст', contentEditable: true },
+        // No contentEditable: this block splits the value into paragraphs, so
+        // it can't be a single inline-editable node — edit via the side panel.
+        content: { type: 'textarea', label: 'Текст' },
       },
       defaultProps: { content: 'Текст…' },
       render: RichText,

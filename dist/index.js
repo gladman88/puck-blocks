@@ -33,7 +33,8 @@ function Hero({ heading, subheading, backgroundImage, ctaLabel, ctaHref }) {
   );
 }
 function RichText({ content }) {
-  const paragraphs = (content ?? "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  const text = typeof content === "string" ? content : "";
+  const paragraphs = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
   return /* @__PURE__ */ jsx("section", { className: "sb-section", children: /* @__PURE__ */ jsx("div", { className: "sb-container sb-richtext", children: paragraphs.map((paragraph, index) => /* @__PURE__ */ jsx("p", { children: paragraph }, index)) }) });
 }
 function Section({
@@ -498,7 +499,9 @@ var internalConfig = {
     RichText: {
       label: "\u0422\u0435\u043A\u0441\u0442",
       fields: {
-        content: { type: "textarea", label: "\u0422\u0435\u043A\u0441\u0442", contentEditable: true }
+        // No contentEditable: this block splits the value into paragraphs, so
+        // it can't be a single inline-editable node — edit via the side panel.
+        content: { type: "textarea", label: "\u0422\u0435\u043A\u0441\u0442" }
       },
       defaultProps: { content: "\u0422\u0435\u043A\u0441\u0442\u2026" },
       render: RichText
