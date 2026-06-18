@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Section } from '../components/Section';
 import { Carousel } from '../components/Carousel';
 import { VideoEmbed } from '../components/VideoEmbed';
@@ -8,6 +9,8 @@ export interface TextReview {
   rating?: number;
   text?: string;
   avatar?: string;
+  /** Full-review screenshot opened by «Читать полностью». */
+  screenshot?: string;
 }
 
 export interface MediaReview {
@@ -37,8 +40,10 @@ function Stars({ rating }: { rating: number }) {
 }
 
 function TextCard({ review }: { review: TextReview }) {
+  const [open, setOpen] = useState(false);
   const name = review.name?.trim();
   const avatar = safeImageUrl(review.avatar ?? '');
+  const screenshot = safeImageUrl(review.screenshot ?? '');
   const initial = (name || '?').trim().charAt(0).toUpperCase();
   return (
     <article className="sb-rcard">
@@ -56,6 +61,31 @@ function TextCard({ review }: { review: TextReview }) {
         </div>
       </div>
       {review.text ? <p className="sb-rcard__text">{review.text}</p> : null}
+      {screenshot ? (
+        <>
+          <button type="button" className="sb-rcard__more" onClick={() => setOpen(true)}>
+            Читать полностью
+          </button>
+          {open ? (
+            <div
+              className="sb-lightbox"
+              role="dialog"
+              aria-modal="true"
+              onClick={() => setOpen(false)}
+            >
+              <button type="button" className="sb-lightbox__close" aria-label="Закрыть">
+                ×
+              </button>
+              <img
+                className="sb-lightbox__img"
+                src={screenshot}
+                alt={name ? `Отзыв — ${name}` : 'Отзыв'}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          ) : null}
+        </>
+      ) : null}
     </article>
   );
 }

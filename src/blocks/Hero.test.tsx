@@ -38,4 +38,16 @@ describe('Hero URL sanitization (public-page XSS guard)', () => {
     expect(section.style.backgroundImage).toContain('url(');
     expect(section.style.backgroundImage).toContain('x.jpg');
   });
+
+  it('wraps the accent word in a gold span', () => {
+    const { container } = render(<Hero heading="Аренда на Пхукете" accentWord="Пхукете" />);
+    expect(container.querySelector('.sb-hero__accent')?.textContent).toBe('Пхукете');
+  });
+
+  it('renders WhatsApp/Telegram round buttons next to the CTA', () => {
+    const { container } = render(
+      <Hero heading="t" ctaLabel="c" ctaHref="#x" whatsapp="https://wa.me/1" telegram="https://t.me/x" />,
+    );
+    expect(container.querySelectorAll('.sb-hero__social').length).toBe(2);
+  });
 });

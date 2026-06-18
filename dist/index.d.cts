@@ -3,18 +3,23 @@ import * as react from 'react';
 
 interface HeroProps {
     heading: string;
+    /** Word/phrase inside `heading` to highlight in the accent colour (gold). */
+    accentWord?: string;
     subheading?: string;
     /** Optional background image URL. */
     backgroundImage?: string;
     ctaLabel?: string;
     ctaHref?: string;
+    /** Optional round social buttons shown next to the CTA. */
+    whatsapp?: string;
+    telegram?: string;
 }
 /**
- * Full-bleed hero. Framework-neutral plain HTML; styled by the shipped
- * design-system CSS (`.sb-*`), so it renders identically in the editor and on
- * the live site.
+ * Full-bleed hero — content left-aligned over a darkened background image, with
+ * an uppercase heading (one word accented) and a CTA row that can carry round
+ * WhatsApp/Telegram buttons. Framework-neutral; styled by the shipped CSS.
  */
-declare function Hero({ heading, subheading, backgroundImage, ctaLabel, ctaHref }: HeroProps): react.JSX.Element;
+declare function Hero({ heading, accentWord, subheading, backgroundImage, ctaLabel, ctaHref, whatsapp, telegram, }: HeroProps): react.JSX.Element;
 
 interface RichTextProps {
     /** Plain text. Blank lines separate paragraphs; single newlines are preserved. */
@@ -87,6 +92,8 @@ interface TextReview {
     rating?: number;
     text?: string;
     avatar?: string;
+    /** Full-review screenshot opened by «Читать полностью». */
+    screenshot?: string;
 }
 interface MediaReview {
     /** Video link (YouTube preferred — plays inline). */

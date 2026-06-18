@@ -109,11 +109,10 @@
 .sb-hero {
   position: relative;
   display: flex;
-  min-height: 70vh;
+  min-height: 88vh;
   align-items: center;
-  justify-content: center;
-  padding: var(--sb-section-py) 1.25rem;
-  text-align: center;
+  padding: var(--sb-section-py) clamp(1.25rem, 6vw, 5rem);
+  text-align: left;
   background-color: var(--sb-bg);
   background-size: cover;
   background-position: center;
@@ -121,22 +120,47 @@
 .sb-hero__overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(0, 0, 0, 0.4) 45%,
+    rgba(0, 0, 0, 0.12) 100%
+  );
 }
 .sb-hero__inner {
   position: relative;
   z-index: 1;
   display: flex;
-  max-width: 48rem;
+  max-width: 42rem;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 1.5rem;
+}
+.sb-hero .sb-h1 {
+  text-transform: uppercase;
+}
+.sb-hero__accent {
+  color: var(--sb-accent);
 }
 .sb-hero__cta {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  align-items: center;
   gap: 0.75rem;
+}
+.sb-hero__social {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+.sb-hero__social:hover {
+  background: var(--sb-accent);
+  color: var(--sb-accent-ink);
 }
 
 /* ---- RichText ---- */
@@ -450,6 +474,54 @@
   margin: 0;
   color: var(--sb-muted);
   line-height: 1.55;
+}
+.sb-rcard__more {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--sb-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sb-rcard__more:hover {
+  text-decoration: underline;
+}
+
+/* ---- Lightbox (full review screenshot) ---- */
+.sb-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.85);
+  cursor: zoom-out;
+}
+.sb-lightbox__img {
+  max-width: min(92vw, 560px);
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+  cursor: default;
+}
+.sb-lightbox__close {
+  position: absolute;
+  top: 1rem;
+  right: 1.25rem;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
 }
 
 /* ---- Media review card (portrait video / photo) ---- */

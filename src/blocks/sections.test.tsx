@@ -65,6 +65,14 @@ describe('ReviewsCarousel', () => {
     expect(poster?.src).toContain('img.youtube.com/vi/dQw4w9WgXcQ');
   });
 
+  it('shows «Читать полностью» when a review has a screenshot', () => {
+    const { container, getByText } = render(
+      <ReviewsCarousel textReviews={[{ name: 'A', text: 'ok', screenshot: 'https://cdn/a.png' }]} />,
+    );
+    expect(getByText('Читать полностью')).toBeTruthy();
+    expect(container.querySelector('.sb-lightbox')).toBeNull(); // closed until clicked
+  });
+
   it('renders text and media in two separate carousels', () => {
     const { container } = render(
       <ReviewsCarousel

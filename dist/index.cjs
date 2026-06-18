@@ -14,10 +14,65 @@ function safeImageUrl(url) {
   const value = url?.trim();
   return value && SAFE_IMAGE.test(value) ? value : void 0;
 }
-function Hero({ heading, subheading, backgroundImage, ctaLabel, ctaHref }) {
+var base = {
+  className: "sb-ico",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+};
+function ContactIcon({ kind }) {
+  switch (kind) {
+    case "phone":
+      return /* @__PURE__ */ jsxRuntime.jsx("svg", { ...base, children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" }) });
+    case "whatsapp":
+      return /* @__PURE__ */ jsxRuntime.jsxs("svg", { ...base, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M21 11.5a8.5 8.5 0 0 1-12.6 7.5L3 21l2-5.4A8.5 8.5 0 1 1 21 11.5z" }),
+        /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M8.5 9c.4 3.2 3.3 6.1 6.5 6.5" })
+      ] });
+    case "telegram":
+      return /* @__PURE__ */ jsxRuntime.jsxs("svg", { ...base, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("path", { d: "m22 3-9.5 18-2.8-6.7L3 11.5 22 3z" }),
+        /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M22 3 9.7 14.3" })
+      ] });
+    case "instagram":
+      return /* @__PURE__ */ jsxRuntime.jsxs("svg", { ...base, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "3", width: "18", height: "18", rx: "5" }),
+        /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "12", cy: "12", r: "4" }),
+        /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "17.5", cy: "6.5", r: "0.6", fill: "currentColor", stroke: "none" })
+      ] });
+    default:
+      return null;
+  }
+}
+function renderHeading(heading, accent) {
+  const word = accent?.trim();
+  if (!word) return heading;
+  const idx = heading.toLowerCase().indexOf(word.toLowerCase());
+  if (idx === -1) return heading;
+  return /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    heading.slice(0, idx),
+    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-hero__accent", children: heading.slice(idx, idx + word.length) }),
+    heading.slice(idx + word.length)
+  ] });
+}
+function Hero({
+  heading,
+  accentWord,
+  subheading,
+  backgroundImage,
+  ctaLabel,
+  ctaHref,
+  whatsapp,
+  telegram
+}) {
   const bg = safeImageUrl(backgroundImage);
   const href = safeHref(ctaHref);
   const hasCta = Boolean(ctaLabel && href);
+  const wa = safeHref(whatsapp);
+  const tg = safeHref(telegram);
   return /* @__PURE__ */ jsxRuntime.jsxs(
     "section",
     {
@@ -26,9 +81,13 @@ function Hero({ heading, subheading, backgroundImage, ctaLabel, ctaHref }) {
       children: [
         bg ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-hero__overlay", "aria-hidden": "true" }) : null,
         /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-hero__inner", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("h1", { className: "sb-h1", children: heading }),
+          /* @__PURE__ */ jsxRuntime.jsx("h1", { className: "sb-h1", children: renderHeading(heading, accentWord) }),
           subheading ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-lead", children: subheading }) : null,
-          hasCta ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-hero__cta", children: /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-btn", href, children: ctaLabel }) }) : null
+          hasCta || wa || tg ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-hero__cta", children: [
+            hasCta ? /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-btn", href, children: ctaLabel }) : null,
+            wa ? /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-hero__social", href: wa, target: "_blank", rel: "noopener noreferrer", "aria-label": "WhatsApp", children: /* @__PURE__ */ jsxRuntime.jsx(ContactIcon, { kind: "whatsapp" }) }) : null,
+            tg ? /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-hero__social", href: tg, target: "_blank", rel: "noopener noreferrer", "aria-label": "Telegram", children: /* @__PURE__ */ jsxRuntime.jsx(ContactIcon, { kind: "telegram" }) }) : null
+          ] }) : null
         ] })
       ]
     }
@@ -205,8 +264,10 @@ function Stars({ rating }) {
   ] });
 }
 function TextCard({ review }) {
+  const [open, setOpen] = react.useState(false);
   const name = review.name?.trim();
   const avatar = safeImageUrl(review.avatar ?? "");
+  const screenshot = safeImageUrl(review.screenshot ?? "");
   const initial = (name || "?").trim().charAt(0).toUpperCase();
   return /* @__PURE__ */ jsxRuntime.jsxs("article", { className: "sb-rcard", children: [
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-rcard__head", children: [
@@ -216,7 +277,31 @@ function TextCard({ review }) {
         review.rating ? /* @__PURE__ */ jsxRuntime.jsx(Stars, { rating: review.rating }) : null
       ] })
     ] }),
-    review.text ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-rcard__text", children: review.text }) : null
+    review.text ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-rcard__text", children: review.text }) : null,
+    screenshot ? /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+      /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-rcard__more", onClick: () => setOpen(true), children: "\u0427\u0438\u0442\u0430\u0442\u044C \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E" }),
+      open ? /* @__PURE__ */ jsxRuntime.jsxs(
+        "div",
+        {
+          className: "sb-lightbox",
+          role: "dialog",
+          "aria-modal": "true",
+          onClick: () => setOpen(false),
+          children: [
+            /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-lightbox__close", "aria-label": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C", children: "\xD7" }),
+            /* @__PURE__ */ jsxRuntime.jsx(
+              "img",
+              {
+                className: "sb-lightbox__img",
+                src: screenshot,
+                alt: name ? `\u041E\u0442\u0437\u044B\u0432 \u2014 ${name}` : "\u041E\u0442\u0437\u044B\u0432",
+                onClick: (e) => e.stopPropagation()
+              }
+            )
+          ]
+        }
+      ) : null
+    ] }) : null
   ] });
 }
 function MediaCard({ item }) {
@@ -233,39 +318,6 @@ function ReviewsCarousel({ heading, anchorId, textReviews, mediaReviews }) {
     texts.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx(Carousel, { title: heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2 sb-h2--inline", children: heading }) : null, children: texts.map((r, i) => /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-carousel__cell sb-carousel__cell--text", children: /* @__PURE__ */ jsxRuntime.jsx(TextCard, { review: r }) }, i)) }) : heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: heading }) : null,
     media.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx(Carousel, { children: media.map((m, i) => /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-carousel__cell sb-carousel__cell--media", children: /* @__PURE__ */ jsxRuntime.jsx(MediaCard, { item: m }) }, i)) }) : null
   ] });
-}
-var base = {
-  className: "sb-ico",
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 2,
-  strokeLinecap: "round",
-  strokeLinejoin: "round"
-};
-function ContactIcon({ kind }) {
-  switch (kind) {
-    case "phone":
-      return /* @__PURE__ */ jsxRuntime.jsx("svg", { ...base, children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" }) });
-    case "whatsapp":
-      return /* @__PURE__ */ jsxRuntime.jsxs("svg", { ...base, children: [
-        /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M21 11.5a8.5 8.5 0 0 1-12.6 7.5L3 21l2-5.4A8.5 8.5 0 1 1 21 11.5z" }),
-        /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M8.5 9c.4 3.2 3.3 6.1 6.5 6.5" })
-      ] });
-    case "telegram":
-      return /* @__PURE__ */ jsxRuntime.jsxs("svg", { ...base, children: [
-        /* @__PURE__ */ jsxRuntime.jsx("path", { d: "m22 3-9.5 18-2.8-6.7L3 11.5 22 3z" }),
-        /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M22 3 9.7 14.3" })
-      ] });
-    case "instagram":
-      return /* @__PURE__ */ jsxRuntime.jsxs("svg", { ...base, children: [
-        /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "3", width: "18", height: "18", rx: "5" }),
-        /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "12", cy: "12", r: "4" }),
-        /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "17.5", cy: "6.5", r: "0.6", fill: "currentColor", stroke: "none" })
-      ] });
-    default:
-      return null;
-  }
 }
 function SiteHeader({
   logoText,
@@ -759,17 +811,23 @@ var internalConfig = {
       label: "Hero",
       fields: {
         heading: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" },
+        accentWord: { type: "text", label: "\u0410\u043A\u0446\u0435\u043D\u0442\u043D\u043E\u0435 \u0441\u043B\u043E\u0432\u043E (\u0437\u043E\u043B\u043E\u0442\u043E\u043C)" },
         subheading: { type: "textarea", label: "\u041F\u043E\u0434\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" },
         backgroundImage: imageField("\u0424\u043E\u043D\u043E\u0432\u043E\u0435 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435"),
         ctaLabel: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0442\u0435\u043A\u0441\u0442" },
-        ctaHref: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" }
+        ctaHref: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" },
+        whatsapp: { type: "text", label: "WhatsApp \u2014 \u0441\u0441\u044B\u043B\u043A\u0430 (\u043A\u043D\u043E\u043F\u043A\u0430 \u0443 CTA)" },
+        telegram: { type: "text", label: "Telegram \u2014 \u0441\u0441\u044B\u043B\u043A\u0430 (\u043A\u043D\u043E\u043F\u043A\u0430 \u0443 CTA)" }
       },
       defaultProps: {
         heading: "\u0410\u0440\u0435\u043D\u0434\u0430 \u0430\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u0435\u0439 \u0438 \u0431\u0430\u0439\u043A\u043E\u0432 \u043D\u0430 \u041F\u0445\u0443\u043A\u0435\u0442\u0435",
+        accentWord: "\u041F\u0445\u0443\u043A\u0435\u0442\u0435",
         subheading: "\u0421\u0432\u043E\u0431\u043E\u0434\u0430 \u043F\u0435\u0440\u0435\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u044F \u043F\u043E \u043E\u0441\u0442\u0440\u043E\u0432\u0443 \u2014 \u0432\u0430\u0448 \u043A\u043B\u044E\u0447 \u043A \u043D\u0435\u0437\u0430\u0431\u044B\u0432\u0430\u0435\u043C\u044B\u043C \u043F\u0440\u0438\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F\u043C",
         backgroundImage: "",
         ctaLabel: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441\u0435\u0439\u0447\u0430\u0441",
-        ctaHref: "#leadform"
+        ctaHref: "#leadform",
+        whatsapp: "https://wa.me/66959657805",
+        telegram: "https://t.me/ShibaCars_Phuket"
       },
       render: Hero
     },
@@ -905,9 +963,10 @@ var internalConfig = {
             name: { type: "text", label: "\u0418\u043C\u044F" },
             rating: { type: "number", label: "\u041E\u0446\u0435\u043D\u043A\u0430 (1\u20135)", min: 1, max: 5 },
             text: { type: "textarea", label: "\u0422\u0435\u043A\u0441\u0442 \u043E\u0442\u0437\u044B\u0432\u0430" },
-            avatar: imageField("\u0410\u0432\u0430\u0442\u0430\u0440")
+            avatar: imageField("\u0410\u0432\u0430\u0442\u0430\u0440"),
+            screenshot: imageField("\u0421\u043A\u0440\u0438\u043D\u0448\u043E\u0442 \u043F\u043E\u043B\u043D\u043E\u0433\u043E \u043E\u0442\u0437\u044B\u0432\u0430 (\xAB\u0427\u0438\u0442\u0430\u0442\u044C \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E\xBB)")
           },
-          defaultItemProps: { name: "", rating: 5, text: "", avatar: "" },
+          defaultItemProps: { name: "", rating: 5, text: "", avatar: "", screenshot: "" },
           getItemSummary: (item, index) => item.name || `\u041E\u0442\u0437\u044B\u0432 ${(index ?? 0) + 1}`
         },
         mediaReviews: {
