@@ -375,6 +375,7 @@ function SiteHeader({
 }
 function Footer({
   logoText,
+  logoImage,
   note,
   columns,
   contactsTitle = "\u041A\u043E\u043D\u0442\u0430\u043A\u0442\u044B",
@@ -396,7 +397,14 @@ function Footer({
   if (wa) socials.push({ kind: "whatsapp", href: wa });
   return /* @__PURE__ */ jsxRuntime.jsx("footer", { className: "sb-footer", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-footer__inner", children: [
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-footer__brand", children: [
-      /* @__PURE__ */ jsxRuntime.jsx(BrandLogo, { text: logoText || "SHIBA CARS", className: "sb-footer__logo" }),
+      safeImageUrl(logoImage) ? /* @__PURE__ */ jsxRuntime.jsx(
+        "img",
+        {
+          className: "sb-footer__logo-img",
+          src: safeImageUrl(logoImage),
+          alt: logoText || "SHIBA CARS"
+        }
+      ) : /* @__PURE__ */ jsxRuntime.jsx(BrandLogo, { text: logoText || "SHIBA CARS", className: "sb-footer__logo" }),
       note ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-footer__note", children: note }) : null
     ] }),
     (columns ?? []).map((col, index) => {
@@ -1073,6 +1081,7 @@ var internalConfig = {
       label: "\u0424\u0443\u0442\u0435\u0440",
       fields: {
         logoText: { type: "text", label: "\u041B\u043E\u0433\u043E\u0442\u0438\u043F \u2014 \u0442\u0435\u043A\u0441\u0442" },
+        logoImage: imageField("\u041B\u043E\u0433\u043E\u0442\u0438\u043F \u2014 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435"),
         note: { type: "text", label: "\u041F\u0440\u0438\u043C\u0435\u0447\u0430\u043D\u0438\u0435 \u043F\u043E\u0434 \u043B\u043E\u0433\u043E (\u043D\u0430\u043F\u0440. SHIBA TRAVEL CO. LTD)" },
         columns: {
           type: "array",
@@ -1104,6 +1113,7 @@ var internalConfig = {
       },
       defaultProps: {
         logoText: "SHIBA CARS",
+        logoImage: "",
         note: "SHIBA TRAVEL CO. LTD",
         columns: [
           {

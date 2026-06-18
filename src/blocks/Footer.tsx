@@ -1,4 +1,4 @@
-import { safeHref } from '../sanitize';
+import { safeHref, safeImageUrl } from '../sanitize';
 import { ContactIcon, type ContactKind } from '../components/ContactIcon';
 import { BrandLogo } from '../components/BrandLogo';
 import type { NavLink } from './SiteHeader';
@@ -12,6 +12,7 @@ export interface FooterColumn {
 
 export interface FooterProps {
   logoText?: string;
+  logoImage?: string;
   /** Legal line under the logo, e.g. «SHIBA TRAVEL CO. LTD». */
   note?: string;
   columns?: FooterColumn[];
@@ -27,6 +28,7 @@ export interface FooterProps {
 /** Multi-column footer: wordmark + nav columns + a contacts column. */
 export function Footer({
   logoText,
+  logoImage,
   note,
   columns,
   contactsTitle = 'Контакты',
@@ -56,7 +58,15 @@ export function Footer({
     <footer className="sb-footer">
       <div className="sb-footer__inner">
         <div className="sb-footer__brand">
-          <BrandLogo text={logoText || 'SHIBA CARS'} className="sb-footer__logo" />
+          {safeImageUrl(logoImage) ? (
+            <img
+              className="sb-footer__logo-img"
+              src={safeImageUrl(logoImage)}
+              alt={logoText || 'SHIBA CARS'}
+            />
+          ) : (
+            <BrandLogo text={logoText || 'SHIBA CARS'} className="sb-footer__logo" />
+          )}
           {note ? <p className="sb-footer__note">{note}</p> : null}
         </div>
 

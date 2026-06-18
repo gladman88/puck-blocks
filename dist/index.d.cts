@@ -142,6 +142,7 @@ interface FooterColumn {
 }
 interface FooterProps {
     logoText?: string;
+    logoImage?: string;
     /** Legal line under the logo, e.g. «SHIBA TRAVEL CO. LTD». */
     note?: string;
     columns?: FooterColumn[];
@@ -154,7 +155,7 @@ interface FooterProps {
     instagram?: string;
 }
 /** Multi-column footer: wordmark + nav columns + a contacts column. */
-declare function Footer({ logoText, note, columns, contactsTitle, phone, email, address, whatsapp, telegram, instagram, }: FooterProps): react.JSX.Element;
+declare function Footer({ logoText, logoImage, note, columns, contactsTitle, phone, email, address, whatsapp, telegram, instagram, }: FooterProps): react.JSX.Element;
 
 interface LeadFormProps {
     heading?: string;

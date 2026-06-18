@@ -282,6 +282,7 @@ const internalConfig: Config<Props, RootProps> = {
       label: 'Футер',
       fields: {
         logoText: { type: 'text', label: 'Логотип — текст' },
+        logoImage: imageField('Логотип — изображение'),
         note: { type: 'text', label: 'Примечание под лого (напр. SHIBA TRAVEL CO. LTD)' },
         columns: {
           type: 'array',
@@ -313,6 +314,7 @@ const internalConfig: Config<Props, RootProps> = {
       },
       defaultProps: {
         logoText: 'SHIBA CARS',
+        logoImage: '',
         note: 'SHIBA TRAVEL CO. LTD',
         columns: [
           {

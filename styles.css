@@ -115,11 +115,11 @@
 .sb-hero {
   position: relative;
   display: flex;
-  min-height: 100vh;
-  /* Pull up under the sticky header so the image fills the whole first screen. */
-  margin-top: calc(-1 * var(--sb-header-h));
+  /* Header (sticky, in-flow) + hero = one full screen, no negative-margin
+     overlap (that left a gap at the page bottom in the editor). */
+  min-height: calc(100vh - var(--sb-header-h));
   align-items: center;
-  padding: var(--sb-section-py) clamp(1.25rem, 6vw, 5rem);
+  padding: var(--sb-section-py) 1.25rem;
   text-align: left;
   background-color: var(--sb-bg);
   background-size: cover;
@@ -139,14 +139,20 @@
   position: relative;
   z-index: 1;
   display: flex;
-  max-width: 52rem;
+  width: 100%;
+  max-width: var(--sb-container);
+  margin-inline: auto;
   flex-direction: column;
   align-items: flex-start;
   gap: 1.5rem;
 }
 .sb-hero .sb-h1 {
+  max-width: 42rem;
   text-transform: uppercase;
   text-wrap: balance;
+}
+.sb-hero__inner .sb-lead {
+  max-width: 38rem;
 }
 .sb-hero__accent {
   color: var(--sb-accent);
@@ -693,7 +699,7 @@ a.sb-map__line:hover {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(20, 20, 20, 0.55);
+  background: rgba(17, 17, 17, 0.85);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -712,8 +718,8 @@ a.sb-map__line:hover {
 }
 .sb-header__brand img {
   display: block;
-  height: 34px;
-  width: auto;
+  width: clamp(140px, 16vw, 175px);
+  height: auto;
 }
 /* ---- Two-tone wordmark (header + footer) ---- */
 .sb-logo {
@@ -809,6 +815,12 @@ a.sb-map__line:hover {
 }
 .sb-footer__logo {
   font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+.sb-footer__logo-img {
+  display: block;
+  width: 230px;
+  height: auto;
+  max-width: 100%;
 }
 .sb-footer__col h4 {
   margin: 0 0 0.9rem;
