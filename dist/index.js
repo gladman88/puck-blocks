@@ -478,12 +478,88 @@ function VehicleCatalog({
     state === "ready" && base2 ? /* @__PURE__ */ jsx("div", { className: "sb-vcatalog__foot", children: /* @__PURE__ */ jsx("a", { className: "sb-btn sb-btn--ghost", href: base2, children: t.viewAll }) }) : null
   ] });
 }
+var UPLOAD_URL = "/api/v1/fms/site/upload-image/";
+function readCookie(name) {
+  if (typeof document === "undefined") return void 0;
+  const match = document.cookie.split("; ").find((c) => c.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.split("=")[1]) : void 0;
+}
+function ImageInput({
+  value,
+  onChange
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const upload = async (file) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const csrf = readCookie("csrftoken");
+      const res = await fetch(UPLOAD_URL, {
+        method: "POST",
+        body,
+        credentials: "include",
+        headers: csrf ? { "X-CSRFToken": csrf } : void 0
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      onChange(data.url);
+    } catch {
+      setError("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0444\u0430\u0439\u043B");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return /* @__PURE__ */ jsxs("div", { className: "sbf", children: [
+    value ? /* @__PURE__ */ jsxs("div", { className: "sbf__preview", children: [
+      /* @__PURE__ */ jsx("img", { src: value, alt: "" }),
+      /* @__PURE__ */ jsx("button", { type: "button", className: "sbf__remove", onClick: () => onChange(""), children: "\u0423\u0431\u0440\u0430\u0442\u044C" })
+    ] }) : null,
+    /* @__PURE__ */ jsxs("label", { className: `sbf__btn ${busy ? "sbf__btn--busy" : ""}`, children: [
+      busy ? "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026" : "\u2B06 \u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0443",
+      /* @__PURE__ */ jsx(
+        "input",
+        {
+          type: "file",
+          accept: "image/*",
+          hidden: true,
+          disabled: busy,
+          onChange: (e) => {
+            const file = e.target.files?.[0];
+            if (file) upload(file);
+            e.target.value = "";
+          }
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsx(
+      "input",
+      {
+        type: "text",
+        className: "sbf__url",
+        placeholder: "\u2026\u0438\u043B\u0438 \u0432\u0441\u0442\u0430\u0432\u044C\u0442\u0435 URL",
+        value: value ?? "",
+        onChange: (e) => onChange(e.target.value)
+      }
+    ),
+    error ? /* @__PURE__ */ jsx("p", { className: "sbf__error", children: error }) : null
+  ] });
+}
+function imageField(label) {
+  return {
+    type: "custom",
+    label,
+    render: ({ value, onChange }) => /* @__PURE__ */ jsx(ImageInput, { value: value ?? "", onChange: (next) => onChange(next) })
+  };
+}
 var internalConfig = {
   root: {
     fields: {
       title: { type: "text", label: "SEO title" },
       description: { type: "textarea", label: "SEO description" },
-      ogImage: { type: "text", label: "OG image URL" }
+      ogImage: imageField("OG-\u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0430 (\u0434\u043B\u044F \u0441\u043E\u0446\u0441\u0435\u0442\u0435\u0439)")
     },
     // Wrap the whole tree in the design-system root so tokens + base styles
     // apply identically in the editor preview and on the live site.
@@ -504,7 +580,7 @@ var internalConfig = {
       fields: {
         heading: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" },
         subheading: { type: "textarea", label: "\u041F\u043E\u0434\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" },
-        backgroundImage: { type: "text", label: "\u0424\u043E\u043D \u2014 URL \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F" },
+        backgroundImage: imageField("\u0424\u043E\u043D\u043E\u0432\u043E\u0435 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435"),
         ctaLabel: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0442\u0435\u043A\u0441\u0442" },
         ctaHref: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" }
       },
@@ -522,7 +598,7 @@ var internalConfig = {
       fields: {
         heading: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" },
         text: { type: "textarea", label: "\u0422\u0435\u043A\u0441\u0442" },
-        image: { type: "text", label: "URL \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F" },
+        image: imageField("\u0418\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435"),
         imagePosition: {
           type: "radio",
           label: "\u041A\u0430\u0440\u0442\u0438\u043D\u043A\u0430",
@@ -584,7 +660,7 @@ var internalConfig = {
           type: "array",
           label: "\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438",
           arrayFields: {
-            icon: { type: "text", label: "\u0418\u043A\u043E\u043D\u043A\u0430 \u2014 URL" },
+            icon: imageField("\u0418\u043A\u043E\u043D\u043A\u0430"),
             title: { type: "text", label: "\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" },
             text: { type: "textarea", label: "\u0422\u0435\u043A\u0441\u0442" }
           },
@@ -639,7 +715,7 @@ var internalConfig = {
           type: "array",
           label: "\u0424\u043E\u0442\u043E",
           arrayFields: {
-            src: { type: "text", label: "URL \u0444\u043E\u0442\u043E" },
+            src: imageField("\u0424\u043E\u0442\u043E"),
             alt: { type: "text", label: "\u041F\u043E\u0434\u043F\u0438\u0441\u044C (alt)" }
           },
           defaultItemProps: { src: "", alt: "" },
@@ -656,7 +732,7 @@ var internalConfig = {
       label: "\u0428\u0430\u043F\u043A\u0430 \u0441\u0430\u0439\u0442\u0430",
       fields: {
         logoText: { type: "text", label: "\u041B\u043E\u0433\u043E\u0442\u0438\u043F \u2014 \u0442\u0435\u043A\u0441\u0442" },
-        logoImage: { type: "text", label: "\u041B\u043E\u0433\u043E\u0442\u0438\u043F \u2014 URL \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F" },
+        logoImage: imageField("\u041B\u043E\u0433\u043E\u0442\u0438\u043F \u2014 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435"),
         links: {
           type: "array",
           label: "\u041C\u0435\u043D\u044E",

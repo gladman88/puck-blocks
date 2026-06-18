@@ -10,6 +10,7 @@ import { SiteHeader, type SiteHeaderProps } from './blocks/SiteHeader';
 import { Footer, type FooterProps } from './blocks/Footer';
 import { LeadForm, type LeadFormProps } from './blocks/LeadForm';
 import { VehicleCatalog, type VehicleCatalogProps } from './blocks/VehicleCatalog';
+import { imageField } from './fields/imageField';
 
 /** Props for every editable component, keyed by component name. */
 export interface Props {
@@ -38,7 +39,7 @@ const internalConfig: Config<Props, RootProps> = {
     fields: {
       title: { type: 'text', label: 'SEO title' },
       description: { type: 'textarea', label: 'SEO description' },
-      ogImage: { type: 'text', label: 'OG image URL' },
+      ogImage: imageField('OG-картинка (для соцсетей)'),
     },
     // Wrap the whole tree in the design-system root so tokens + base styles
     // apply identically in the editor preview and on the live site.
@@ -59,7 +60,7 @@ const internalConfig: Config<Props, RootProps> = {
       fields: {
         heading: { type: 'text', label: 'Заголовок' },
         subheading: { type: 'textarea', label: 'Подзаголовок' },
-        backgroundImage: { type: 'text', label: 'Фон — URL изображения' },
+        backgroundImage: imageField('Фоновое изображение'),
         ctaLabel: { type: 'text', label: 'Кнопка — текст' },
         ctaHref: { type: 'text', label: 'Кнопка — ссылка' },
       },
@@ -77,7 +78,7 @@ const internalConfig: Config<Props, RootProps> = {
       fields: {
         heading: { type: 'text', label: 'Заголовок' },
         text: { type: 'textarea', label: 'Текст' },
-        image: { type: 'text', label: 'URL изображения' },
+        image: imageField('Изображение'),
         imagePosition: {
           type: 'radio',
           label: 'Картинка',
@@ -139,7 +140,7 @@ const internalConfig: Config<Props, RootProps> = {
           type: 'array',
           label: 'Карточки',
           arrayFields: {
-            icon: { type: 'text', label: 'Иконка — URL' },
+            icon: imageField('Иконка'),
             title: { type: 'text', label: 'Заголовок' },
             text: { type: 'textarea', label: 'Текст' },
           },
@@ -194,7 +195,7 @@ const internalConfig: Config<Props, RootProps> = {
           type: 'array',
           label: 'Фото',
           arrayFields: {
-            src: { type: 'text', label: 'URL фото' },
+            src: imageField('Фото'),
             alt: { type: 'text', label: 'Подпись (alt)' },
           },
           defaultItemProps: { src: '', alt: '' },
@@ -211,7 +212,7 @@ const internalConfig: Config<Props, RootProps> = {
       label: 'Шапка сайта',
       fields: {
         logoText: { type: 'text', label: 'Логотип — текст' },
-        logoImage: { type: 'text', label: 'Логотип — URL изображения' },
+        logoImage: imageField('Логотип — изображение'),
         links: {
           type: 'array',
           label: 'Меню',

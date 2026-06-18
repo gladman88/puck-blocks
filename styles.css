@@ -445,6 +445,63 @@
   height: 18px;
 }
 
+/* ---- Image upload field (editor panel only — NOT scoped to .sb-root) ---- */
+.sbf {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.sbf__preview {
+  position: relative;
+}
+.sbf__preview img {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+.sbf__remove {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+}
+.sbf__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px dashed rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  background: #fafafa;
+  cursor: pointer;
+}
+.sbf__btn--busy {
+  opacity: 0.6;
+  cursor: default;
+}
+.sbf__url {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+}
+.sbf__error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #dc2626;
+}
+
 /* ---- VehicleCatalog ---- */
 .sb-vcatalog__tabs {
   display: flex;
