@@ -31,7 +31,10 @@ interface StatCountersProps {
     heading?: string;
     items: StatItem[];
 }
-/** Row of stat/advantage cards (big accent number + description). */
+/**
+ * Advantage cards: a check-badge, a bold title, a description. Cards alternate
+ * gold/dark and step up-and-down (zigzag), matching the marketing site.
+ */
 declare function StatCounters({ heading, items }: StatCountersProps): react.JSX.Element;
 
 interface AboutPromoProps {

@@ -144,27 +144,68 @@
   margin-bottom: 0;
 }
 
-/* ---- StatCounters ---- */
-.sb-stats__grid {
+/* ---- StatCounters (advantage cards: badge + zigzag + alternating fill) ---- */
+.sb-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  align-items: start;
 }
 .sb-stat {
-  padding: 1.75rem;
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius);
-  background: var(--sb-bg-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.5rem 1.4rem 1.6rem;
+  border-radius: 18px;
+}
+/* zigzag: even (dark) cards step down */
+.sb-stat:nth-child(even) {
+  margin-top: 2.75rem;
+}
+.sb-stat__badge {
+  width: 46px;
+  height: 46px;
 }
 .sb-stat__value {
-  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-size: 1.15rem;
   font-weight: 800;
-  color: var(--sb-accent);
-  line-height: 1.1;
+  line-height: 1.2;
 }
 .sb-stat__text {
-  margin: 0.5rem 0 0;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+/* gold card — dark seal, gold check cut-out, dark ink text */
+.sb-stat--gold {
+  background: var(--sb-accent);
+  color: var(--sb-accent-ink);
+}
+.sb-stat--gold .sb-stat__badge {
+  color: var(--sb-accent-ink);
+}
+.sb-stat--gold .sb-stat__text {
+  color: var(--sb-accent-ink);
+  opacity: 0.78;
+}
+/* dark card — white seal, dark check cut-out, light text */
+.sb-stat--dark {
+  background: var(--sb-surface);
+  color: var(--sb-text-strong);
+}
+.sb-stat--dark .sb-stat__badge {
+  color: #fff;
+}
+.sb-stat--dark .sb-stat__text {
   color: var(--sb-text-muted);
+}
+@media (max-width: 768px) {
+  .sb-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+  .sb-stat:nth-child(even) {
+    margin-top: 0;
+  }
 }
 
 /* ---- AboutPromo ---- */

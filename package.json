@@ -1,6 +1,6 @@
 {
   "name": "puck-blocks",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Shared content blocks and Puck visual-editor config for rendering marketing pages with @puckeditor/core. Framework-neutral React components usable from Next.js and Vite.",
   "license": "MIT",
   "author": "gladman88",
