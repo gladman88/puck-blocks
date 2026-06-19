@@ -1582,6 +1582,10 @@ a.sb-map__line:hover {
   text-align: left;
   cursor: pointer;
 }
+.sb-vd__option-card:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .sb-vd__option-icon {
   display: flex;
   align-items: center;
@@ -1676,17 +1680,6 @@ a.sb-map__line:hover {
   background: var(--sb-surface);
   border-bottom-left-radius: var(--sb-radius);
   border-bottom-right-radius: var(--sb-radius);
-}
-.sb-vd__cta-price {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: var(--sb-accent);
-  white-space: nowrap;
-}
-.sb-vd__cta-price small {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--sb-text-muted);
 }
 .sb-vd__cta-btn {
   flex: 1;

@@ -85,7 +85,6 @@ const S = {
     busy: 'Занята',
     specs: 'Характеристики',
     allSpecs: 'Все характеристики',
-    options: 'Опции',
     deposit: 'Депозит',
     prices: 'Цены',
     day: 'день',
@@ -95,10 +94,7 @@ const S = {
     bookFrom: 'Забронировать с',
     loading: 'Загрузка…',
     error: 'Не удалось загрузить',
-    start: 'Дата начала',
-    end: 'Дата конца',
     name: 'Ваше имя',
-    contact: 'Как с вами связаться?',
     send: 'Отправить запрос',
     tgQuick: 'Бронь в 1 клик через Telegram',
     tgQuickSub: 'Без форм — бот заполнит всё за вас',
@@ -143,7 +139,6 @@ const S = {
     busy: 'Busy',
     specs: 'Specs',
     allSpecs: 'All specs',
-    options: 'Options',
     deposit: 'Deposit',
     prices: 'Prices',
     day: 'day',
@@ -153,10 +148,7 @@ const S = {
     bookFrom: 'Book from',
     loading: 'Loading…',
     error: 'Failed to load',
-    start: 'Start date',
-    end: 'End date',
     name: 'Your name',
-    contact: 'How to contact you?',
     send: 'Send request',
     tgQuick: '1-click booking via Telegram',
     tgQuickSub: 'No forms — the bot fills everything in for you',
@@ -444,7 +436,9 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                           <span className="sb-vd__price-period">
                             {row.is_monthly
                               ? `${row.period_label} ${t.days} (${t.month})`
-                              : `${row.period_label} ${row.min_days === 1 ? t.day : t.days}`}
+                              : row.min_days === row.max_days
+                                ? `${row.period_label} ${row.min_days === 1 ? t.day : t.days}`
+                                : `${row.period_label} ${t.days}`}
                           </span>
                           <span className="sb-vd__price-value">
                             {row.is_monthly && row.monthly_price != null ? (
@@ -452,13 +446,13 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                                 {money(row.monthly_price)}
                                 <small>
                                   {' '}
-                                  ({money(row.price_per_day)}
+                                  ({Math.round(row.price_per_day).toLocaleString('en-US')}
                                   {t.perDay})
                                 </small>
                               </>
                             ) : (
                               <>
-                                {money(row.price_per_day)}
+                                {Math.round(row.price_per_day).toLocaleString('en-US')}
                                 <small>
                                   {' '}
                                   {t.priceUnit}
@@ -617,7 +611,12 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
 
               <div className="sb-vd__or">{t.or}</div>
 
-              <button type="button" className="sb-vd__option-card" onClick={() => setStage('form')}>
+              <button
+                type="button"
+                className="sb-vd__option-card"
+                disabled={!datesValid}
+                onClick={() => setStage('form')}
+              >
                 <span className="sb-vd__option-icon" aria-hidden>
                   ✎
                 </span>

@@ -606,7 +606,6 @@ var S = {
     busy: "\u0417\u0430\u043D\u044F\u0442\u0430",
     specs: "\u0425\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438",
     allSpecs: "\u0412\u0441\u0435 \u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438",
-    options: "\u041E\u043F\u0446\u0438\u0438",
     deposit: "\u0414\u0435\u043F\u043E\u0437\u0438\u0442",
     prices: "\u0426\u0435\u043D\u044B",
     day: "\u0434\u0435\u043D\u044C",
@@ -616,10 +615,7 @@ var S = {
     bookFrom: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441",
     loading: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026",
     error: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C",
-    start: "\u0414\u0430\u0442\u0430 \u043D\u0430\u0447\u0430\u043B\u0430",
-    end: "\u0414\u0430\u0442\u0430 \u043A\u043E\u043D\u0446\u0430",
     name: "\u0412\u0430\u0448\u0435 \u0438\u043C\u044F",
-    contact: "\u041A\u0430\u043A \u0441 \u0432\u0430\u043C\u0438 \u0441\u0432\u044F\u0437\u0430\u0442\u044C\u0441\u044F?",
     send: "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u043F\u0440\u043E\u0441",
     tgQuick: "\u0411\u0440\u043E\u043D\u044C \u0432 1 \u043A\u043B\u0438\u043A \u0447\u0435\u0440\u0435\u0437 Telegram",
     tgQuickSub: "\u0411\u0435\u0437 \u0444\u043E\u0440\u043C \u2014 \u0431\u043E\u0442 \u0437\u0430\u043F\u043E\u043B\u043D\u0438\u0442 \u0432\u0441\u0451 \u0437\u0430 \u0432\u0430\u0441",
@@ -664,7 +660,6 @@ var S = {
     busy: "Busy",
     specs: "Specs",
     allSpecs: "All specs",
-    options: "Options",
     deposit: "Deposit",
     prices: "Prices",
     day: "day",
@@ -674,10 +669,7 @@ var S = {
     bookFrom: "Book from",
     loading: "Loading\u2026",
     error: "Failed to load",
-    start: "Start date",
-    end: "End date",
     name: "Your name",
-    contact: "How to contact you?",
     send: "Send request",
     tgQuick: "1-click booking via Telegram",
     tgQuickSub: "No forms \u2014 the bot fills everything in for you",
@@ -896,18 +888,18 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
               ] }) : null
             ] }),
             /* @__PURE__ */ jsx("div", { className: "sb-vd__prices-grid", children: d.pricing_table.map((row, i) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__price-row", children: [
-              /* @__PURE__ */ jsx("span", { className: "sb-vd__price-period", children: row.is_monthly ? `${row.period_label} ${t.days} (${t.month})` : `${row.period_label} ${row.min_days === 1 ? t.day : t.days}` }),
+              /* @__PURE__ */ jsx("span", { className: "sb-vd__price-period", children: row.is_monthly ? `${row.period_label} ${t.days} (${t.month})` : row.min_days === row.max_days ? `${row.period_label} ${row.min_days === 1 ? t.day : t.days}` : `${row.period_label} ${t.days}` }),
               /* @__PURE__ */ jsx("span", { className: "sb-vd__price-value", children: row.is_monthly && row.monthly_price != null ? /* @__PURE__ */ jsxs(Fragment, { children: [
                 money(row.monthly_price),
                 /* @__PURE__ */ jsxs("small", { children: [
                   " ",
                   "(",
-                  money(row.price_per_day),
+                  Math.round(row.price_per_day).toLocaleString("en-US"),
                   t.perDay,
                   ")"
                 ] })
               ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
-                money(row.price_per_day),
+                Math.round(row.price_per_day).toLocaleString("en-US"),
                 /* @__PURE__ */ jsxs("small", { children: [
                   " ",
                   t.priceUnit,
@@ -1036,14 +1028,23 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
           }
         ) : null,
         /* @__PURE__ */ jsx("div", { className: "sb-vd__or", children: t.or }),
-        /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-vd__option-card", onClick: () => setStage("form"), children: [
-          /* @__PURE__ */ jsx("span", { className: "sb-vd__option-icon", "aria-hidden": true, children: "\u270E" }),
-          /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
-            /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: t.manual }),
-            /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: t.manualSub })
-          ] }),
-          /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
-        ] })
+        /* @__PURE__ */ jsxs(
+          "button",
+          {
+            type: "button",
+            className: "sb-vd__option-card",
+            disabled: !datesValid,
+            onClick: () => setStage("form"),
+            children: [
+              /* @__PURE__ */ jsx("span", { className: "sb-vd__option-icon", "aria-hidden": true, children: "\u270E" }),
+              /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
+                /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: t.manual }),
+                /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: t.manualSub })
+              ] }),
+              /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
+            ]
+          }
+        )
       ] }) : /* @__PURE__ */ jsxs("div", { className: "sb-modal__body sb-modal__body--book", children: [
         /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-vd__back", onClick: () => setStage("choice"), children: [
           "\u2039 ",

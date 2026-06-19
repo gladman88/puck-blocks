@@ -78,6 +78,7 @@ describe('VehicleCatalog', () => {
       deposits: [],
       pricing_table: [
         { period_label: '1', min_days: 1, max_days: 1, price_per_day: 5000, is_monthly: false },
+        { period_label: '1-29', min_days: 1, max_days: 29, price_per_day: 1500, is_monthly: false },
       ],
     };
     vi.stubGlobal(
@@ -103,7 +104,8 @@ describe('VehicleCatalog', () => {
     // step 1 (detail): price table («1 день» = period_label + day word) + «Забронировать» CTA
     fireEvent.click(container.querySelector('button.sb-vcard')!);
     await screen.findByText('Забронировать');
-    expect(screen.getByText('1 день')).toBeTruthy();
+    expect(screen.getByText('1 день')).toBeTruthy(); // min===max===1 → singular
+    expect(screen.getByText('1-29 дней')).toBeTruthy(); // range with min 1 → plural (HIGH fix)
     expect(screen.queryByText('Заполнить вручную')).toBeNull();
     expect(screen.queryByText('Отправить запрос')).toBeNull();
 
