@@ -584,6 +584,8 @@ var S = {
     tgQuick: "\u0411\u0440\u043E\u043D\u044C \u0432 1 \u043A\u043B\u0438\u043A \u0447\u0435\u0440\u0435\u0437 Telegram",
     tgQuickSub: "\u0411\u0435\u0437 \u0444\u043E\u0440\u043C \u2014 \u0431\u043E\u0442 \u0437\u0430\u043F\u043E\u043B\u043D\u0438\u0442 \u0432\u0441\u0451 \u0437\u0430 \u0432\u0430\u0441",
     or: "\u0438\u043B\u0438",
+    howToBook: "\u041A\u0430\u043A \u0437\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C?",
+    back: "\u041D\u0430\u0437\u0430\u0434",
     successTitle: "\u0417\u0430\u044F\u0432\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0430!",
     successText: "\u041C\u044B \u0441\u043A\u043E\u0440\u043E \u0441\u0432\u044F\u0436\u0435\u043C\u0441\u044F \u0441 \u0432\u0430\u043C\u0438.",
     tooMany: "\u0421\u043B\u0438\u0448\u043A\u043E\u043C \u043C\u043D\u043E\u0433\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u043E\u0432, \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u043F\u043E\u0437\u0436\u0435",
@@ -629,6 +631,8 @@ var S = {
     tgQuick: "1-click booking via Telegram",
     tgQuickSub: "No forms \u2014 the bot fills everything in for you",
     or: "or",
+    howToBook: "How to book?",
+    back: "Back",
     successTitle: "Request sent!",
     successText: "We will contact you shortly.",
     tooMany: "Too many requests, try later",
@@ -664,7 +668,7 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
   const [channel, setChannel] = react.useState("whatsapp");
   const [contact, setContact] = react.useState("");
   const [submitting, setSubmitting] = react.useState(false);
-  const [done, setDone] = react.useState(false);
+  const [stage, setStage] = react.useState("detail");
   const [err, setErr] = react.useState("");
   const dialogRef = react.useRef(null);
   react.useEffect(() => {
@@ -708,7 +712,7 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
         })
       });
       if (res.ok) {
-        setDone(true);
+        setStage("success");
       } else {
         setErr(res.status === 429 ? t.tooMany : t.sendErr);
       }
@@ -732,12 +736,12 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
       /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-modal__close", "aria-label": t.close, onClick: onClose, children: "\xD7" }),
       state === "loading" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-modal__state", children: t.loading }) : null,
       state === "error" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-modal__state", children: t.error }) : null,
-      state === "ready" && d ? done ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-modal__success", children: [
+      state === "ready" && d ? stage === "success" ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-modal__success", children: [
         /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-modal__check", "aria-hidden": true, children: "\u2713" }),
         /* @__PURE__ */ jsxRuntime.jsx("h3", { children: t.successTitle }),
         /* @__PURE__ */ jsxRuntime.jsx("p", { children: t.successText }),
         /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-btn", onClick: onClose, children: "OK" })
-      ] }) : /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-modal__body", children: [
+      ] }) : stage === "detail" ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-modal__body", children: [
         mainImg ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__media", children: [
           /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__frame", children: [
             /* @__PURE__ */ jsxRuntime.jsx("img", { className: "sb-vd__photo", src: mainImg, alt: d.display_name }),
@@ -882,6 +886,51 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
             ] }, i)) })
           ] }) : null
         ] }),
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__cta", children: [
+          price != null ? /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__cta-price", children: [
+            /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
+              t.from,
+              " "
+            ] }),
+            Math.round(price).toLocaleString("en-US"),
+            /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
+              " ",
+              t.perDay
+            ] })
+          ] }) : null,
+          /* @__PURE__ */ jsxRuntime.jsx(
+            "button",
+            {
+              type: "button",
+              className: "sb-btn sb-vd__cta-btn",
+              onClick: () => setStage("book"),
+              children: t.howToBook
+            }
+          )
+        ] })
+      ] }) : /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-modal__body sb-modal__body--book", children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("button", { type: "button", className: "sb-vd__back", onClick: () => setStage("detail"), children: [
+          "\u2039 ",
+          t.back
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-bk__vehicle", children: [
+          mainImg ? /* @__PURE__ */ jsxRuntime.jsx("img", { className: "sb-bk__photo", src: mainImg, alt: "" }) : null,
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-bk__meta", children: [
+            /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-bk__name", children: d.display_name }),
+            price != null ? /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-bk__price", children: [
+              /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
+                t.from,
+                " "
+              ] }),
+              Math.round(price).toLocaleString("en-US"),
+              /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
+                " ",
+                t.perDay
+              ] })
+            ] }) : null
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "sb-bk__title", children: t.howToBook }),
         /* @__PURE__ */ jsxRuntime.jsxs("form", { className: "sb-vd__book", onSubmit: submit, children: [
           /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__dates", children: [
             /* @__PURE__ */ jsxRuntime.jsxs("label", { children: [

@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { VehicleCatalog } from './VehicleCatalog';
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  cleanup(); // unmount prior renders incl. portal'd modals, so screen queries don't leak across tests
+  vi.unstubAllGlobals();
+});
 
 function stubFetch(categories: unknown, vehicles: unknown, ok = true) {
   vi.stubGlobal(
@@ -64,6 +67,53 @@ describe('VehicleCatalog', () => {
     await findByText('BMW Z4');
     expect(container.querySelectorAll('.sb-vcard').length).toBe(1); // grouped, not 2 cards
     expect(container.querySelector('.sb-vcard__count')?.textContent).toContain('1'); // 1 available of 2
+  });
+
+  it('opens the booking modal as two windows: detail → «Как забронировать?» → form', async () => {
+    const detail = {
+      ...vehicle,
+      gallery_images: [],
+      advantages: [],
+      options: [],
+      deposits: [],
+      pricing_table: [
+        { period_label: '1 день', min_days: 1, max_days: 1, price_per_day: 5000, is_monthly: false },
+      ],
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const u = String(url);
+        const body = u.includes('/categories/')
+          ? [cat]
+          : /\/vehicles\/[^/]+\/$/.test(u) // detail endpoint /vehicles/{id}/
+            ? detail
+            : [vehicle];
+        return Promise.resolve(
+          new Response(JSON.stringify(body), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      }),
+    );
+    const { container } = render(<VehicleCatalog vehicleType="car" />);
+    await screen.findByText('BMW Z4');
+
+    // open → window 1 (detail): price table + CTA, NO booking form yet
+    fireEvent.click(container.querySelector('button.sb-vcard')!);
+    await screen.findByText('Как забронировать?');
+    expect(screen.getByText('1 день')).toBeTruthy();
+    expect(screen.queryByText('Отправить заявку')).toBeNull();
+
+    // → window 2 (booking): the manual form appears
+    fireEvent.click(screen.getByText('Как забронировать?'));
+    expect(await screen.findByText('Отправить заявку')).toBeTruthy();
+
+    // ‹ Назад returns to window 1 (form gone again)
+    fireEvent.click(screen.getByText(/Назад/));
+    await screen.findByText('Как забронировать?');
+    expect(screen.queryByText('Отправить заявку')).toBeNull();
   });
 
   it('uses English labels when puck metadata locale is en', async () => {

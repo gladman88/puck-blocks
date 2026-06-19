@@ -82,6 +82,8 @@ const S = {
     tgQuick: 'Бронь в 1 клик через Telegram',
     tgQuickSub: 'Без форм — бот заполнит всё за вас',
     or: 'или',
+    howToBook: 'Как забронировать?',
+    back: 'Назад',
     successTitle: 'Заявка отправлена!',
     successText: 'Мы скоро свяжемся с вами.',
     tooMany: 'Слишком много запросов, попробуйте позже',
@@ -127,6 +129,8 @@ const S = {
     tgQuick: '1-click booking via Telegram',
     tgQuickSub: 'No forms — the bot fills everything in for you',
     or: 'or',
+    howToBook: 'How to book?',
+    back: 'Back',
     successTitle: 'Request sent!',
     successText: 'We will contact you shortly.',
     tooMany: 'Too many requests, try later',
@@ -181,7 +185,7 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
   const [channel, setChannel] = useState<'whatsapp' | 'telegram'>('whatsapp');
   const [contact, setContact] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
+  const [stage, setStage] = useState<'detail' | 'book' | 'success'>('detail');
   const [err, setErr] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -233,7 +237,7 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
         }),
       });
       if (res.ok) {
-        setDone(true);
+        setStage('success');
       } else {
         setErr(res.status === 429 ? t.tooMany : t.sendErr);
       }
@@ -268,7 +272,7 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
         {state === 'error' ? <p className="sb-modal__state">{t.error}</p> : null}
 
         {state === 'ready' && d ? (
-          done ? (
+          stage === 'success' ? (
             <div className="sb-modal__success">
               <div className="sb-modal__check" aria-hidden>
                 ✓
@@ -279,7 +283,7 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                 OK
               </button>
             </div>
-          ) : (
+          ) : stage === 'detail' ? (
             <div className="sb-modal__body">
               {/* Gallery */}
               {mainImg ? (
@@ -468,6 +472,43 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                   </div>
                 ) : null}
               </div>
+
+              <div className="sb-vd__cta">
+                {price != null ? (
+                  <span className="sb-vd__cta-price">
+                    <small>{t.from} </small>
+                    {Math.round(price).toLocaleString('en-US')}
+                    <small> {t.perDay}</small>
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  className="sb-btn sb-vd__cta-btn"
+                  onClick={() => setStage('book')}
+                >
+                  {t.howToBook}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="sb-modal__body sb-modal__body--book">
+              <button type="button" className="sb-vd__back" onClick={() => setStage('detail')}>
+                ‹ {t.back}
+              </button>
+              <div className="sb-bk__vehicle">
+                {mainImg ? <img className="sb-bk__photo" src={mainImg} alt="" /> : null}
+                <div className="sb-bk__meta">
+                  <p className="sb-bk__name">{d.display_name}</p>
+                  {price != null ? (
+                    <p className="sb-bk__price">
+                      <small>{t.from} </small>
+                      {Math.round(price).toLocaleString('en-US')}
+                      <small> {t.perDay}</small>
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <h3 className="sb-bk__title">{t.howToBook}</h3>
 
               {/* Booking */}
               <form className="sb-vd__book" onSubmit={submit}>
