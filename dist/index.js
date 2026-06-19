@@ -531,17 +531,17 @@ function addDays(isoDate, n) {
 function nextDay(isoDate) {
   return addDays(isoDate, 1);
 }
+function money(value) {
+  if (value == null || value === "") return "";
+  const n = typeof value === "number" ? value : parseFloat(value);
+  return Number.isFinite(n) ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "";
+}
 function buildTelegramDeepLink(botUsername, vehicleId, dates) {
   let payload = `bk_${vehicleId.replace(/-/g, "")}`;
   if (dates?.from && dates?.to) {
     payload += `_${dates.from.replace(/-/g, "")}_${dates.to.replace(/-/g, "")}`;
   }
   return `https://t.me/${botUsername}?start=${payload}`;
-}
-function money(value) {
-  if (value == null || value === "") return "";
-  const n = typeof value === "number" ? value : parseFloat(value);
-  return Number.isFinite(n) ? Math.round(n).toLocaleString("en-US") : "";
 }
 var SPEC_KEYS = [
   "fuel_type",
@@ -802,12 +802,16 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
           /* @__PURE__ */ jsxs("div", { className: `sb-vd__avail ${d.is_available ? "is-free" : "is-busy"}`, children: [
             /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-dot", "aria-hidden": true }),
             /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-text", children: d.is_available ? t.available : d.free_from ? `${t.freesUp}: ${d.free_from}` : t.busy }),
-            !d.is_available && d.free_from ? /* @__PURE__ */ jsxs(
+            !d.is_available && d.free_from && d.free_from !== start ? /* @__PURE__ */ jsxs(
               "button",
               {
                 type: "button",
                 className: "sb-vd__avail-btn",
-                onClick: () => setStart(d.free_from),
+                onClick: () => {
+                  const from = d.free_from;
+                  setStart(from);
+                  if (end <= from) setEnd(nextDay(from));
+                },
                 children: [
                   t.bookFrom,
                   " ",
@@ -827,7 +831,7 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
             ] }),
             /* @__PURE__ */ jsx("div", { className: "sb-vd__prices-grid", children: d.pricing_table.map((row, i) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__price-row", children: [
               /* @__PURE__ */ jsx("span", { className: "sb-vd__price-period", children: row.period_label }),
-              /* @__PURE__ */ jsx("span", { className: "sb-vd__price-value", children: row.is_monthly && row.monthly_price ? /* @__PURE__ */ jsxs(Fragment, { children: [
+              /* @__PURE__ */ jsx("span", { className: "sb-vd__price-value", children: row.is_monthly && row.monthly_price != null ? /* @__PURE__ */ jsxs(Fragment, { children: [
                 money(row.monthly_price),
                 /* @__PURE__ */ jsxs("small", { children: [
                   " ",

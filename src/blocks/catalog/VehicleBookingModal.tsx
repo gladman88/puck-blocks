@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
-import { buildTelegramDeepLink, nextDay, todayISO } from './dates';
+import { buildTelegramDeepLink, money, nextDay, todayISO } from './dates';
 
 interface GalleryImage {
   image_url: string;
@@ -16,9 +16,9 @@ interface PricingRow {
   period_label: string;
   min_days: number;
   max_days: number | null;
-  price_per_day: string;
+  price_per_day: number;
   is_monthly: boolean;
-  monthly_price?: string;
+  monthly_price?: number;
 }
 export interface CatalogVehicleDetail extends CatalogVehicle {
   fuel_type?: string;
@@ -40,13 +40,6 @@ export interface CatalogVehicleDetail extends CatalogVehicle {
   pricing_table?: PricingRow[];
   pricing_season_name?: string | null;
   pricing_spans_seasons?: boolean;
-}
-
-/** Strip backend Decimal trailing zeros ("1500.000000" → "1 500") for display. */
-function money(value: string | number | null | undefined): string {
-  if (value == null || value === '') return '';
-  const n = typeof value === 'number' ? value : parseFloat(value);
-  return Number.isFinite(n) ? Math.round(n).toLocaleString('en-US') : '';
 }
 
 const SPEC_KEYS = [
@@ -363,11 +356,15 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                         ? `${t.freesUp}: ${d.free_from}`
                         : t.busy}
                   </span>
-                  {!d.is_available && d.free_from ? (
+                  {!d.is_available && d.free_from && d.free_from !== start ? (
                     <button
                       type="button"
                       className="sb-vd__avail-btn"
-                      onClick={() => setStart(d.free_from!)}
+                      onClick={() => {
+                        const from = d.free_from!;
+                        setStart(from);
+                        if (end <= from) setEnd(nextDay(from));
+                      }}
                     >
                       {t.bookFrom} {d.free_from}
                     </button>
@@ -398,7 +395,7 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                         <div className="sb-vd__price-row" key={i}>
                           <span className="sb-vd__price-period">{row.period_label}</span>
                           <span className="sb-vd__price-value">
-                            {row.is_monthly && row.monthly_price ? (
+                            {row.is_monthly && row.monthly_price != null ? (
                               <>
                                 {money(row.monthly_price)}
                                 <small> {t.perMonth}</small>

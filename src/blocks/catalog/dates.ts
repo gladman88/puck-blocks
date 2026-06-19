@@ -16,12 +16,17 @@ export function nextDay(isoDate: string): string {
   return addDays(isoDate, 1);
 }
 
-export function daysBetween(from: string, to: string): number {
-  if (!from || !to) return 0;
-  const [fy, fm, fd] = from.split('-').map(Number);
-  const [ty, tm, td] = to.split('-').map(Number);
-  if (!fy || !ty) return 0;
-  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86400000);
+/**
+ * Format a backend money value for display. The catalog API sends prices as
+ * JSON numbers (`float()`) and deposit amounts as Decimal strings
+ * ("25000.00"). Keep up to 2 fractional digits so whole-baht prices read clean
+ * ("1500.000000" → "1,500") while a real fractional deposit ("300.50" → "300.5")
+ * isn't silently rounded away. Empty / non-numeric → "".
+ */
+export function money(value: string | number | null | undefined): string {
+  if (value == null || value === '') return '';
+  const n = typeof value === 'number' ? value : parseFloat(value);
+  return Number.isFinite(n) ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '';
 }
 
 export function formatShortDate(isoDate: string, lang: 'en' | 'ru'): string {
