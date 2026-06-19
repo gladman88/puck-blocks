@@ -1402,31 +1402,43 @@ a.sb-map__line:hover {
   gap: 0.5rem;
 }
 .sb-chip {
-  padding: 0.3rem 0.7rem;
+  padding: 0.3rem 0.75rem;
   border-radius: 999px;
-  background: var(--sb-bg-alt);
+  background: rgba(255, 204, 51, 0.13);
+  color: var(--sb-accent);
   font-size: 0.85rem;
+  font-weight: 500;
 }
 .sb-chip--ghost {
   background: transparent;
   border: 1px solid var(--sb-border);
   color: var(--sb-text-muted);
 }
+.sb-vd__specs-card {
+  background: var(--sb-bg-alt);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius);
+  overflow: hidden;
+}
 .sb-vd__specs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0 0.75rem;
+  gap: 0 1rem;
+  padding: 0.25rem 0.9rem;
 }
 .sb-vd__spec {
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.45rem 0;
+  padding: 0.5rem 0;
   border-bottom: 1px solid var(--sb-border);
   font-size: 0.9rem;
 }
 .sb-vd__spec span {
   color: var(--sb-text-muted);
+}
+.sb-vd__spec b {
+  color: var(--sb-text-strong);
 }
 .sb-vd__section-label {
   font-size: 0.75rem;
@@ -1487,9 +1499,14 @@ a.sb-map__line:hover {
   gap: 0.4rem;
 }
 .sb-vd__specs-toggle {
-  align-self: flex-start;
-  padding: 0.3rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0.6rem;
   border: none;
+  border-top: 1px solid var(--sb-border);
   background: none;
   color: var(--sb-accent);
   font-size: 0.85rem;
@@ -1551,6 +1568,49 @@ a.sb-map__line:hover {
 .sb-vd__tg-arrow {
   color: var(--sb-text-muted);
   font-size: 1.4rem;
+}
+.sb-vd__option-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border-radius: var(--sb-radius);
+  background: var(--sb-bg-alt);
+  border: 1px solid var(--sb-border);
+  color: var(--sb-text);
+  text-align: left;
+  cursor: pointer;
+}
+.sb-vd__option-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--sb-surface);
+  color: var(--sb-text-muted);
+  font-size: 1.1rem;
+}
+.sb-vd__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.sb-vd__field-label {
+  font-size: 0.85rem;
+  color: var(--sb-text-muted);
+}
+.sb-vd__dates-summary {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--sb-text-muted);
+}
+.sb-vd__dates-summary b {
+  color: var(--sb-text-strong);
+  font-weight: 600;
 }
 .sb-vd__book {
   display: flex;

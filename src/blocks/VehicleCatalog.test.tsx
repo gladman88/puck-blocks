@@ -69,7 +69,7 @@ describe('VehicleCatalog', () => {
     expect(container.querySelector('.sb-vcard__count')?.textContent).toContain('1'); // 1 available of 2
   });
 
-  it('opens the booking modal as two windows: detail → «Как забронировать?» → form', async () => {
+  it('booking modal flows in three steps: detail → choice → manual form', async () => {
     const detail = {
       ...vehicle,
       gallery_images: [],
@@ -77,7 +77,7 @@ describe('VehicleCatalog', () => {
       options: [],
       deposits: [],
       pricing_table: [
-        { period_label: '1 день', min_days: 1, max_days: 1, price_per_day: 5000, is_monthly: false },
+        { period_label: '1', min_days: 1, max_days: 1, price_per_day: 5000, is_monthly: false },
       ],
     };
     vi.stubGlobal(
@@ -100,20 +100,26 @@ describe('VehicleCatalog', () => {
     const { container } = render(<VehicleCatalog vehicleType="car" />);
     await screen.findByText('BMW Z4');
 
-    // open → window 1 (detail): price table + CTA, NO booking form yet
+    // step 1 (detail): price table («1 день» = period_label + day word) + «Забронировать» CTA
     fireEvent.click(container.querySelector('button.sb-vcard')!);
-    await screen.findByText('Как забронировать?');
+    await screen.findByText('Забронировать');
     expect(screen.getByText('1 день')).toBeTruthy();
-    expect(screen.queryByText('Отправить заявку')).toBeNull();
+    expect(screen.queryByText('Заполнить вручную')).toBeNull();
+    expect(screen.queryByText('Отправить запрос')).toBeNull();
 
-    // → window 2 (booking): the manual form appears
-    fireEvent.click(screen.getByText('Как забронировать?'));
-    expect(await screen.findByText('Отправить заявку')).toBeTruthy();
+    // step 2 (choice): dates + Telegram + «Заполнить вручную» — still no manual form
+    fireEvent.click(screen.getByText('Забронировать'));
+    await screen.findByText('Заполнить вручную');
+    expect(screen.queryByText('Отправить запрос')).toBeNull();
 
-    // ‹ Назад returns to window 1 (form gone again)
+    // step 3 (form): the manual request form
+    fireEvent.click(screen.getByText('Заполнить вручную'));
+    expect(await screen.findByText('Отправить запрос')).toBeTruthy();
+
+    // ‹ Назад returns to the choice step
     fireEvent.click(screen.getByText(/Назад/));
-    await screen.findByText('Как забронировать?');
-    expect(screen.queryByText('Отправить заявку')).toBeNull();
+    await screen.findByText('Заполнить вручную');
+    expect(screen.queryByText('Отправить запрос')).toBeNull();
   });
 
   it('uses English labels when puck metadata locale is en', async () => {

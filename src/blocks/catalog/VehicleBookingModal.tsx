@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
-import { buildTelegramDeepLink, money, nextDay, todayISO } from './dates';
+import { buildTelegramDeepLink, formatShortDate, money, nextDay, todayISO } from './dates';
 
 interface GalleryImage {
   image_url: string;
@@ -42,12 +42,14 @@ export interface CatalogVehicleDetail extends CatalogVehicle {
   pricing_spans_seasons?: boolean;
 }
 
+// Order mirrors the standalone catalog: engine → power → fuel → transmission →
+// drive are the first 4 (key specs), the rest collapse behind «Все характеристики».
 const SPEC_KEYS = [
+  'engine_volume',
+  'horse_power',
   'fuel_type',
   'transmission',
   'drive_type',
-  'engine_volume',
-  'horse_power',
   'sprint_0_100',
   'max_speed',
   'clearance',
@@ -56,11 +58,28 @@ const SPEC_KEYS = [
   'fuel_consumption',
 ] as const;
 
+// fuel_type / transmission / drive_type come from the API as raw enums
+// ("electric", "automatic", "fwd"); localise them like the standalone does.
+const TRANSLATED_SPEC_KEYS = new Set(['fuel_type', 'transmission', 'drive_type']);
+const SPEC_VALUE_LABELS: Record<'ru' | 'en', Record<string, string>> = {
+  ru: {
+    automatic: 'Автомат', manual: 'Механика', cvt: 'Вариатор', robot: 'Робот',
+    petrol: 'Бензин', diesel: 'Дизель', electric: 'Электро', hybrid: 'Гибрид',
+    fwd: 'Передний', rwd: 'Задний', awd: 'Полный',
+  },
+  en: {
+    automatic: 'Automatic', manual: 'Manual', cvt: 'CVT', robot: 'Robot',
+    petrol: 'Petrol', diesel: 'Diesel', electric: 'Electric', hybrid: 'Hybrid',
+    fwd: 'FWD', rwd: 'RWD', awd: 'AWD',
+  },
+};
+
 const S = {
   ru: {
     close: 'Закрыть',
     from: 'от',
-    perDay: '฿/день',
+    perDay: '/день',
+    priceUnit: 'THB',
     available: 'Свободна сейчас',
     freesUp: 'Освободится',
     busy: 'Занята',
@@ -69,7 +88,9 @@ const S = {
     options: 'Опции',
     deposit: 'Депозит',
     prices: 'Цены',
-    perMonth: '฿/мес',
+    day: 'день',
+    days: 'дней',
+    month: 'мес',
     spansSeasons: 'Цены показаны за текущий сезон',
     bookFrom: 'Забронировать с',
     loading: 'Загрузка…',
@@ -78,12 +99,20 @@ const S = {
     end: 'Дата конца',
     name: 'Ваше имя',
     contact: 'Как с вами связаться?',
-    send: 'Отправить заявку',
+    send: 'Отправить запрос',
     tgQuick: 'Бронь в 1 клик через Telegram',
     tgQuickSub: 'Без форм — бот заполнит всё за вас',
     or: 'или',
     howToBook: 'Как забронировать?',
     back: 'Назад',
+    bookCta: 'Забронировать',
+    formTitle: 'Запрос на бронирование',
+    manual: 'Заполнить вручную',
+    manualSub: 'Имя и контакт — займёт 30 секунд',
+    dateGet: 'Дата получения',
+    dateReturn: 'Дата возврата',
+    contactWay: 'Способ связи',
+    phoneLabel: 'Номер телефона',
     successTitle: 'Заявка отправлена!',
     successText: 'Мы скоро свяжемся с вами.',
     tooMany: 'Слишком много запросов, попробуйте позже',
@@ -92,7 +121,7 @@ const S = {
     tgPh: '@username',
     labels: {
       fuel_type: 'Топливо',
-      transmission: 'Коробка',
+      transmission: 'КПП',
       drive_type: 'Привод',
       engine_volume: 'Двигатель',
       horse_power: 'Мощность',
@@ -107,7 +136,8 @@ const S = {
   en: {
     close: 'Close',
     from: 'from',
-    perDay: '฿/day',
+    perDay: '/day',
+    priceUnit: 'THB',
     available: 'Available now',
     freesUp: 'Frees up',
     busy: 'Busy',
@@ -116,7 +146,9 @@ const S = {
     options: 'Options',
     deposit: 'Deposit',
     prices: 'Prices',
-    perMonth: '฿/mo',
+    day: 'day',
+    days: 'days',
+    month: 'month',
     spansSeasons: 'Prices shown for the current season',
     bookFrom: 'Book from',
     loading: 'Loading…',
@@ -131,6 +163,14 @@ const S = {
     or: 'or',
     howToBook: 'How to book?',
     back: 'Back',
+    bookCta: 'Book',
+    formTitle: 'Booking request',
+    manual: 'Fill in manually',
+    manualSub: 'Name and contact — takes 30 seconds',
+    dateGet: 'Pick-up date',
+    dateReturn: 'Return date',
+    contactWay: 'Contact method',
+    phoneLabel: 'Phone number',
     successTitle: 'Request sent!',
     successText: 'We will contact you shortly.',
     tooMany: 'Too many requests, try later',
@@ -185,7 +225,7 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
   const [channel, setChannel] = useState<'whatsapp' | 'telegram'>('whatsapp');
   const [contact, setContact] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [stage, setStage] = useState<'detail' | 'book' | 'success'>('detail');
+  const [stage, setStage] = useState<'detail' | 'choice' | 'form' | 'success'>('detail');
   const [err, setErr] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -347,7 +387,11 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                   <p className="sb-vd__price">
                     <small>{t.from} </small>
                     {Math.round(price).toLocaleString('en-US')}
-                    <small> {t.perDay}</small>
+                    <small>
+                      {' '}
+                      {t.priceUnit}
+                      {t.perDay}
+                    </small>
                   </p>
                 ) : null}
 
@@ -397,17 +441,29 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                     <div className="sb-vd__prices-grid">
                       {d.pricing_table!.map((row, i) => (
                         <div className="sb-vd__price-row" key={i}>
-                          <span className="sb-vd__price-period">{row.period_label}</span>
+                          <span className="sb-vd__price-period">
+                            {row.is_monthly
+                              ? `${row.period_label} ${t.days} (${t.month})`
+                              : `${row.period_label} ${row.min_days === 1 ? t.day : t.days}`}
+                          </span>
                           <span className="sb-vd__price-value">
                             {row.is_monthly && row.monthly_price != null ? (
                               <>
                                 {money(row.monthly_price)}
-                                <small> {t.perMonth}</small>
+                                <small>
+                                  {' '}
+                                  ({money(row.price_per_day)}
+                                  {t.perDay})
+                                </small>
                               </>
                             ) : (
                               <>
                                 {money(row.price_per_day)}
-                                <small> {t.perDay}</small>
+                                <small>
+                                  {' '}
+                                  {t.priceUnit}
+                                  {t.perDay}
+                                </small>
                               </>
                             )}
                           </span>
@@ -440,23 +496,32 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                       const visible = specsExpanded ? present : present.slice(0, 4);
                       return (
                         <div className="sb-vd__specs-wrap">
-                          <div className="sb-vd__specs">
-                            {visible.map((k) => (
-                              <div className="sb-vd__spec" key={k}>
-                                <span>{t.labels[k]}</span>
-                                <b>{d[k]}</b>
-                              </div>
-                            ))}
+                          <span className="sb-vd__section-label">{t.specs}</span>
+                          <div className="sb-vd__specs-card">
+                            <div className="sb-vd__specs">
+                              {visible.map((k) => {
+                                const raw = String(d[k]);
+                                const val = TRANSLATED_SPEC_KEYS.has(k)
+                                  ? (SPEC_VALUE_LABELS[locale][raw.toLowerCase()] ?? raw)
+                                  : raw;
+                                return (
+                                  <div className="sb-vd__spec" key={k}>
+                                    <span>{t.labels[k]}</span>
+                                    <b>{val}</b>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {present.length > 4 ? (
+                              <button
+                                type="button"
+                                className="sb-vd__specs-toggle"
+                                onClick={() => setSpecsExpanded((v) => !v)}
+                              >
+                                {t.allSpecs} {specsExpanded ? '▲' : '▼'}
+                              </button>
+                            ) : null}
                           </div>
-                          {present.length > 4 ? (
-                            <button
-                              type="button"
-                              className="sb-vd__specs-toggle"
-                              onClick={() => setSpecsExpanded((v) => !v)}
-                            >
-                              {t.allSpecs} {specsExpanded ? '▲' : '▼'}
-                            </button>
-                          ) : null}
                         </div>
                       );
                     })()
@@ -474,27 +539,21 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
               </div>
 
               <div className="sb-vd__cta">
-                {price != null ? (
-                  <span className="sb-vd__cta-price">
-                    <small>{t.from} </small>
-                    {Math.round(price).toLocaleString('en-US')}
-                    <small> {t.perDay}</small>
-                  </span>
-                ) : null}
                 <button
                   type="button"
                   className="sb-btn sb-vd__cta-btn"
-                  onClick={() => setStage('book')}
+                  onClick={() => setStage('choice')}
                 >
-                  {t.howToBook}
+                  {t.bookCta}
                 </button>
               </div>
             </div>
-          ) : (
+          ) : stage === 'choice' ? (
             <div className="sb-modal__body sb-modal__body--book">
               <button type="button" className="sb-vd__back" onClick={() => setStage('detail')}>
                 ‹ {t.back}
               </button>
+              <h3 className="sb-bk__title">{t.howToBook}</h3>
               <div className="sb-bk__vehicle">
                 {mainImg ? <img className="sb-bk__photo" src={mainImg} alt="" /> : null}
                 <div className="sb-bk__meta">
@@ -503,92 +562,148 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                     <p className="sb-bk__price">
                       <small>{t.from} </small>
                       {Math.round(price).toLocaleString('en-US')}
-                      <small> {t.perDay}</small>
+                      <small>
+                        {' '}
+                        {t.priceUnit}
+                        {t.perDay}
+                      </small>
                     </p>
                   ) : null}
                 </div>
               </div>
-              <h3 className="sb-bk__title">{t.howToBook}</h3>
 
-              {/* Booking */}
+              <div className="sb-vd__dates">
+                <label>
+                  {t.dateGet}
+                  <input
+                    type="date"
+                    className="sb-input"
+                    value={start}
+                    min={minStart}
+                    onChange={(e) => setStart(e.target.value)}
+                  />
+                </label>
+                <label>
+                  {t.dateReturn}
+                  <input
+                    type="date"
+                    className="sb-input"
+                    value={end}
+                    min={nextDay(start)}
+                    onChange={(e) => setEnd(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              {tgHref ? (
+                <a
+                  className="sb-vd__tg-card"
+                  href={tgHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <span className="sb-vd__tg-icon" aria-hidden>
+                    ✈
+                  </span>
+                  <span className="sb-vd__tg-text">
+                    <span className="sb-vd__tg-title">{t.tgQuick}</span>
+                    <span className="sb-vd__tg-sub">{t.tgQuickSub}</span>
+                  </span>
+                  <span className="sb-vd__tg-arrow" aria-hidden>
+                    ›
+                  </span>
+                </a>
+              ) : null}
+
+              <div className="sb-vd__or">{t.or}</div>
+
+              <button type="button" className="sb-vd__option-card" onClick={() => setStage('form')}>
+                <span className="sb-vd__option-icon" aria-hidden>
+                  ✎
+                </span>
+                <span className="sb-vd__tg-text">
+                  <span className="sb-vd__tg-title">{t.manual}</span>
+                  <span className="sb-vd__tg-sub">{t.manualSub}</span>
+                </span>
+                <span className="sb-vd__tg-arrow" aria-hidden>
+                  ›
+                </span>
+              </button>
+            </div>
+          ) : (
+            <div className="sb-modal__body sb-modal__body--book">
+              <button type="button" className="sb-vd__back" onClick={() => setStage('choice')}>
+                ‹ {t.back}
+              </button>
+              <h3 className="sb-bk__title">{t.formTitle}</h3>
+              <div className="sb-bk__vehicle">
+                {mainImg ? <img className="sb-bk__photo" src={mainImg} alt="" /> : null}
+                <div className="sb-bk__meta">
+                  <p className="sb-bk__name">{d.display_name}</p>
+                  {price != null ? (
+                    <p className="sb-bk__price">
+                      <small>{t.from} </small>
+                      {Math.round(price).toLocaleString('en-US')}
+                      <small>
+                        {' '}
+                        {t.priceUnit}
+                        {t.perDay}
+                      </small>
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
               <form className="sb-vd__book" onSubmit={submit}>
-                <div className="sb-vd__dates">
-                  <label>
-                    {t.start}
-                    <input
-                      type="date"
-                      className="sb-input"
-                      value={start}
-                      min={minStart}
-                      onChange={(e) => setStart(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    {t.end}
-                    <input
-                      type="date"
-                      className="sb-input"
-                      value={end}
-                      min={nextDay(start)}
-                      onChange={(e) => setEnd(e.target.value)}
-                    />
-                  </label>
+                <label className="sb-vd__field">
+                  <span className="sb-vd__field-label">{t.name}</span>
+                  <input
+                    className="sb-input"
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </label>
+
+                <div className="sb-vd__field">
+                  <span className="sb-vd__field-label">{t.contactWay}</span>
+                  <div className="sb-vd__channel" role="group" aria-label={t.contactWay}>
+                    <button
+                      type="button"
+                      className={channel === 'whatsapp' ? 'is-active' : ''}
+                      onClick={() => setChannel('whatsapp')}
+                    >
+                      WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      className={channel === 'telegram' ? 'is-active' : ''}
+                      onClick={() => setChannel('telegram')}
+                    >
+                      Telegram
+                    </button>
+                  </div>
                 </div>
 
-                {tgHref ? (
-                  <a
-                    className="sb-vd__tg-card"
-                    href={tgHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <span className="sb-vd__tg-icon" aria-hidden>
-                      ✈
-                    </span>
-                    <span className="sb-vd__tg-text">
-                      <span className="sb-vd__tg-title">{t.tgQuick}</span>
-                      <span className="sb-vd__tg-sub">{t.tgQuickSub}</span>
-                    </span>
-                    <span className="sb-vd__tg-arrow" aria-hidden>
-                      ›
-                    </span>
-                  </a>
-                ) : null}
+                <label className="sb-vd__field">
+                  <span className="sb-vd__field-label">{t.phoneLabel}</span>
+                  <input
+                    className="sb-input"
+                    type="text"
+                    placeholder={channel === 'whatsapp' ? t.phonePh : t.tgPh}
+                    required
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                  />
+                </label>
 
-                <div className="sb-vd__or">{t.or}</div>
+                <p className="sb-vd__dates-summary">
+                  {t.dateGet}: <b>{formatShortDate(start, locale)}</b>
+                  {' — '}
+                  {t.dateReturn}: <b>{formatShortDate(end, locale)}</b>
+                </p>
 
-                <input
-                  className="sb-input"
-                  type="text"
-                  placeholder={t.name}
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-                <div className="sb-vd__channel" role="group" aria-label={t.contact}>
-                  <button
-                    type="button"
-                    className={channel === 'whatsapp' ? 'is-active' : ''}
-                    onClick={() => setChannel('whatsapp')}
-                  >
-                    WhatsApp
-                  </button>
-                  <button
-                    type="button"
-                    className={channel === 'telegram' ? 'is-active' : ''}
-                    onClick={() => setChannel('telegram')}
-                  >
-                    Telegram
-                  </button>
-                </div>
-                <input
-                  className="sb-input"
-                  type="text"
-                  placeholder={channel === 'whatsapp' ? t.phonePh : t.tgPh}
-                  required
-                  value={contact}
-                  onChange={(e) => setContact(e.target.value)}
-                />
                 <button
                   className="sb-btn sb-btn--block"
                   type="submit"
