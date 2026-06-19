@@ -420,6 +420,19 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                   </div>
                 ) : null}
 
+                {(d.deposits ?? []).length > 0 ? (
+                  <div className="sb-vd__deposits">
+                    <span className="sb-vd__section-label">{t.deposit}</span>
+                    <div className="sb-vd__deposit-pills">
+                      {d.deposits!.map((dep, i) => (
+                        <span className="sb-vd__deposit-pill" key={i}>
+                          {money(dep.amount)} {dep.currency_code}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 {/* Specs — first 4, rest behind a toggle (matches the standalone) */}
                 {SPEC_KEYS.some((k) => d[k])
                   ? (() => {
@@ -456,19 +469,6 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                         {o}
                       </span>
                     ))}
-                  </div>
-                ) : null}
-
-                {(d.deposits ?? []).length > 0 ? (
-                  <div className="sb-vd__deposits">
-                    <span className="sb-vd__section-label">{t.deposit}</span>
-                    <div className="sb-vd__deposit-pills">
-                      {d.deposits!.map((dep, i) => (
-                        <span className="sb-vd__deposit-pill" key={i}>
-                          {money(dep.amount)} {dep.currency_code}
-                        </span>
-                      ))}
-                    </div>
                   </div>
                 ) : null}
               </div>

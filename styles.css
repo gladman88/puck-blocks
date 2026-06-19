@@ -1263,7 +1263,7 @@ a.sb-map__line:hover {
 .sb-vd__photo {
   display: block;
   width: 100%;
-  max-height: 360px;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
   border-radius: var(--sb-radius);
 }
@@ -1608,10 +1608,14 @@ a.sb-map__line:hover {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-top: 0.25rem;
-  padding-top: 1rem;
+  /* span to the dialog edges (cancel its 1.5rem padding) and sit flush at the
+     bottom so it reads as one footer bar, not a darker floating box */
+  margin: 0.25rem -1.5rem -1.5rem;
+  padding: 1rem 1.5rem;
   border-top: 1px solid var(--sb-border);
-  background: var(--sb-bg);
+  background: var(--sb-surface);
+  border-bottom-left-radius: var(--sb-radius);
+  border-bottom-right-radius: var(--sb-radius);
 }
 .sb-vd__cta-price {
   font-size: 1.15rem;

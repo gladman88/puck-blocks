@@ -853,6 +853,14 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
             ] }, i)) }),
             d.pricing_spans_seasons ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vd__season-note", children: t.spansSeasons }) : null
           ] }) : null,
+          (d.deposits ?? []).length > 0 ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__deposits", children: [
+            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__section-label", children: t.deposit }),
+            /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__deposit-pills", children: d.deposits.map((dep, i) => /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__deposit-pill", children: [
+              money(dep.amount),
+              " ",
+              dep.currency_code
+            ] }, i)) })
+          ] }) : null,
           SPEC_KEYS.some((k) => d[k]) ? (() => {
             const present = SPEC_KEYS.filter((k) => d[k]);
             const visible = specsExpanded ? present : present.slice(0, 4);
@@ -876,15 +884,7 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
               ) : null
             ] });
           })() : null,
-          (d.options ?? []).length > 0 ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__chips", children: d.options.map((o, i) => /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-chip sb-chip--ghost", children: o }, i)) }) : null,
-          (d.deposits ?? []).length > 0 ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__deposits", children: [
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__section-label", children: t.deposit }),
-            /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__deposit-pills", children: d.deposits.map((dep, i) => /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__deposit-pill", children: [
-              money(dep.amount),
-              " ",
-              dep.currency_code
-            ] }, i)) })
-          ] }) : null
+          (d.options ?? []).length > 0 ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__chips", children: d.options.map((o, i) => /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-chip sb-chip--ghost", children: o }, i)) }) : null
         ] }),
         /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__cta", children: [
           price != null ? /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__cta-price", children: [
