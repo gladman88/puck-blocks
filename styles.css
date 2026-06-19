@@ -150,6 +150,9 @@
   max-width: 52rem;
   text-transform: uppercase;
   text-wrap: balance;
+  /* Uppercase Cyrillic with Й/Ё carries a breve/diaeresis above the cap line —
+     give the lines room so the accent never touches the row above. */
+  line-height: 1.18;
 }
 .sb-hero__inner .sb-lead {
   max-width: 40rem;
