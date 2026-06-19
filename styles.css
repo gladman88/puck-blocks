@@ -1328,7 +1328,13 @@ a.sb-map__line:hover {
 .sb-vd__info {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.7rem;
+}
+.sb-vd__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
 }
 .sb-vd__name {
   margin: 0;
@@ -1339,6 +1345,12 @@ a.sb-map__line:hover {
   color: var(--sb-text-muted);
   font-weight: 600;
 }
+.sb-vd__meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
 .sb-vd__badge {
   align-self: flex-start;
   padding: 0.25rem 0.7rem;
@@ -1348,10 +1360,14 @@ a.sb-map__line:hover {
   color: #fff;
 }
 .sb-vd__price {
+  flex: 0 0 auto;
   margin: 0;
   font-size: 1.5rem;
   font-weight: 800;
+  line-height: 1.1;
   color: var(--sb-accent);
+  white-space: nowrap;
+  text-align: right;
 }
 .sb-vd__price small {
   font-size: 0.8rem;
@@ -1359,15 +1375,15 @@ a.sb-map__line:hover {
   color: var(--sb-text-muted);
 }
 .sb-vd__avail {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin: 0;
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--sb-radius);
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 .sb-vd__avail.is-free {
   background: rgba(74, 222, 128, 0.12);
@@ -1463,7 +1479,7 @@ a.sb-map__line:hover {
 }
 .sb-vd__prices-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 0.5rem;
 }
 .sb-vd__price-row {
@@ -1739,8 +1755,7 @@ a.sb-map__line:hover {
   font-weight: 800;
 }
 @media (max-width: 600px) {
-  .sb-vd__specs,
-  .sb-vd__prices-grid {
+  .sb-vd__specs {
     grid-template-columns: 1fr;
   }
 }

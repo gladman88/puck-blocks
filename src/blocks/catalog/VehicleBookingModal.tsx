@@ -365,50 +365,53 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
               ) : null}
 
               <div className="sb-vd__info">
-                <h3 className="sb-vd__name">
-                  {d.display_name}
-                  {d.year ? <span className="sb-vd__year"> {d.year}</span> : null}
-                </h3>
-                {d.category ? (
-                  <span className="sb-vd__badge" style={{ backgroundColor: d.category.color }}>
-                    {d.category.name}
-                  </span>
-                ) : null}
-
-                {price != null ? (
-                  <p className="sb-vd__price">
-                    <small>{t.from} </small>
-                    {Math.round(price).toLocaleString('en-US')}
-                    <small>
-                      {' '}
-                      {t.priceUnit}
-                      {t.perDay}
-                    </small>
-                  </p>
-                ) : null}
-
-                <div className={`sb-vd__avail ${d.is_available ? 'is-free' : 'is-busy'}`}>
-                  <span className="sb-vd__avail-dot" aria-hidden />
-                  <span className="sb-vd__avail-text">
-                    {d.is_available
-                      ? t.available
-                      : d.free_from
-                        ? `${t.freesUp}: ${d.free_from}`
-                        : t.busy}
-                  </span>
-                  {!d.is_available && d.free_from && d.free_from !== start ? (
-                    <button
-                      type="button"
-                      className="sb-vd__avail-btn"
-                      onClick={() => {
-                        const from = d.free_from!;
-                        setStart(from);
-                        if (end <= from) setEnd(nextDay(from));
-                      }}
-                    >
-                      {t.bookFrom} {d.free_from}
-                    </button>
+                <div className="sb-vd__header">
+                  <h3 className="sb-vd__name">
+                    {d.display_name}
+                    {d.year ? <span className="sb-vd__year"> {d.year}</span> : null}
+                  </h3>
+                  {price != null ? (
+                    <p className="sb-vd__price">
+                      <small>{t.from} </small>
+                      {Math.round(price).toLocaleString('en-US')}
+                      <small>
+                        {' '}
+                        {t.priceUnit}
+                        {t.perDay}
+                      </small>
+                    </p>
                   ) : null}
+                </div>
+
+                <div className="sb-vd__meta-row">
+                  {d.category ? (
+                    <span className="sb-vd__badge" style={{ backgroundColor: d.category.color }}>
+                      {d.category.name}
+                    </span>
+                  ) : null}
+                  <div className={`sb-vd__avail ${d.is_available ? 'is-free' : 'is-busy'}`}>
+                    <span className="sb-vd__avail-dot" aria-hidden />
+                    <span className="sb-vd__avail-text">
+                      {d.is_available
+                        ? t.available
+                        : d.free_from
+                          ? `${t.freesUp}: ${d.free_from}`
+                          : t.busy}
+                    </span>
+                    {!d.is_available && d.free_from && d.free_from !== start ? (
+                      <button
+                        type="button"
+                        className="sb-vd__avail-btn"
+                        onClick={() => {
+                          const from = d.free_from!;
+                          setStart(from);
+                          if (end <= from) setEnd(nextDay(from));
+                        }}
+                      >
+                        {t.bookFrom} {d.free_from}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
 
                 {(d.advantages ?? []).length > 0 ? (

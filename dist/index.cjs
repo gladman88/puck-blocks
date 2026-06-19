@@ -839,46 +839,50 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
           )) }) : null
         ] }) : null,
         /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__info", children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("h3", { className: "sb-vd__name", children: [
-            d.display_name,
-            d.year ? /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__year", children: [
-              " ",
-              d.year
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__header", children: [
+            /* @__PURE__ */ jsxRuntime.jsxs("h3", { className: "sb-vd__name", children: [
+              d.display_name,
+              d.year ? /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__year", children: [
+                " ",
+                d.year
+              ] }) : null
+            ] }),
+            price != null ? /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-vd__price", children: [
+              /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
+                t.from,
+                " "
+              ] }),
+              Math.round(price).toLocaleString("en-US"),
+              /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
+                " ",
+                t.priceUnit,
+                t.perDay
+              ] })
             ] }) : null
           ] }),
-          d.category ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__badge", style: { backgroundColor: d.category.color }, children: d.category.name }) : null,
-          price != null ? /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-vd__price", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
-              t.from,
-              " "
-            ] }),
-            Math.round(price).toLocaleString("en-US"),
-            /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
-              " ",
-              t.priceUnit,
-              t.perDay
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__meta-row", children: [
+            d.category ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__badge", style: { backgroundColor: d.category.color }, children: d.category.name }) : null,
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: `sb-vd__avail ${d.is_available ? "is-free" : "is-busy"}`, children: [
+              /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__avail-dot", "aria-hidden": true }),
+              /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__avail-text", children: d.is_available ? t.available : d.free_from ? `${t.freesUp}: ${d.free_from}` : t.busy }),
+              !d.is_available && d.free_from && d.free_from !== start ? /* @__PURE__ */ jsxRuntime.jsxs(
+                "button",
+                {
+                  type: "button",
+                  className: "sb-vd__avail-btn",
+                  onClick: () => {
+                    const from = d.free_from;
+                    setStart(from);
+                    if (end <= from) setEnd(nextDay(from));
+                  },
+                  children: [
+                    t.bookFrom,
+                    " ",
+                    d.free_from
+                  ]
+                }
+              ) : null
             ] })
-          ] }) : null,
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: `sb-vd__avail ${d.is_available ? "is-free" : "is-busy"}`, children: [
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__avail-dot", "aria-hidden": true }),
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__avail-text", children: d.is_available ? t.available : d.free_from ? `${t.freesUp}: ${d.free_from}` : t.busy }),
-            !d.is_available && d.free_from && d.free_from !== start ? /* @__PURE__ */ jsxRuntime.jsxs(
-              "button",
-              {
-                type: "button",
-                className: "sb-vd__avail-btn",
-                onClick: () => {
-                  const from = d.free_from;
-                  setStart(from);
-                  if (end <= from) setEnd(nextDay(from));
-                },
-                children: [
-                  t.bookFrom,
-                  " ",
-                  d.free_from
-                ]
-              }
-            ) : null
           ] }),
           (d.advantages ?? []).length > 0 ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__chips", children: d.advantages.map((a, i) => /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-chip", children: a }, i)) }) : null,
           (d.pricing_table ?? []).length > 0 ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__prices", children: [
