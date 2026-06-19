@@ -538,6 +538,11 @@ function buildTelegramDeepLink(botUsername, vehicleId, dates) {
   }
   return `https://t.me/${botUsername}?start=${payload}`;
 }
+function money(value) {
+  if (value == null || value === "") return "";
+  const n = typeof value === "number" ? value : parseFloat(value);
+  return Number.isFinite(n) ? Math.round(n).toLocaleString("en-US") : "";
+}
 var SPEC_KEYS = [
   "fuel_type",
   "transmission",
@@ -560,8 +565,13 @@ var S = {
     freesUp: "\u041E\u0441\u0432\u043E\u0431\u043E\u0434\u0438\u0442\u0441\u044F",
     busy: "\u0417\u0430\u043D\u044F\u0442\u0430",
     specs: "\u0425\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438",
+    allSpecs: "\u0412\u0441\u0435 \u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438",
     options: "\u041E\u043F\u0446\u0438\u0438",
     deposit: "\u0414\u0435\u043F\u043E\u0437\u0438\u0442",
+    prices: "\u0426\u0435\u043D\u044B",
+    perMonth: "\u0E3F/\u043C\u0435\u0441",
+    spansSeasons: "\u0426\u0435\u043D\u044B \u043F\u043E\u043A\u0430\u0437\u0430\u043D\u044B \u0437\u0430 \u0442\u0435\u043A\u0443\u0449\u0438\u0439 \u0441\u0435\u0437\u043E\u043D",
+    bookFrom: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441",
     loading: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026",
     error: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C",
     start: "\u0414\u0430\u0442\u0430 \u043D\u0430\u0447\u0430\u043B\u0430",
@@ -569,7 +579,8 @@ var S = {
     name: "\u0412\u0430\u0448\u0435 \u0438\u043C\u044F",
     contact: "\u041A\u0430\u043A \u0441 \u0432\u0430\u043C\u0438 \u0441\u0432\u044F\u0437\u0430\u0442\u044C\u0441\u044F?",
     send: "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u044F\u0432\u043A\u0443",
-    tgQuick: "\u0411\u044B\u0441\u0442\u0440\u044B\u0439 \u0437\u0430\u043A\u0430\u0437 \u0432 Telegram",
+    tgQuick: "\u0411\u0440\u043E\u043D\u044C \u0432 1 \u043A\u043B\u0438\u043A \u0447\u0435\u0440\u0435\u0437 Telegram",
+    tgQuickSub: "\u0411\u0435\u0437 \u0444\u043E\u0440\u043C \u2014 \u0431\u043E\u0442 \u0437\u0430\u043F\u043E\u043B\u043D\u0438\u0442 \u0432\u0441\u0451 \u0437\u0430 \u0432\u0430\u0441",
     or: "\u0438\u043B\u0438",
     successTitle: "\u0417\u0430\u044F\u0432\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0430!",
     successText: "\u041C\u044B \u0441\u043A\u043E\u0440\u043E \u0441\u0432\u044F\u0436\u0435\u043C\u0441\u044F \u0441 \u0432\u0430\u043C\u0438.",
@@ -599,8 +610,13 @@ var S = {
     freesUp: "Frees up",
     busy: "Busy",
     specs: "Specs",
+    allSpecs: "All specs",
     options: "Options",
     deposit: "Deposit",
+    prices: "Prices",
+    perMonth: "\u0E3F/mo",
+    spansSeasons: "Prices shown for the current season",
+    bookFrom: "Book from",
     loading: "Loading\u2026",
     error: "Failed to load",
     start: "Start date",
@@ -608,7 +624,8 @@ var S = {
     name: "Your name",
     contact: "How to contact you?",
     send: "Send request",
-    tgQuick: "Quick booking in Telegram",
+    tgQuick: "1-click booking via Telegram",
+    tgQuickSub: "No forms \u2014 the bot fills everything in for you",
     or: "or",
     successTitle: "Request sent!",
     successText: "We will contact you shortly.",
@@ -637,6 +654,7 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
   const [detail, setDetail] = useState(null);
   const [state, setState] = useState("loading");
   const [gi, setGi] = useState(0);
+  const [specsExpanded, setSpecsExpanded] = useState(false);
   const minStart = !vehicle.is_available && vehicle.free_from && vehicle.free_from > todayISO() ? vehicle.free_from : todayISO();
   const [start, setStart] = useState(minStart);
   const [end, setEnd] = useState(nextDay(minStart));
@@ -719,7 +737,36 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
         /* @__PURE__ */ jsx("button", { type: "button", className: "sb-btn", onClick: onClose, children: "OK" })
       ] }) : /* @__PURE__ */ jsxs("div", { className: "sb-modal__body", children: [
         mainImg ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__media", children: [
-          /* @__PURE__ */ jsx("img", { className: "sb-vd__photo", src: mainImg, alt: d.display_name }),
+          /* @__PURE__ */ jsxs("div", { className: "sb-vd__frame", children: [
+            /* @__PURE__ */ jsx("img", { className: "sb-vd__photo", src: mainImg, alt: d.display_name }),
+            images.length > 1 ? /* @__PURE__ */ jsxs(Fragment, { children: [
+              /* @__PURE__ */ jsx(
+                "button",
+                {
+                  type: "button",
+                  className: "sb-vd__nav sb-vd__nav--prev",
+                  "aria-label": "\u2039",
+                  onClick: () => setGi((i) => (i - 1 + images.length) % images.length),
+                  children: "\u2039"
+                }
+              ),
+              /* @__PURE__ */ jsx(
+                "button",
+                {
+                  type: "button",
+                  className: "sb-vd__nav sb-vd__nav--next",
+                  "aria-label": "\u203A",
+                  onClick: () => setGi((i) => (i + 1) % images.length),
+                  children: "\u203A"
+                }
+              ),
+              /* @__PURE__ */ jsxs("span", { className: "sb-vd__counter", children: [
+                gi + 1,
+                "/",
+                images.length
+              ] })
+            ] }) : null
+          ] }),
           images.length > 1 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__thumbs", children: images.map((u, i) => /* @__PURE__ */ jsx(
             "button",
             {
@@ -752,18 +799,81 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
               t.perDay
             ] })
           ] }) : null,
-          /* @__PURE__ */ jsx("p", { className: `sb-vd__avail ${d.is_available ? "is-free" : "is-busy"}`, children: d.is_available ? t.available : d.free_from ? `${t.freesUp}: ${d.free_from}` : t.busy }),
+          /* @__PURE__ */ jsxs("div", { className: `sb-vd__avail ${d.is_available ? "is-free" : "is-busy"}`, children: [
+            /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-dot", "aria-hidden": true }),
+            /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-text", children: d.is_available ? t.available : d.free_from ? `${t.freesUp}: ${d.free_from}` : t.busy }),
+            !d.is_available && d.free_from ? /* @__PURE__ */ jsxs(
+              "button",
+              {
+                type: "button",
+                className: "sb-vd__avail-btn",
+                onClick: () => setStart(d.free_from),
+                children: [
+                  t.bookFrom,
+                  " ",
+                  d.free_from
+                ]
+              }
+            ) : null
+          ] }),
           (d.advantages ?? []).length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.advantages.map((a, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip", children: a }, i)) }) : null,
-          SPEC_KEYS.some((k) => d[k]) ? /* @__PURE__ */ jsx("div", { className: "sb-vd__specs", children: SPEC_KEYS.filter((k) => d[k]).map((k) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__spec", children: [
-            /* @__PURE__ */ jsx("span", { children: t.labels[k] }),
-            /* @__PURE__ */ jsx("b", { children: d[k] })
-          ] }, k)) }) : null,
+          (d.pricing_table ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices", children: [
+            /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices-head", children: [
+              /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.prices }),
+              d.pricing_season_name ? /* @__PURE__ */ jsxs("span", { className: "sb-vd__season", children: [
+                "\xB7 ",
+                d.pricing_season_name
+              ] }) : null
+            ] }),
+            /* @__PURE__ */ jsx("div", { className: "sb-vd__prices-grid", children: d.pricing_table.map((row, i) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__price-row", children: [
+              /* @__PURE__ */ jsx("span", { className: "sb-vd__price-period", children: row.period_label }),
+              /* @__PURE__ */ jsx("span", { className: "sb-vd__price-value", children: row.is_monthly && row.monthly_price ? /* @__PURE__ */ jsxs(Fragment, { children: [
+                money(row.monthly_price),
+                /* @__PURE__ */ jsxs("small", { children: [
+                  " ",
+                  t.perMonth
+                ] })
+              ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+                money(row.price_per_day),
+                /* @__PURE__ */ jsxs("small", { children: [
+                  " ",
+                  t.perDay
+                ] })
+              ] }) })
+            ] }, i)) }),
+            d.pricing_spans_seasons ? /* @__PURE__ */ jsx("p", { className: "sb-vd__season-note", children: t.spansSeasons }) : null
+          ] }) : null,
+          SPEC_KEYS.some((k) => d[k]) ? (() => {
+            const present = SPEC_KEYS.filter((k) => d[k]);
+            const visible = specsExpanded ? present : present.slice(0, 4);
+            return /* @__PURE__ */ jsxs("div", { className: "sb-vd__specs-wrap", children: [
+              /* @__PURE__ */ jsx("div", { className: "sb-vd__specs", children: visible.map((k) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__spec", children: [
+                /* @__PURE__ */ jsx("span", { children: t.labels[k] }),
+                /* @__PURE__ */ jsx("b", { children: d[k] })
+              ] }, k)) }),
+              present.length > 4 ? /* @__PURE__ */ jsxs(
+                "button",
+                {
+                  type: "button",
+                  className: "sb-vd__specs-toggle",
+                  onClick: () => setSpecsExpanded((v) => !v),
+                  children: [
+                    t.allSpecs,
+                    " ",
+                    specsExpanded ? "\u25B2" : "\u25BC"
+                  ]
+                }
+              ) : null
+            ] });
+          })() : null,
           (d.options ?? []).length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.options.map((o, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip sb-chip--ghost", children: o }, i)) }) : null,
-          (d.deposits ?? []).length > 0 ? /* @__PURE__ */ jsxs("p", { className: "sb-vd__deposit", children: [
-            t.deposit,
-            ":",
-            " ",
-            d.deposits.map((dep) => `${dep.amount} ${dep.currency_code}`).join(" \xB7 ")
+          (d.deposits ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__deposits", children: [
+            /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.deposit }),
+            /* @__PURE__ */ jsx("div", { className: "sb-vd__deposit-pills", children: d.deposits.map((dep, i) => /* @__PURE__ */ jsxs("span", { className: "sb-vd__deposit-pill", children: [
+              money(dep.amount),
+              " ",
+              dep.currency_code
+            ] }, i)) })
           ] }) : null
         ] }),
         /* @__PURE__ */ jsxs("form", { className: "sb-vd__book", onSubmit: submit, children: [
@@ -795,14 +905,21 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
               )
             ] })
           ] }),
-          tgHref ? /* @__PURE__ */ jsx(
+          tgHref ? /* @__PURE__ */ jsxs(
             "a",
             {
-              className: "sb-btn sb-vd__tg",
+              className: "sb-vd__tg-card",
               href: tgHref,
               target: "_blank",
               rel: "noopener noreferrer",
-              children: t.tgQuick
+              children: [
+                /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-icon", "aria-hidden": true, children: "\u2708" }),
+                /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: t.tgQuick }),
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: t.tgQuickSub })
+                ] }),
+                /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
+              ]
             }
           ) : null,
           /* @__PURE__ */ jsx("div", { className: "sb-vd__or", children: t.or }),
@@ -1194,7 +1311,8 @@ var internalConfig = {
     fields: {
       title: { type: "text", label: "SEO title" },
       description: { type: "textarea", label: "SEO description" },
-      ogImage: imageField("OG-\u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0430 (\u0434\u043B\u044F \u0441\u043E\u0446\u0441\u0435\u0442\u0435\u0439)")
+      ogImage: imageField("OG-\u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0430 (\u0434\u043B\u044F \u0441\u043E\u0446\u0441\u0435\u0442\u0435\u0439)"),
+      favicon: imageField("Favicon (\u0438\u043A\u043E\u043D\u043A\u0430 \u0432\u043A\u043B\u0430\u0434\u043A\u0438 \u2014 .png / .ico / .svg)")
     },
     // Wrap the whole tree in the design-system root so tokens + base styles
     // apply identically in the editor preview and on the live site.

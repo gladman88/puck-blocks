@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
-import { addDays, buildTelegramDeepLink, daysBetween, nextDay, todayISO } from './dates';
+import { buildTelegramDeepLink, nextDay, todayISO } from './dates';
 
 interface GalleryImage {
   image_url: string;
@@ -39,6 +39,14 @@ export interface CatalogVehicleDetail extends CatalogVehicle {
   deposits?: Deposit[];
   pricing_table?: PricingRow[];
   pricing_season_name?: string | null;
+  pricing_spans_seasons?: boolean;
+}
+
+/** Strip backend Decimal trailing zeros ("1500.000000" → "1 500") for display. */
+function money(value: string | number | null | undefined): string {
+  if (value == null || value === '') return '';
+  const n = typeof value === 'number' ? value : parseFloat(value);
+  return Number.isFinite(n) ? Math.round(n).toLocaleString('en-US') : '';
 }
 
 const SPEC_KEYS = [
@@ -64,8 +72,13 @@ const S = {
     freesUp: 'Освободится',
     busy: 'Занята',
     specs: 'Характеристики',
+    allSpecs: 'Все характеристики',
     options: 'Опции',
     deposit: 'Депозит',
+    prices: 'Цены',
+    perMonth: '฿/мес',
+    spansSeasons: 'Цены показаны за текущий сезон',
+    bookFrom: 'Забронировать с',
     loading: 'Загрузка…',
     error: 'Не удалось загрузить',
     start: 'Дата начала',
@@ -73,7 +86,8 @@ const S = {
     name: 'Ваше имя',
     contact: 'Как с вами связаться?',
     send: 'Отправить заявку',
-    tgQuick: 'Быстрый заказ в Telegram',
+    tgQuick: 'Бронь в 1 клик через Telegram',
+    tgQuickSub: 'Без форм — бот заполнит всё за вас',
     or: 'или',
     successTitle: 'Заявка отправлена!',
     successText: 'Мы скоро свяжемся с вами.',
@@ -103,8 +117,13 @@ const S = {
     freesUp: 'Frees up',
     busy: 'Busy',
     specs: 'Specs',
+    allSpecs: 'All specs',
     options: 'Options',
     deposit: 'Deposit',
+    prices: 'Prices',
+    perMonth: '฿/mo',
+    spansSeasons: 'Prices shown for the current season',
+    bookFrom: 'Book from',
     loading: 'Loading…',
     error: 'Failed to load',
     start: 'Start date',
@@ -112,7 +131,8 @@ const S = {
     name: 'Your name',
     contact: 'How to contact you?',
     send: 'Send request',
-    tgQuick: 'Quick booking in Telegram',
+    tgQuick: '1-click booking via Telegram',
+    tgQuickSub: 'No forms — the bot fills everything in for you',
     or: 'or',
     successTitle: 'Request sent!',
     successText: 'We will contact you shortly.',
@@ -156,6 +176,7 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
   const [detail, setDetail] = useState<CatalogVehicleDetail | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [gi, setGi] = useState(0);
+  const [specsExpanded, setSpecsExpanded] = useState(false);
 
   const minStart =
     !vehicle.is_available && vehicle.free_from && vehicle.free_from > todayISO()
@@ -270,7 +291,32 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
               {/* Gallery */}
               {mainImg ? (
                 <div className="sb-vd__media">
-                  <img className="sb-vd__photo" src={mainImg} alt={d.display_name} />
+                  <div className="sb-vd__frame">
+                    <img className="sb-vd__photo" src={mainImg} alt={d.display_name} />
+                    {images.length > 1 ? (
+                      <>
+                        <button
+                          type="button"
+                          className="sb-vd__nav sb-vd__nav--prev"
+                          aria-label="‹"
+                          onClick={() => setGi((i) => (i - 1 + images.length) % images.length)}
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          className="sb-vd__nav sb-vd__nav--next"
+                          aria-label="›"
+                          onClick={() => setGi((i) => (i + 1) % images.length)}
+                        >
+                          ›
+                        </button>
+                        <span className="sb-vd__counter">
+                          {gi + 1}/{images.length}
+                        </span>
+                      </>
+                    ) : null}
+                  </div>
                   {images.length > 1 ? (
                     <div className="sb-vd__thumbs">
                       {images.map((u, i) => (
@@ -308,13 +354,25 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                   </p>
                 ) : null}
 
-                <p className={`sb-vd__avail ${d.is_available ? 'is-free' : 'is-busy'}`}>
-                  {d.is_available
-                    ? t.available
-                    : d.free_from
-                      ? `${t.freesUp}: ${d.free_from}`
-                      : t.busy}
-                </p>
+                <div className={`sb-vd__avail ${d.is_available ? 'is-free' : 'is-busy'}`}>
+                  <span className="sb-vd__avail-dot" aria-hidden />
+                  <span className="sb-vd__avail-text">
+                    {d.is_available
+                      ? t.available
+                      : d.free_from
+                        ? `${t.freesUp}: ${d.free_from}`
+                        : t.busy}
+                  </span>
+                  {!d.is_available && d.free_from ? (
+                    <button
+                      type="button"
+                      className="sb-vd__avail-btn"
+                      onClick={() => setStart(d.free_from!)}
+                    >
+                      {t.bookFrom} {d.free_from}
+                    </button>
+                  ) : null}
+                </div>
 
                 {(d.advantages ?? []).length > 0 ? (
                   <div className="sb-vd__chips">
@@ -326,17 +384,69 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                   </div>
                 ) : null}
 
-                {/* Specs */}
-                {SPEC_KEYS.some((k) => d[k]) ? (
-                  <div className="sb-vd__specs">
-                    {SPEC_KEYS.filter((k) => d[k]).map((k) => (
-                      <div className="sb-vd__spec" key={k}>
-                        <span>{t.labels[k]}</span>
-                        <b>{d[k]}</b>
-                      </div>
-                    ))}
+                {/* Prices per rental period */}
+                {(d.pricing_table ?? []).length > 0 ? (
+                  <div className="sb-vd__prices">
+                    <div className="sb-vd__prices-head">
+                      <span className="sb-vd__section-label">{t.prices}</span>
+                      {d.pricing_season_name ? (
+                        <span className="sb-vd__season">· {d.pricing_season_name}</span>
+                      ) : null}
+                    </div>
+                    <div className="sb-vd__prices-grid">
+                      {d.pricing_table!.map((row, i) => (
+                        <div className="sb-vd__price-row" key={i}>
+                          <span className="sb-vd__price-period">{row.period_label}</span>
+                          <span className="sb-vd__price-value">
+                            {row.is_monthly && row.monthly_price ? (
+                              <>
+                                {money(row.monthly_price)}
+                                <small> {t.perMonth}</small>
+                              </>
+                            ) : (
+                              <>
+                                {money(row.price_per_day)}
+                                <small> {t.perDay}</small>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {d.pricing_spans_seasons ? (
+                      <p className="sb-vd__season-note">{t.spansSeasons}</p>
+                    ) : null}
                   </div>
                 ) : null}
+
+                {/* Specs — first 4, rest behind a toggle (matches the standalone) */}
+                {SPEC_KEYS.some((k) => d[k])
+                  ? (() => {
+                      const present = SPEC_KEYS.filter((k) => d[k]);
+                      const visible = specsExpanded ? present : present.slice(0, 4);
+                      return (
+                        <div className="sb-vd__specs-wrap">
+                          <div className="sb-vd__specs">
+                            {visible.map((k) => (
+                              <div className="sb-vd__spec" key={k}>
+                                <span>{t.labels[k]}</span>
+                                <b>{d[k]}</b>
+                              </div>
+                            ))}
+                          </div>
+                          {present.length > 4 ? (
+                            <button
+                              type="button"
+                              className="sb-vd__specs-toggle"
+                              onClick={() => setSpecsExpanded((v) => !v)}
+                            >
+                              {t.allSpecs} {specsExpanded ? '▲' : '▼'}
+                            </button>
+                          ) : null}
+                        </div>
+                      );
+                    })()
+                  : null}
 
                 {(d.options ?? []).length > 0 ? (
                   <div className="sb-vd__chips">
@@ -349,10 +459,16 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                 ) : null}
 
                 {(d.deposits ?? []).length > 0 ? (
-                  <p className="sb-vd__deposit">
-                    {t.deposit}:{' '}
-                    {d.deposits!.map((dep) => `${dep.amount} ${dep.currency_code}`).join(' · ')}
-                  </p>
+                  <div className="sb-vd__deposits">
+                    <span className="sb-vd__section-label">{t.deposit}</span>
+                    <div className="sb-vd__deposit-pills">
+                      {d.deposits!.map((dep, i) => (
+                        <span className="sb-vd__deposit-pill" key={i}>
+                          {money(dep.amount)} {dep.currency_code}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 ) : null}
               </div>
 
@@ -383,12 +499,21 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
 
                 {tgHref ? (
                   <a
-                    className="sb-btn sb-vd__tg"
+                    className="sb-vd__tg-card"
                     href={tgHref}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {t.tgQuick}
+                    <span className="sb-vd__tg-icon" aria-hidden>
+                      ✈
+                    </span>
+                    <span className="sb-vd__tg-text">
+                      <span className="sb-vd__tg-title">{t.tgQuick}</span>
+                      <span className="sb-vd__tg-sub">{t.tgQuickSub}</span>
+                    </span>
+                    <span className="sb-vd__tg-arrow" aria-hidden>
+                      ›
+                    </span>
                   </a>
                 ) : null}
 

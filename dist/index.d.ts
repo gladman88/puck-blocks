@@ -268,6 +268,7 @@ interface RootProps {
     title?: string;
     description?: string;
     ogImage?: string;
+    favicon?: string;
 }
 declare const puckConfig: Config;
 
