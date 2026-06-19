@@ -1358,7 +1358,13 @@ function imageField(label) {
   return {
     type: "custom",
     label,
-    render: ({ value, onChange }) => /* @__PURE__ */ jsxRuntime.jsx(ImageInput, { value: value ?? "", onChange: (next) => onChange(next) })
+    // Puck does not render a label for custom fields, so draw it ourselves —
+    // otherwise the two image fields (OG image / favicon) look identical and
+    // unlabelled in the editor.
+    render: ({ value, onChange }) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sbf-field", children: [
+      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sbf-field__label", children: label }),
+      /* @__PURE__ */ jsxRuntime.jsx(ImageInput, { value: value ?? "", onChange: (next) => onChange(next) })
+    ] })
   };
 }
 var internalConfig = {

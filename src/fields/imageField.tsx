@@ -96,8 +96,14 @@ export function imageField<T extends string | undefined>(label: string): CustomF
   return {
     type: 'custom',
     label,
+    // Puck does not render a label for custom fields, so draw it ourselves —
+    // otherwise the two image fields (OG image / favicon) look identical and
+    // unlabelled in the editor.
     render: ({ value, onChange }) => (
-      <ImageInput value={value ?? ''} onChange={(next) => onChange(next as T)} />
+      <div className="sbf-field">
+        <span className="sbf-field__label">{label}</span>
+        <ImageInput value={value ?? ''} onChange={(next) => onChange(next as T)} />
+      </div>
     ),
   };
 }

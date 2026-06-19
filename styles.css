@@ -965,6 +965,13 @@ a.sb-map__line:hover {
 }
 
 /* ---- Image upload field (editor panel only — NOT scoped to .sb-root) ---- */
+.sbf-field__label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
 .sbf {
   display: flex;
   flex-direction: column;
