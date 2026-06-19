@@ -147,12 +147,12 @@
   gap: 1.5rem;
 }
 .sb-hero .sb-h1 {
-  max-width: 42rem;
+  max-width: 52rem;
   text-transform: uppercase;
   text-wrap: balance;
 }
 .sb-hero__inner .sb-lead {
-  max-width: 38rem;
+  max-width: 40rem;
 }
 .sb-hero__accent {
   color: var(--sb-accent);
