@@ -1163,13 +1163,13 @@ a.sb-map__line:hover {
   color: rgba(255, 255, 255, 0.6);
 }
 .sb-vcard__price {
-  font-size: 1rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--sb-accent);
   white-space: nowrap;
 }
 .sb-vcard__price small {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 400;
   color: rgba(255, 255, 255, 0.5);
 }

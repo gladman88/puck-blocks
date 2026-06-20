@@ -273,7 +273,9 @@ export function VehicleCatalog({
                 <button type="button" className="sb-vcard" key={v.id} onClick={() => setSelected(v)}>
                 <div className="sb-vcard__media">
                   {v.photo_url ? <img src={v.photo_url} alt={v.display_name} loading="lazy" /> : null}
-                  {v.category ? (
+                  {v.category && activeCat === null ? (
+                    // Badge only makes sense on «Все» — on a specific category tab
+                    // every card is that category, so it's just noise.
                     <span className="sb-vcard__badge" style={{ backgroundColor: v.category.color }}>
                       {v.category.name}
                     </span>

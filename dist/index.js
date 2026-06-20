@@ -1319,7 +1319,11 @@ function VehicleCatalog({
       const countLabel = g.total > 1 ? g.availableCount > 0 ? `${g.availableCount} ${t.available}` : `${g.total} ${t.total}` : null;
       return /* @__PURE__ */ jsx("button", { type: "button", className: "sb-vcard", onClick: () => setSelected(v), children: /* @__PURE__ */ jsxs("div", { className: "sb-vcard__media", children: [
         v.photo_url ? /* @__PURE__ */ jsx("img", { src: v.photo_url, alt: v.display_name, loading: "lazy" }) : null,
-        v.category ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__badge", style: { backgroundColor: v.category.color }, children: v.category.name }) : null,
+        v.category && activeCat === null ? (
+          // Badge only makes sense on «Все» — on a specific category tab
+          // every card is that category, so it's just noise.
+          /* @__PURE__ */ jsx("span", { className: "sb-vcard__badge", style: { backgroundColor: v.category.color }, children: v.category.name })
+        ) : null,
         countLabel ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__count", children: countLabel }) : null,
         /* @__PURE__ */ jsxs("div", { className: "sb-vcard__overlay", children: [
           !v.is_available ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__status", children: v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy }) : null,
