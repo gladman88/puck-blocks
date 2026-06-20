@@ -38,6 +38,17 @@
   box-sizing: border-box;
 }
 
+/* The booking modal is portal'd to document.body — OUTSIDE .sb-root — so the
+   reset above doesn't reach it. Without border-box, .sb-input's width:100% +
+   padding overflows its grid column (the date inputs spilled off-screen on
+   mobile). Re-apply the reset to the modal subtree. */
+.sb-modal,
+.sb-modal *,
+.sb-modal *::before,
+.sb-modal *::after {
+  box-sizing: border-box;
+}
+
 /* Anchor targets clear the sticky header on nav-jump. */
 .sb-root [id] {
   scroll-margin-top: calc(var(--sb-header-h) + 1rem);
@@ -1673,8 +1684,14 @@ a.sb-map__line:hover {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  min-width: 0; /* let the column shrink below the date input's intrinsic width */
   font-size: 0.85rem;
   color: var(--sb-text-muted);
+}
+/* Native date inputs have a wide min-content (the picker UI); allow them to
+   shrink to the column so they never spill off a narrow screen. */
+.sb-vd__dates .sb-input {
+  min-width: 0;
 }
 .sb-vd__tg {
   background: #229ed9;
