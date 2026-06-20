@@ -150,7 +150,7 @@ export function VehicleCatalog({
   anchorId,
   vehicleType = 'car',
   apiBase = '',
-  telegramBot = 'shiba_cars_rental_bot',
+  telegramBot = 'shiba_cars_test_bot',
   defaultCategory,
   puck,
 }: VehicleCatalogProps & PuckInjected) {
@@ -316,7 +316,7 @@ export function VehicleCatalog({
           vehicle={selected}
           apiBase={apiBase}
           locale={locale}
-          botUsername={telegramBot}
+          botUsername={telegramBot.trim() || 'shiba_cars_test_bot'}
           onClose={() => setSelected(null)}
         />
       ) : null}

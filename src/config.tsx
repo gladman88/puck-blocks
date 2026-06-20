@@ -397,7 +397,7 @@ const internalConfig: Config<Props, RootProps> = {
         heading: 'Автомобили',
         anchorId: '',
         vehicleType: 'car',
-        telegramBot: 'shiba_cars_rental_bot',
+        telegramBot: 'shiba_cars_test_bot',
         defaultCategory: '',
       },
       render: VehicleCatalog,

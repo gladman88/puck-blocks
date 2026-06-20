@@ -1230,7 +1230,7 @@ function VehicleCatalog({
   anchorId,
   vehicleType = "car",
   apiBase = "",
-  telegramBot = "shiba_cars_rental_bot",
+  telegramBot = "shiba_cars_test_bot",
   defaultCategory,
   puck
 }) {
@@ -1352,7 +1352,7 @@ function VehicleCatalog({
         vehicle: selected,
         apiBase,
         locale,
-        botUsername: telegramBot,
+        botUsername: telegramBot.trim() || "shiba_cars_test_bot",
         onClose: () => setSelected(null)
       }
     ) : null
@@ -1841,7 +1841,7 @@ var internalConfig = {
         heading: "\u0410\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u0438",
         anchorId: "",
         vehicleType: "car",
-        telegramBot: "shiba_cars_rental_bot",
+        telegramBot: "shiba_cars_test_bot",
         defaultCategory: ""
       },
       render: VehicleCatalog
