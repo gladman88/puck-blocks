@@ -77,6 +77,8 @@ const SPEC_VALUE_LABELS: Record<'ru' | 'en', Record<string, string>> = {
 const S = {
   ru: {
     close: 'Закрыть',
+    share: 'Поделиться',
+    copied: 'Ссылка скопирована',
     from: 'от',
     perDay: '/день',
     priceUnit: 'THB',
@@ -131,6 +133,8 @@ const S = {
   },
   en: {
     close: 'Close',
+    share: 'Share',
+    copied: 'Link copied',
     from: 'from',
     perDay: '/day',
     priceUnit: 'THB',
@@ -219,7 +223,31 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
   const [submitting, setSubmitting] = useState(false);
   const [stage, setStage] = useState<'detail' | 'choice' | 'form' | 'success'>('detail');
   const [err, setErr] = useState('');
+  const [copied, setCopied] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  // «Поделиться» — a deep link (`?vehicle=<id>` on the current page/locale) that
+  // reopens this card. Native share sheet (mobile) → clipboard → prompt fallback.
+  const handleShare = async () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('vehicle', vehicle.id);
+    const shareUrl = url.toString();
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ title: vehicle.display_name, url: shareUrl });
+      } catch {
+        /* user dismissed the share sheet — no-op */
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt(t.share, shareUrl);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -412,6 +440,14 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                       </button>
                     ) : null}
                   </div>
+                  <button
+                    type="button"
+                    className={`sb-vd__share ${copied ? 'is-copied' : ''}`}
+                    onClick={handleShare}
+                    aria-label={t.share}
+                  >
+                    {copied ? t.copied : t.share}
+                  </button>
                 </div>
 
                 {(d.advantages ?? []).length > 0 ? (

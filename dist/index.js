@@ -1,5 +1,5 @@
 import { jsxs, jsx, Fragment } from 'react/jsx-runtime';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 
 // src/sanitize.ts
@@ -598,6 +598,8 @@ var SPEC_VALUE_LABELS = {
 var S = {
   ru: {
     close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
+    share: "\u041F\u043E\u0434\u0435\u043B\u0438\u0442\u044C\u0441\u044F",
+    copied: "\u0421\u0441\u044B\u043B\u043A\u0430 \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D\u0430",
     from: "\u043E\u0442",
     perDay: "/\u0434\u0435\u043D\u044C",
     priceUnit: "THB",
@@ -652,6 +654,8 @@ var S = {
   },
   en: {
     close: "Close",
+    share: "Share",
+    copied: "Link copied",
     from: "from",
     perDay: "/day",
     priceUnit: "THB",
@@ -721,7 +725,27 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
   const [submitting, setSubmitting] = useState(false);
   const [stage, setStage] = useState("detail");
   const [err, setErr] = useState("");
+  const [copied, setCopied] = useState(false);
   const dialogRef = useRef(null);
+  const handleShare = async () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("vehicle", vehicle.id);
+    const shareUrl = url.toString();
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: vehicle.display_name, url: shareUrl });
+      } catch {
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2e3);
+    } catch {
+      window.prompt(t.share, shareUrl);
+    }
+  };
   useEffect(() => {
     let cancelled = false;
     setState("loading");
@@ -880,7 +904,17 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
                   ]
                 }
               ) : null
-            ] })
+            ] }),
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                type: "button",
+                className: `sb-vd__share ${copied ? "is-copied" : ""}`,
+                onClick: handleShare,
+                "aria-label": t.share,
+                children: copied ? t.copied : t.share
+              }
+            )
           ] }),
           (d.advantages ?? []).length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.advantages.map((a, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip", children: a }, i)) }) : null,
           (d.pricing_table ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices", children: [
@@ -1149,6 +1183,13 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
     document.body
   );
 }
+function setVehicleParam(id) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (id) url.searchParams.set("vehicle", id);
+  else url.searchParams.delete("vehicle");
+  window.history.replaceState(null, "", url.toString());
+}
 var STRINGS = {
   ru: {
     all: "\u0412\u0441\u0435",
@@ -1272,6 +1313,27 @@ function VehicleCatalog({
       cancelled = true;
     };
   }, [apiBase, vehicleType, defaultCategory]);
+  const didDeepLink = useRef(false);
+  useEffect(() => {
+    if (didDeepLink.current || state !== "ready") return;
+    didDeepLink.current = true;
+    if (typeof window === "undefined") return;
+    const id = new URLSearchParams(window.location.search).get("vehicle");
+    if (!id) return;
+    const match = vehicles.find((v) => v.id === id);
+    if (match) setSelected(match);
+  }, [state, vehicles]);
+  const lastSyncedId = useRef(null);
+  useEffect(() => {
+    const id = selected?.id ?? null;
+    if (id) {
+      setVehicleParam(id);
+      lastSyncedId.current = id;
+    } else if (lastSyncedId.current) {
+      setVehicleParam(null);
+      lastSyncedId.current = null;
+    }
+  }, [selected]);
   const usedCats = new Set(
     vehicles.map((v) => v.category?.id).filter((id) => Boolean(id))
   );

@@ -5,6 +5,7 @@ import { VehicleCatalog } from './VehicleCatalog';
 afterEach(() => {
   cleanup(); // unmount prior renders incl. portal'd modals, so screen queries don't leak across tests
   vi.unstubAllGlobals();
+  window.history.replaceState(null, '', '/'); // reset deep-link param between tests
 });
 
 function stubFetch(categories: unknown, vehicles: unknown, ok = true) {
@@ -52,6 +53,28 @@ describe('VehicleCatalog', () => {
     expect(container.querySelector('button.sb-vcard')).not.toBeNull();
     expect(container.querySelector('a.sb-vcard')).toBeNull();
     expect(container.textContent).toContain('5,000');
+  });
+
+  it('deep link ?vehicle=<id> opens that card on load', async () => {
+    window.history.replaceState(null, '', '/?vehicle=v1');
+    const detail = { ...vehicle, gallery_images: [], advantages: [], pricing_table: [], deposits: [], options: [] };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const u = String(url);
+        const body = u.includes('/categories/')
+          ? [cat]
+          : /\/vehicles\/[^/]+\/$/.test(u) // detail endpoint /vehicles/{id}/
+            ? detail
+            : [vehicle];
+        return Promise.resolve(
+          new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
+    // The booking modal opens for v1 → its «Поделиться» button is rendered.
+    const { findByText } = render(<VehicleCatalog vehicleType="car" />);
+    await findByText('Поделиться');
   });
 
   it('shows an error state when the API fails', async () => {

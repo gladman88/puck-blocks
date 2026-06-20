@@ -1351,6 +1351,29 @@ a.sb-map__line:hover {
   flex-wrap: wrap;
   gap: 0.6rem;
 }
+.sb-vd__share {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--sb-border);
+  border-radius: 999px;
+  background: var(--sb-bg-alt);
+  color: var(--sb-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.sb-vd__share:hover {
+  color: var(--sb-text-strong);
+  border-color: var(--sb-accent);
+}
+.sb-vd__share.is-copied {
+  color: var(--sb-accent);
+  border-color: var(--sb-accent);
+}
 .sb-vd__badge {
   align-self: flex-start;
   padding: 0.25rem 0.7rem;

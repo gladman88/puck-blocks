@@ -1,6 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Section } from '../components/Section';
 import { VehicleBookingModal } from './catalog/VehicleBookingModal';
+
+/**
+ * Reflect the open card in the page URL (`?vehicle=<id>`) without a navigation, so
+ * the address bar is shareable and a refresh reopens the card. replaceState (not
+ * push) keeps Back from walking through card opens; other params/locale are kept.
+ */
+function setVehicleParam(id: string | null) {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  if (id) url.searchParams.set('vehicle', id);
+  else url.searchParams.delete('vehicle');
+  window.history.replaceState(null, '', url.toString());
+}
 
 // Mirrors the public catalog API shape (apps/fleet/catalog_serializers.py),
 // reused from frontend_catalog so we don't reinvent the data layer.
@@ -204,6 +217,34 @@ export function VehicleCatalog({
       cancelled = true;
     };
   }, [apiBase, vehicleType, defaultCategory]);
+
+  // Deep link: `?vehicle=<id>` opens the matching card once, after vehicles load.
+  // Two catalog blocks (cars/bikes) each check their own list — only the block
+  // that owns the vehicle opens it.
+  const didDeepLink = useRef(false);
+  useEffect(() => {
+    if (didDeepLink.current || state !== 'ready') return;
+    didDeepLink.current = true;
+    if (typeof window === 'undefined') return;
+    const id = new URLSearchParams(window.location.search).get('vehicle');
+    if (!id) return;
+    const match = vehicles.find((v) => v.id === id);
+    if (match) setSelected(match);
+  }, [state, vehicles]);
+
+  // Keep the URL in sync with the open card. Guard on lastSyncedId so the sibling
+  // block (which never opened anything) can't clear a deep-link param it didn't set.
+  const lastSyncedId = useRef<string | null>(null);
+  useEffect(() => {
+    const id = selected?.id ?? null;
+    if (id) {
+      setVehicleParam(id);
+      lastSyncedId.current = id;
+    } else if (lastSyncedId.current) {
+      setVehicleParam(null);
+      lastSyncedId.current = null;
+    }
+  }, [selected]);
 
   const usedCats = new Set(
     vehicles.map((v) => v.category?.id).filter((id): id is string => Boolean(id)),
