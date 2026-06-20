@@ -37,6 +37,29 @@ export interface RootProps {
   favicon?: string;
 }
 
+// Editor-only: the category names that actually have ≥1 vehicle of a given type,
+// so «Вкладка по умолчанию» can be a select of REAL tabs (mirrors the block's own
+// tab derivation). Cached per (apiBase, type) for the editor session.
+const __catTabsCache: Record<string, string[]> = {};
+async function fetchCategoryTabs(apiBase: string, vehicleType: string): Promise<string[]> {
+  const key = `${apiBase}|${vehicleType}`;
+  if (__catTabsCache[key]) return __catTabsCache[key];
+  try {
+    const res = await fetch(`${apiBase}/api/v1/catalog/vehicles/?vehicle_type=${vehicleType}`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' },
+    });
+    if (!res.ok) return [];
+    const vehicles = (await res.json()) as Array<{ category?: { name?: string } | null }>;
+    const names = Array.from(
+      new Set(vehicles.map((v) => v.category?.name).filter((n): n is string => Boolean(n))),
+    );
+    __catTabsCache[key] = names;
+    return names;
+  } catch {
+    return [];
+  }
+}
+
 const internalConfig: Config<Props, RootProps> = {
   root: {
     fields: {
@@ -388,10 +411,30 @@ const internalConfig: Config<Props, RootProps> = {
           ],
         },
         telegramBot: { type: 'text', label: 'Telegram-бот (для быстрого заказа в попапе)' },
+        // Fallback when the category list can't be fetched in the editor;
+        // resolveFields() upgrades it to a select of real tabs below.
         defaultCategory: {
           type: 'text',
-          label: 'Вкладка по умолчанию (название категории, напр. «Премиум»)',
+          label: 'Вкладка по умолчанию (название категории)',
         },
+      },
+      // Make «Вкладка по умолчанию» a SELECT of the categories that exist for the
+      // chosen vehicle type (re-resolves when the type switches car↔bike).
+      resolveFields: async (data, { fields }) => {
+        const props = (data.props ?? {}) as { vehicleType?: string; apiBase?: string };
+        const names = await fetchCategoryTabs(props.apiBase ?? '', props.vehicleType ?? 'car');
+        if (names.length === 0) return fields;
+        return {
+          ...fields,
+          defaultCategory: {
+            type: 'select',
+            label: 'Вкладка по умолчанию',
+            options: [
+              { label: '— Все (без преселекта) —', value: '' },
+              ...names.map((n) => ({ label: n, value: n })),
+            ],
+          },
+        };
       },
       defaultProps: {
         heading: 'Автомобили',

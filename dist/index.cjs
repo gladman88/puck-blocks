@@ -1482,6 +1482,25 @@ function imageField(label) {
     ] })
   };
 }
+var __catTabsCache = {};
+async function fetchCategoryTabs(apiBase, vehicleType) {
+  const key = `${apiBase}|${vehicleType}`;
+  if (__catTabsCache[key]) return __catTabsCache[key];
+  try {
+    const res = await fetch(`${apiBase}/api/v1/catalog/vehicles/?vehicle_type=${vehicleType}`, {
+      headers: { "ngrok-skip-browser-warning": "true" }
+    });
+    if (!res.ok) return [];
+    const vehicles = await res.json();
+    const names = Array.from(
+      new Set(vehicles.map((v) => v.category?.name).filter((n) => Boolean(n)))
+    );
+    __catTabsCache[key] = names;
+    return names;
+  } catch {
+    return [];
+  }
+}
 var internalConfig = {
   root: {
     fields: {
@@ -1832,10 +1851,30 @@ var internalConfig = {
           ]
         },
         telegramBot: { type: "text", label: "Telegram-\u0431\u043E\u0442 (\u0434\u043B\u044F \u0431\u044B\u0441\u0442\u0440\u043E\u0433\u043E \u0437\u0430\u043A\u0430\u0437\u0430 \u0432 \u043F\u043E\u043F\u0430\u043F\u0435)" },
+        // Fallback when the category list can't be fetched in the editor;
+        // resolveFields() upgrades it to a select of real tabs below.
         defaultCategory: {
           type: "text",
-          label: "\u0412\u043A\u043B\u0430\u0434\u043A\u0430 \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E (\u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438, \u043D\u0430\u043F\u0440. \xAB\u041F\u0440\u0435\u043C\u0438\u0443\u043C\xBB)"
+          label: "\u0412\u043A\u043B\u0430\u0434\u043A\u0430 \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E (\u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438)"
         }
+      },
+      // Make «Вкладка по умолчанию» a SELECT of the categories that exist for the
+      // chosen vehicle type (re-resolves when the type switches car↔bike).
+      resolveFields: async (data, { fields }) => {
+        const props = data.props ?? {};
+        const names = await fetchCategoryTabs(props.apiBase ?? "", props.vehicleType ?? "car");
+        if (names.length === 0) return fields;
+        return {
+          ...fields,
+          defaultCategory: {
+            type: "select",
+            label: "\u0412\u043A\u043B\u0430\u0434\u043A\u0430 \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E",
+            options: [
+              { label: "\u2014 \u0412\u0441\u0435 (\u0431\u0435\u0437 \u043F\u0440\u0435\u0441\u0435\u043B\u0435\u043A\u0442\u0430) \u2014", value: "" },
+              ...names.map((n) => ({ label: n, value: n }))
+            ]
+          }
+        };
       },
       defaultProps: {
         heading: "\u0410\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u0438",
