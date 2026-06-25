@@ -1692,13 +1692,15 @@ a.sb-map__line:hover {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+/* Sized to the standalone catalog's deposit pills (px-3 py-1.5 rounded-xl text-sm)
+   so all currencies fit one row instead of wrapping; still clearly readable. */
 .sb-vd__deposit-pill {
-  padding: 0.55rem 1.1rem;
+  padding: 0.4rem 0.8rem;
   background: var(--sb-bg-alt);
   border: 1px solid var(--sb-border);
-  border-radius: 999px;
-  font-size: 1rem;
-  font-weight: 700;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
   color: var(--sb-text-strong);
 }
 .sb-vd__tg-card {
