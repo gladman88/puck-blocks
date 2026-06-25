@@ -1376,11 +1376,6 @@ a.sb-map__line:hover {
   .sb-vd__thumbs {
     padding: 0 1.25rem;
   }
-  .sb-vd__cta {
-    margin: 0;
-    padding: 1rem 1.25rem;
-    border-radius: 0;
-  }
   /* Choice / form stages have no full-bleed photo → pad + clear the grab handle. */
   .sb-modal__body--book {
     padding: 1.9rem 1.25rem 1.25rem;
@@ -1450,7 +1445,7 @@ a.sb-map__line:hover {
 .sb-vd__info {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 1rem;
 }
 .sb-vd__header {
   display: flex;
@@ -1572,13 +1567,16 @@ a.sb-map__line:hover {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+/* Advantages = secondary feature tags: compact, rounded-rect, smaller than the
+   status banner so the hierarchy reads (mirrors the standalone catalog). */
 .sb-chip {
-  padding: 0.3rem 0.75rem;
-  border-radius: 999px;
-  background: rgba(255, 204, 51, 0.13);
+  padding: 0.28rem 0.6rem;
+  border-radius: 7px;
+  background: rgba(255, 204, 51, 0.1);
   color: var(--sb-accent);
-  font-size: 0.85rem;
+  font-size: 0.76rem;
   font-weight: 500;
+  line-height: 1.3;
 }
 .sb-chip--ghost {
   background: transparent;
@@ -1862,6 +1860,16 @@ a.sb-map__line:hover {
 }
 .sb-vd__cta-btn {
   flex: 1;
+}
+/* Mobile: drop the base's negative bleed margins (declared just above) so the CTA
+   sits INSIDE the sheet with side gaps, not edge-to-edge. Placed AFTER the base
+   rule so it wins — a media query alone doesn't raise specificity. */
+@media (max-width: 640px) {
+  .sb-vd__cta {
+    margin: 0;
+    padding: 1rem 1.25rem;
+    border-radius: 0;
+  }
 }
 .sb-modal__body--book {
   display: flex;
