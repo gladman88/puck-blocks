@@ -1286,15 +1286,16 @@ a.sb-map__line:hover {
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
 }
 .sb-vd__frame::-webkit-scrollbar {
   display: none;
 }
+/* 1:1 to match the standalone catalog's hero (its `aspect-square`); 4/3 was
+   shorter and cropped tall vehicles. */
 .sb-vd__photo {
   flex: 0 0 100%;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
   scroll-snap-align: start;
   user-select: none;
