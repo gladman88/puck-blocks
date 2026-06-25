@@ -1276,10 +1276,13 @@ a.sb-map__line:hover {
   border-radius: var(--sb-radius) var(--sb-radius) 0 0;
   overflow: hidden;
 }
-/* Native horizontal scroll-snap carousel: smooth finger-drag + snap, no JS drag. */
+/* Native horizontal scroll-snap carousel: smooth finger-drag + snap, no JS drag.
+   overscroll-behavior-x: contain stops a swipe past the last/first slide from
+   chaining into the modal body (which would scroll the whole panel sideways). */
 .sb-vd__frame {
   display: flex;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   scrollbar-width: none;
@@ -1356,6 +1359,8 @@ a.sb-map__line:hover {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden; /* overflow-y:auto implies overflow-x:auto → the carousel's
+                           sideways overscroll could drift the whole panel; pin it. */
     overscroll-behavior: contain;
   }
   /* Dialog padding is 0 on mobile → the photo is naturally full-bleed (the dialog's
