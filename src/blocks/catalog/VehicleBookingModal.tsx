@@ -480,10 +480,7 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
 
               <div className="sb-vd__info">
                 <div className="sb-vd__header">
-                  <h3 className="sb-vd__name">
-                    {d.display_name}
-                    {d.year ? <span className="sb-vd__year"> {d.year}</span> : null}
-                  </h3>
+                  <h3 className="sb-vd__name">{d.display_name}</h3>
                   {price != null ? (
                     <p className="sb-vd__price">
                       <small>{t.from} </small>
@@ -498,42 +495,63 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                 </div>
 
                 <div className="sb-vd__meta-row">
+                  {d.year ? <span className="sb-vd__year">{d.year}</span> : null}
                   {d.category ? (
                     <span className="sb-vd__badge" style={{ backgroundColor: d.category.color }}>
                       {d.category.name}
                     </span>
                   ) : null}
-                  <div className={`sb-vd__avail ${d.is_available ? 'is-free' : 'is-busy'}`}>
-                    <span className="sb-vd__avail-dot" aria-hidden />
-                    <span className="sb-vd__avail-text">
-                      {d.is_available
-                        ? t.available
-                        : d.free_from
-                          ? `${t.freesUp}: ${d.free_from}`
-                          : t.busy}
-                    </span>
-                    {!d.is_available && d.free_from && d.free_from !== start ? (
-                      <button
-                        type="button"
-                        className="sb-vd__avail-btn"
-                        onClick={() => {
-                          const from = d.free_from!;
-                          setStart(from);
-                          if (end <= from) setEnd(nextDay(from));
-                        }}
-                      >
-                        {t.bookFrom} {d.free_from}
-                      </button>
-                    ) : null}
-                  </div>
                   <button
                     type="button"
                     className={`sb-vd__share ${copied ? 'is-copied' : ''}`}
                     onClick={handleShare}
                     aria-label={t.share}
                   >
+                    <svg
+                      className="sb-vd__share-ico"
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <circle cx="18" cy="5" r="3" />
+                      <circle cx="6" cy="12" r="3" />
+                      <circle cx="18" cy="19" r="3" />
+                      <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
+                      <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
+                    </svg>
                     {copied ? t.copied : t.share}
                   </button>
+                </div>
+
+                {/* Availability — the prominent status (full-width banner). */}
+                <div className={`sb-vd__avail ${d.is_available ? 'is-free' : 'is-busy'}`}>
+                  <span className="sb-vd__avail-dot" aria-hidden />
+                  <span className="sb-vd__avail-text">
+                    {d.is_available
+                      ? t.available
+                      : d.free_from
+                        ? `${t.freesUp}: ${d.free_from}`
+                        : t.busy}
+                  </span>
+                  {!d.is_available && d.free_from && d.free_from !== start ? (
+                    <button
+                      type="button"
+                      className="sb-vd__avail-btn"
+                      onClick={() => {
+                        const from = d.free_from!;
+                        setStart(from);
+                        if (end <= from) setEnd(nextDay(from));
+                      }}
+                    >
+                      {t.bookFrom} {d.free_from}
+                    </button>
+                  ) : null}
                 </div>
 
                 {(d.advantages ?? []).length > 0 ? (

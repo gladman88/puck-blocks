@@ -934,13 +934,7 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
             ] }) : null,
             /* @__PURE__ */ jsxs("div", { className: "sb-vd__info", children: [
               /* @__PURE__ */ jsxs("div", { className: "sb-vd__header", children: [
-                /* @__PURE__ */ jsxs("h3", { className: "sb-vd__name", children: [
-                  d.display_name,
-                  d.year ? /* @__PURE__ */ jsxs("span", { className: "sb-vd__year", children: [
-                    " ",
-                    d.year
-                  ] }) : null
-                ] }),
+                /* @__PURE__ */ jsx("h3", { className: "sb-vd__name", children: d.display_name }),
                 price != null ? /* @__PURE__ */ jsxs("p", { className: "sb-vd__price", children: [
                   /* @__PURE__ */ jsxs("small", { children: [
                     t.from,
@@ -955,38 +949,63 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
                 ] }) : null
               ] }),
               /* @__PURE__ */ jsxs("div", { className: "sb-vd__meta-row", children: [
+                d.year ? /* @__PURE__ */ jsx("span", { className: "sb-vd__year", children: d.year }) : null,
                 d.category ? /* @__PURE__ */ jsx("span", { className: "sb-vd__badge", style: { backgroundColor: d.category.color }, children: d.category.name }) : null,
-                /* @__PURE__ */ jsxs("div", { className: `sb-vd__avail ${d.is_available ? "is-free" : "is-busy"}`, children: [
-                  /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-dot", "aria-hidden": true }),
-                  /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-text", children: d.is_available ? t.available : d.free_from ? `${t.freesUp}: ${d.free_from}` : t.busy }),
-                  !d.is_available && d.free_from && d.free_from !== start ? /* @__PURE__ */ jsxs(
-                    "button",
-                    {
-                      type: "button",
-                      className: "sb-vd__avail-btn",
-                      onClick: () => {
-                        const from = d.free_from;
-                        setStart(from);
-                        if (end <= from) setEnd(nextDay(from));
-                      },
-                      children: [
-                        t.bookFrom,
-                        " ",
-                        d.free_from
-                      ]
-                    }
-                  ) : null
-                ] }),
-                /* @__PURE__ */ jsx(
+                /* @__PURE__ */ jsxs(
                   "button",
                   {
                     type: "button",
                     className: `sb-vd__share ${copied ? "is-copied" : ""}`,
                     onClick: handleShare,
                     "aria-label": t.share,
-                    children: copied ? t.copied : t.share
+                    children: [
+                      /* @__PURE__ */ jsxs(
+                        "svg",
+                        {
+                          className: "sb-vd__share-ico",
+                          viewBox: "0 0 24 24",
+                          width: "14",
+                          height: "14",
+                          fill: "none",
+                          stroke: "currentColor",
+                          strokeWidth: "2",
+                          strokeLinecap: "round",
+                          strokeLinejoin: "round",
+                          "aria-hidden": true,
+                          children: [
+                            /* @__PURE__ */ jsx("circle", { cx: "18", cy: "5", r: "3" }),
+                            /* @__PURE__ */ jsx("circle", { cx: "6", cy: "12", r: "3" }),
+                            /* @__PURE__ */ jsx("circle", { cx: "18", cy: "19", r: "3" }),
+                            /* @__PURE__ */ jsx("line", { x1: "8.6", y1: "13.5", x2: "15.4", y2: "17.5" }),
+                            /* @__PURE__ */ jsx("line", { x1: "15.4", y1: "6.5", x2: "8.6", y2: "10.5" })
+                          ]
+                        }
+                      ),
+                      copied ? t.copied : t.share
+                    ]
                   }
                 )
+              ] }),
+              /* @__PURE__ */ jsxs("div", { className: `sb-vd__avail ${d.is_available ? "is-free" : "is-busy"}`, children: [
+                /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-dot", "aria-hidden": true }),
+                /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-text", children: d.is_available ? t.available : d.free_from ? `${t.freesUp}: ${d.free_from}` : t.busy }),
+                !d.is_available && d.free_from && d.free_from !== start ? /* @__PURE__ */ jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    className: "sb-vd__avail-btn",
+                    onClick: () => {
+                      const from = d.free_from;
+                      setStart(from);
+                      if (end <= from) setEnd(nextDay(from));
+                    },
+                    children: [
+                      t.bookFrom,
+                      " ",
+                      d.free_from
+                    ]
+                  }
+                ) : null
               ] }),
               (d.advantages ?? []).length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.advantages.map((a, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip", children: a }, i)) }) : null,
               (d.pricing_table ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices", children: [
