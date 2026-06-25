@@ -1268,19 +1268,33 @@ a.sb-map__line:hover {
   color: var(--sb-accent-ink);
   font-size: 2rem;
 }
-.sb-vd__frame {
+.sb-vd__gallery {
   position: relative;
   /* Full-bleed hero: cancel the dialog's 1.5rem padding so the photo reaches the
-     panel edges, up to the rounded top corners (the frame clips the image). */
+     panel edges, up to the rounded top corners (this wrapper clips the track). */
   margin: -1.5rem -1.5rem 0;
   border-radius: var(--sb-radius) var(--sb-radius) 0 0;
   overflow: hidden;
 }
+/* Native horizontal scroll-snap carousel: smooth finger-drag + snap, no JS drag. */
+.sb-vd__frame {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.sb-vd__frame::-webkit-scrollbar {
+  display: none;
+}
 .sb-vd__photo {
-  display: block;
+  flex: 0 0 100%;
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
+  scroll-snap-align: start;
+  user-select: none;
 }
 
 /* Mobile bottom-sheet grab handle (swipe down to dismiss) — hidden on desktop. */
@@ -1346,7 +1360,7 @@ a.sb-map__line:hover {
   }
   /* Dialog padding is 0 on mobile → the photo is naturally full-bleed (the dialog's
      rounded top + overflow clip it); re-pad the non-photo content sections. */
-  .sb-vd__frame {
+  .sb-vd__gallery {
     margin: 0;
     border-radius: 0;
   }

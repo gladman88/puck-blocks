@@ -776,20 +776,18 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
       setTimeout(() => setDragSmooth(false), 300);
     }
   };
-  const swipeStartX = useRef(0);
-  const swipeStartY = useRef(0);
-  const onPhotoTouchStart = (e) => {
-    swipeStartX.current = e.touches[0].clientX;
-    swipeStartY.current = e.touches[0].clientY;
+  const trackRef = useRef(null);
+  const onTrackScroll = () => {
+    const el = trackRef.current;
+    if (!el || !el.clientWidth) return;
+    const i = Math.round(el.scrollLeft / el.clientWidth);
+    setGi((cur) => i >= 0 && i !== cur ? i : cur);
   };
-  const onPhotoTouchEnd = (e) => {
-    const count = images.length;
-    if (count < 2) return;
-    const dx = e.changedTouches[0].clientX - swipeStartX.current;
-    const dy = e.changedTouches[0].clientY - swipeStartY.current;
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      setGi((i) => dx < 0 ? (i + 1) % count : (i - 1 + count) % count);
-    }
+  const scrollToImage = (i, count) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const clamped = Math.max(0, Math.min(count - 1, i));
+    el.scrollTo({ left: clamped * el.clientWidth, behavior: "smooth" });
   };
   useEffect(() => {
     let cancelled = false;
@@ -843,8 +841,10 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
     }
   };
   const d = detail;
-  const images = (d?.gallery_images ?? []).map((g) => safeImageUrl(g.image_url)).filter((u) => Boolean(u));
-  const mainImg = images[gi] || safeImageUrl(vehicle.photo_url ?? "") || "";
+  const galleryUrls = (d?.gallery_images ?? []).map((g) => safeImageUrl(g.image_url)).filter((u) => Boolean(u));
+  const fallbackImg = safeImageUrl(vehicle.photo_url ?? "") || "";
+  const gallery = galleryUrls.length ? galleryUrls : fallbackImg ? [fallbackImg] : [];
+  const mainImg = gallery[gi] || fallbackImg || "";
   const tgHref = safeHref(
     buildTelegramDeepLink(botUsername, vehicle.id, datesValid ? { from: start, to: end } : void 0)
   );
@@ -879,51 +879,53 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
             /* @__PURE__ */ jsx("p", { children: t.successText }),
             /* @__PURE__ */ jsx("button", { type: "button", className: "sb-btn", onClick: onClose, children: "OK" })
           ] }) : stage === "detail" ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__body", children: [
-            mainImg ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__media", children: [
-              /* @__PURE__ */ jsxs(
-                "div",
-                {
-                  className: "sb-vd__frame",
-                  onTouchStart: onPhotoTouchStart,
-                  onTouchEnd: onPhotoTouchEnd,
-                  children: [
-                    /* @__PURE__ */ jsx("img", { className: "sb-vd__photo", src: mainImg, alt: d.display_name }),
-                    images.length > 1 ? /* @__PURE__ */ jsxs(Fragment, { children: [
-                      /* @__PURE__ */ jsx(
-                        "button",
-                        {
-                          type: "button",
-                          className: "sb-vd__nav sb-vd__nav--prev",
-                          "aria-label": "\u2039",
-                          onClick: () => setGi((i) => (i - 1 + images.length) % images.length),
-                          children: "\u2039"
-                        }
-                      ),
-                      /* @__PURE__ */ jsx(
-                        "button",
-                        {
-                          type: "button",
-                          className: "sb-vd__nav sb-vd__nav--next",
-                          "aria-label": "\u203A",
-                          onClick: () => setGi((i) => (i + 1) % images.length),
-                          children: "\u203A"
-                        }
-                      ),
-                      /* @__PURE__ */ jsxs("span", { className: "sb-vd__counter", children: [
-                        gi + 1,
-                        "/",
-                        images.length
-                      ] })
-                    ] }) : null
-                  ]
-                }
-              ),
-              images.length > 1 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__thumbs", children: images.map((u, i) => /* @__PURE__ */ jsx(
+            gallery.length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__media", children: [
+              /* @__PURE__ */ jsxs("div", { className: "sb-vd__gallery", children: [
+                /* @__PURE__ */ jsx("div", { className: "sb-vd__frame", ref: trackRef, onScroll: onTrackScroll, children: gallery.map((u, i) => /* @__PURE__ */ jsx(
+                  "img",
+                  {
+                    className: "sb-vd__photo",
+                    src: u,
+                    alt: d.display_name,
+                    loading: i === 0 ? void 0 : "lazy",
+                    draggable: false
+                  },
+                  i
+                )) }),
+                gallery.length > 1 ? /* @__PURE__ */ jsxs(Fragment, { children: [
+                  /* @__PURE__ */ jsx(
+                    "button",
+                    {
+                      type: "button",
+                      className: "sb-vd__nav sb-vd__nav--prev",
+                      "aria-label": "\u2039",
+                      onClick: () => scrollToImage(gi - 1, gallery.length),
+                      children: "\u2039"
+                    }
+                  ),
+                  /* @__PURE__ */ jsx(
+                    "button",
+                    {
+                      type: "button",
+                      className: "sb-vd__nav sb-vd__nav--next",
+                      "aria-label": "\u203A",
+                      onClick: () => scrollToImage(gi + 1, gallery.length),
+                      children: "\u203A"
+                    }
+                  ),
+                  /* @__PURE__ */ jsxs("span", { className: "sb-vd__counter", children: [
+                    gi + 1,
+                    "/",
+                    gallery.length
+                  ] })
+                ] }) : null
+              ] }),
+              gallery.length > 1 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__thumbs", children: gallery.map((u, i) => /* @__PURE__ */ jsx(
                 "button",
                 {
                   type: "button",
                   className: `sb-vd__thumb ${i === gi ? "is-active" : ""}`,
-                  onClick: () => setGi(i),
+                  onClick: () => scrollToImage(i, gallery.length),
                   "aria-label": `${i + 1}`,
                   children: /* @__PURE__ */ jsx("img", { src: u, alt: "", loading: "lazy" })
                 },

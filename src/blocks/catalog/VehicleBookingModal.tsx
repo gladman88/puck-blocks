@@ -285,22 +285,22 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
     }
   };
 
-  // Horizontal swipe on the photo → change image (touch; arrows stay for desktop).
-  // Only a clearly-horizontal gesture counts, so vertical scrolls pass through.
-  const swipeStartX = useRef(0);
-  const swipeStartY = useRef(0);
-  const onPhotoTouchStart = (e: ReactTouchEvent<HTMLDivElement>) => {
-    swipeStartX.current = e.touches[0].clientX;
-    swipeStartY.current = e.touches[0].clientY;
+  // Gallery is a native horizontal scroll-snap carousel: the finger drags the
+  // photo smoothly and it snaps to the nearest one — best-practice touch UX, no
+  // custom drag math. onScroll syncs the counter / active thumb; the arrows and
+  // thumbnails scroll the track (which then syncs `gi` back via onScroll).
+  const trackRef = useRef<HTMLDivElement>(null);
+  const onTrackScroll = () => {
+    const el = trackRef.current;
+    if (!el || !el.clientWidth) return;
+    const i = Math.round(el.scrollLeft / el.clientWidth);
+    setGi((cur) => (i >= 0 && i !== cur ? i : cur));
   };
-  const onPhotoTouchEnd = (e: ReactTouchEvent<HTMLDivElement>) => {
-    const count = images.length;
-    if (count < 2) return;
-    const dx = e.changedTouches[0].clientX - swipeStartX.current;
-    const dy = e.changedTouches[0].clientY - swipeStartY.current;
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      setGi((i) => (dx < 0 ? (i + 1) % count : (i - 1 + count) % count));
-    }
+  const scrollToImage = (i: number, count: number) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const clamped = Math.max(0, Math.min(count - 1, i));
+    el.scrollTo({ left: clamped * el.clientWidth, behavior: 'smooth' });
   };
 
   useEffect(() => {
@@ -363,10 +363,12 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
   };
 
   const d = detail;
-  const images = (d?.gallery_images ?? [])
+  const galleryUrls = (d?.gallery_images ?? [])
     .map((g) => safeImageUrl(g.image_url))
     .filter((u): u is string => Boolean(u));
-  const mainImg = images[gi] || safeImageUrl(vehicle.photo_url ?? '') || '';
+  const fallbackImg = safeImageUrl(vehicle.photo_url ?? '') || '';
+  const gallery = galleryUrls.length ? galleryUrls : fallbackImg ? [fallbackImg] : [];
+  const mainImg = gallery[gi] || fallbackImg || '';
   const tgHref = safeHref(
     buildTelegramDeepLink(botUsername, vehicle.id, datesValid ? { from: start, to: end } : undefined),
   );
@@ -418,21 +420,29 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
           ) : stage === 'detail' ? (
             <div className="sb-modal__body">
               {/* Gallery */}
-              {mainImg ? (
+              {gallery.length > 0 ? (
                 <div className="sb-vd__media">
-                  <div
-                    className="sb-vd__frame"
-                    onTouchStart={onPhotoTouchStart}
-                    onTouchEnd={onPhotoTouchEnd}
-                  >
-                    <img className="sb-vd__photo" src={mainImg} alt={d.display_name} />
-                    {images.length > 1 ? (
+                  <div className="sb-vd__gallery">
+                    {/* Scroll-snap track — one slide per image; native swipe + snap. */}
+                    <div className="sb-vd__frame" ref={trackRef} onScroll={onTrackScroll}>
+                      {gallery.map((u, i) => (
+                        <img
+                          key={i}
+                          className="sb-vd__photo"
+                          src={u}
+                          alt={d.display_name}
+                          loading={i === 0 ? undefined : 'lazy'}
+                          draggable={false}
+                        />
+                      ))}
+                    </div>
+                    {gallery.length > 1 ? (
                       <>
                         <button
                           type="button"
                           className="sb-vd__nav sb-vd__nav--prev"
                           aria-label="‹"
-                          onClick={() => setGi((i) => (i - 1 + images.length) % images.length)}
+                          onClick={() => scrollToImage(gi - 1, gallery.length)}
                         >
                           ‹
                         </button>
@@ -440,24 +450,24 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                           type="button"
                           className="sb-vd__nav sb-vd__nav--next"
                           aria-label="›"
-                          onClick={() => setGi((i) => (i + 1) % images.length)}
+                          onClick={() => scrollToImage(gi + 1, gallery.length)}
                         >
                           ›
                         </button>
                         <span className="sb-vd__counter">
-                          {gi + 1}/{images.length}
+                          {gi + 1}/{gallery.length}
                         </span>
                       </>
                     ) : null}
                   </div>
-                  {images.length > 1 ? (
+                  {gallery.length > 1 ? (
                     <div className="sb-vd__thumbs">
-                      {images.map((u, i) => (
+                      {gallery.map((u, i) => (
                         <button
                           type="button"
                           key={i}
                           className={`sb-vd__thumb ${i === gi ? 'is-active' : ''}`}
-                          onClick={() => setGi(i)}
+                          onClick={() => scrollToImage(i, gallery.length)}
                           aria-label={`${i + 1}`}
                         >
                           <img src={u} alt="" loading="lazy" />
