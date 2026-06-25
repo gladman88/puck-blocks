@@ -746,6 +746,36 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
       window.prompt(t.share, shareUrl);
     }
   };
+  const SHEET_DISMISS_PX = 120;
+  const dragStartY = useRef(0);
+  const dragging = useRef(false);
+  const dragOffsetRef = useRef(0);
+  const [dragY, setDragY] = useState(0);
+  const [dragSmooth, setDragSmooth] = useState(false);
+  const onGrabStart = (e) => {
+    dragging.current = true;
+    dragStartY.current = e.touches[0].clientY;
+    dragOffsetRef.current = 0;
+    setDragSmooth(false);
+  };
+  const onGrabMove = (e) => {
+    if (!dragging.current) return;
+    const dy = Math.max(0, e.touches[0].clientY - dragStartY.current);
+    dragOffsetRef.current = dy;
+    setDragY(dy);
+  };
+  const onGrabEnd = () => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    setDragSmooth(true);
+    if (dragOffsetRef.current > SHEET_DISMISS_PX) {
+      setDragY(typeof window !== "undefined" ? window.innerHeight : 800);
+      setTimeout(onClose, 240);
+    } else {
+      setDragY(0);
+      setTimeout(() => setDragSmooth(false), 300);
+    }
+  };
   useEffect(() => {
     let cancelled = false;
     setState("loading");
@@ -807,379 +837,398 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
   return createPortal(
     // Wrap in .sb-root so the design tokens (--sb-*) cascade into the portal,
     // which lives outside the page's .sb-root.
-    /* @__PURE__ */ jsx("div", { className: "sb-root", children: /* @__PURE__ */ jsx("div", { className: "sb-modal", role: "dialog", "aria-modal": "true", onClick: onClose, children: /* @__PURE__ */ jsxs("div", { className: "sb-modal__dialog", ref: dialogRef, onClick: (e) => e.stopPropagation(), children: [
-      /* @__PURE__ */ jsx("button", { type: "button", className: "sb-modal__close", "aria-label": t.close, onClick: onClose, children: "\xD7" }),
-      state === "loading" ? /* @__PURE__ */ jsx("p", { className: "sb-modal__state", children: t.loading }) : null,
-      state === "error" ? /* @__PURE__ */ jsx("p", { className: "sb-modal__state", children: t.error }) : null,
-      state === "ready" && d ? stage === "success" ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__success", children: [
-        /* @__PURE__ */ jsx("div", { className: "sb-modal__check", "aria-hidden": true, children: "\u2713" }),
-        /* @__PURE__ */ jsx("h3", { children: t.successTitle }),
-        /* @__PURE__ */ jsx("p", { children: t.successText }),
-        /* @__PURE__ */ jsx("button", { type: "button", className: "sb-btn", onClick: onClose, children: "OK" })
-      ] }) : stage === "detail" ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__body", children: [
-        mainImg ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__media", children: [
-          /* @__PURE__ */ jsxs("div", { className: "sb-vd__frame", children: [
-            /* @__PURE__ */ jsx("img", { className: "sb-vd__photo", src: mainImg, alt: d.display_name }),
-            images.length > 1 ? /* @__PURE__ */ jsxs(Fragment, { children: [
-              /* @__PURE__ */ jsx(
-                "button",
-                {
-                  type: "button",
-                  className: "sb-vd__nav sb-vd__nav--prev",
-                  "aria-label": "\u2039",
-                  onClick: () => setGi((i) => (i - 1 + images.length) % images.length),
-                  children: "\u2039"
-                }
-              ),
-              /* @__PURE__ */ jsx(
-                "button",
-                {
-                  type: "button",
-                  className: "sb-vd__nav sb-vd__nav--next",
-                  "aria-label": "\u203A",
-                  onClick: () => setGi((i) => (i + 1) % images.length),
-                  children: "\u203A"
-                }
-              ),
-              /* @__PURE__ */ jsxs("span", { className: "sb-vd__counter", children: [
-                gi + 1,
-                "/",
-                images.length
-              ] })
-            ] }) : null
-          ] }),
-          images.length > 1 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__thumbs", children: images.map((u, i) => /* @__PURE__ */ jsx(
-            "button",
+    /* @__PURE__ */ jsx("div", { className: "sb-root", children: /* @__PURE__ */ jsx("div", { className: "sb-modal", role: "dialog", "aria-modal": "true", onClick: onClose, children: /* @__PURE__ */ jsxs(
+      "div",
+      {
+        className: "sb-modal__dialog",
+        ref: dialogRef,
+        onClick: (e) => e.stopPropagation(),
+        style: dragY > 0 || dragSmooth ? { transform: `translateY(${dragY}px)`, transition: dragSmooth ? "transform 0.3s ease-out" : "none" } : void 0,
+        children: [
+          /* @__PURE__ */ jsx(
+            "div",
             {
-              type: "button",
-              className: `sb-vd__thumb ${i === gi ? "is-active" : ""}`,
-              onClick: () => setGi(i),
-              "aria-label": `${i + 1}`,
-              children: /* @__PURE__ */ jsx("img", { src: u, alt: "", loading: "lazy" })
-            },
-            i
-          )) }) : null
-        ] }) : null,
-        /* @__PURE__ */ jsxs("div", { className: "sb-vd__info", children: [
-          /* @__PURE__ */ jsxs("div", { className: "sb-vd__header", children: [
-            /* @__PURE__ */ jsxs("h3", { className: "sb-vd__name", children: [
-              d.display_name,
-              d.year ? /* @__PURE__ */ jsxs("span", { className: "sb-vd__year", children: [
-                " ",
-                d.year
-              ] }) : null
-            ] }),
-            price != null ? /* @__PURE__ */ jsxs("p", { className: "sb-vd__price", children: [
-              /* @__PURE__ */ jsxs("small", { children: [
-                t.from,
-                " "
+              className: "sb-modal__grabber",
+              onTouchStart: onGrabStart,
+              onTouchMove: onGrabMove,
+              onTouchEnd: onGrabEnd,
+              children: /* @__PURE__ */ jsx("span", { className: "sb-modal__grabber-bar", "aria-hidden": true })
+            }
+          ),
+          /* @__PURE__ */ jsx("button", { type: "button", className: "sb-modal__close", "aria-label": t.close, onClick: onClose, children: "\xD7" }),
+          state === "loading" ? /* @__PURE__ */ jsx("p", { className: "sb-modal__state", children: t.loading }) : null,
+          state === "error" ? /* @__PURE__ */ jsx("p", { className: "sb-modal__state", children: t.error }) : null,
+          state === "ready" && d ? stage === "success" ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__success", children: [
+            /* @__PURE__ */ jsx("div", { className: "sb-modal__check", "aria-hidden": true, children: "\u2713" }),
+            /* @__PURE__ */ jsx("h3", { children: t.successTitle }),
+            /* @__PURE__ */ jsx("p", { children: t.successText }),
+            /* @__PURE__ */ jsx("button", { type: "button", className: "sb-btn", onClick: onClose, children: "OK" })
+          ] }) : stage === "detail" ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__body", children: [
+            mainImg ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__media", children: [
+              /* @__PURE__ */ jsxs("div", { className: "sb-vd__frame", children: [
+                /* @__PURE__ */ jsx("img", { className: "sb-vd__photo", src: mainImg, alt: d.display_name }),
+                images.length > 1 ? /* @__PURE__ */ jsxs(Fragment, { children: [
+                  /* @__PURE__ */ jsx(
+                    "button",
+                    {
+                      type: "button",
+                      className: "sb-vd__nav sb-vd__nav--prev",
+                      "aria-label": "\u2039",
+                      onClick: () => setGi((i) => (i - 1 + images.length) % images.length),
+                      children: "\u2039"
+                    }
+                  ),
+                  /* @__PURE__ */ jsx(
+                    "button",
+                    {
+                      type: "button",
+                      className: "sb-vd__nav sb-vd__nav--next",
+                      "aria-label": "\u203A",
+                      onClick: () => setGi((i) => (i + 1) % images.length),
+                      children: "\u203A"
+                    }
+                  ),
+                  /* @__PURE__ */ jsxs("span", { className: "sb-vd__counter", children: [
+                    gi + 1,
+                    "/",
+                    images.length
+                  ] })
+                ] }) : null
               ] }),
-              Math.round(price).toLocaleString("en-US"),
-              /* @__PURE__ */ jsxs("small", { children: [
-                " ",
-                t.priceUnit,
-                t.perDay
-              ] })
-            ] }) : null
-          ] }),
-          /* @__PURE__ */ jsxs("div", { className: "sb-vd__meta-row", children: [
-            d.category ? /* @__PURE__ */ jsx("span", { className: "sb-vd__badge", style: { backgroundColor: d.category.color }, children: d.category.name }) : null,
-            /* @__PURE__ */ jsxs("div", { className: `sb-vd__avail ${d.is_available ? "is-free" : "is-busy"}`, children: [
-              /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-dot", "aria-hidden": true }),
-              /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-text", children: d.is_available ? t.available : d.free_from ? `${t.freesUp}: ${d.free_from}` : t.busy }),
-              !d.is_available && d.free_from && d.free_from !== start ? /* @__PURE__ */ jsxs(
+              images.length > 1 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__thumbs", children: images.map((u, i) => /* @__PURE__ */ jsx(
                 "button",
                 {
                   type: "button",
-                  className: "sb-vd__avail-btn",
-                  onClick: () => {
-                    const from = d.free_from;
-                    setStart(from);
-                    if (end <= from) setEnd(nextDay(from));
-                  },
-                  children: [
-                    t.bookFrom,
+                  className: `sb-vd__thumb ${i === gi ? "is-active" : ""}`,
+                  onClick: () => setGi(i),
+                  "aria-label": `${i + 1}`,
+                  children: /* @__PURE__ */ jsx("img", { src: u, alt: "", loading: "lazy" })
+                },
+                i
+              )) }) : null
+            ] }) : null,
+            /* @__PURE__ */ jsxs("div", { className: "sb-vd__info", children: [
+              /* @__PURE__ */ jsxs("div", { className: "sb-vd__header", children: [
+                /* @__PURE__ */ jsxs("h3", { className: "sb-vd__name", children: [
+                  d.display_name,
+                  d.year ? /* @__PURE__ */ jsxs("span", { className: "sb-vd__year", children: [
                     " ",
-                    d.free_from
-                  ]
-                }
-              ) : null
-            ] }),
-            /* @__PURE__ */ jsx(
-              "button",
-              {
-                type: "button",
-                className: `sb-vd__share ${copied ? "is-copied" : ""}`,
-                onClick: handleShare,
-                "aria-label": t.share,
-                children: copied ? t.copied : t.share
-              }
-            )
-          ] }),
-          (d.advantages ?? []).length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.advantages.map((a, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip", children: a }, i)) }) : null,
-          (d.pricing_table ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices", children: [
-            /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices-head", children: [
-              /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.prices }),
-              d.pricing_season_name ? /* @__PURE__ */ jsxs("span", { className: "sb-vd__season", children: [
-                "\xB7 ",
-                d.pricing_season_name
-              ] }) : null
-            ] }),
-            /* @__PURE__ */ jsx("div", { className: "sb-vd__prices-grid", children: d.pricing_table.map((row, i) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__price-row", children: [
-              /* @__PURE__ */ jsx("span", { className: "sb-vd__price-period", children: row.is_monthly ? `${row.period_label} ${t.days} (${t.month})` : row.min_days === row.max_days ? `${row.period_label} ${row.min_days === 1 ? t.day : t.days}` : `${row.period_label} ${t.days}` }),
-              /* @__PURE__ */ jsx("span", { className: "sb-vd__price-value", children: row.is_monthly && row.monthly_price != null ? /* @__PURE__ */ jsxs(Fragment, { children: [
-                money(row.monthly_price),
-                /* @__PURE__ */ jsxs("small", { children: [
-                  " ",
-                  "(",
-                  Math.round(row.price_per_day).toLocaleString("en-US"),
-                  t.perDay,
-                  ")"
-                ] })
-              ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
-                Math.round(row.price_per_day).toLocaleString("en-US"),
-                /* @__PURE__ */ jsxs("small", { children: [
-                  " ",
-                  t.priceUnit,
-                  t.perDay
-                ] })
-              ] }) })
-            ] }, i)) }),
-            d.pricing_spans_seasons ? /* @__PURE__ */ jsx("p", { className: "sb-vd__season-note", children: t.spansSeasons }) : null
-          ] }) : null,
-          (d.deposits ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__deposits", children: [
-            /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.deposit }),
-            /* @__PURE__ */ jsx("div", { className: "sb-vd__deposit-pills", children: d.deposits.map((dep, i) => /* @__PURE__ */ jsxs("span", { className: "sb-vd__deposit-pill", children: [
-              money(dep.amount),
-              " ",
-              dep.currency_code
-            ] }, i)) })
-          ] }) : null,
-          SPEC_KEYS.some((k) => d[k]) ? (() => {
-            const present = SPEC_KEYS.filter((k) => d[k]);
-            const visible = specsExpanded ? present : present.slice(0, 4);
-            return /* @__PURE__ */ jsxs("div", { className: "sb-vd__specs-wrap", children: [
-              /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.specs }),
-              /* @__PURE__ */ jsxs("div", { className: "sb-vd__specs-card", children: [
-                /* @__PURE__ */ jsx("div", { className: "sb-vd__specs", children: visible.map((k) => {
-                  const raw = String(d[k]);
-                  const val = TRANSLATED_SPEC_KEYS.has(k) ? SPEC_VALUE_LABELS[locale][raw.toLowerCase()] ?? raw : raw;
-                  return /* @__PURE__ */ jsxs("div", { className: "sb-vd__spec", children: [
-                    /* @__PURE__ */ jsx("span", { children: t.labels[k] }),
-                    /* @__PURE__ */ jsx("b", { children: val })
-                  ] }, k);
-                }) }),
-                present.length > 4 ? /* @__PURE__ */ jsxs(
+                    d.year
+                  ] }) : null
+                ] }),
+                price != null ? /* @__PURE__ */ jsxs("p", { className: "sb-vd__price", children: [
+                  /* @__PURE__ */ jsxs("small", { children: [
+                    t.from,
+                    " "
+                  ] }),
+                  Math.round(price).toLocaleString("en-US"),
+                  /* @__PURE__ */ jsxs("small", { children: [
+                    " ",
+                    t.priceUnit,
+                    t.perDay
+                  ] })
+                ] }) : null
+              ] }),
+              /* @__PURE__ */ jsxs("div", { className: "sb-vd__meta-row", children: [
+                d.category ? /* @__PURE__ */ jsx("span", { className: "sb-vd__badge", style: { backgroundColor: d.category.color }, children: d.category.name }) : null,
+                /* @__PURE__ */ jsxs("div", { className: `sb-vd__avail ${d.is_available ? "is-free" : "is-busy"}`, children: [
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-dot", "aria-hidden": true }),
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-text", children: d.is_available ? t.available : d.free_from ? `${t.freesUp}: ${d.free_from}` : t.busy }),
+                  !d.is_available && d.free_from && d.free_from !== start ? /* @__PURE__ */ jsxs(
+                    "button",
+                    {
+                      type: "button",
+                      className: "sb-vd__avail-btn",
+                      onClick: () => {
+                        const from = d.free_from;
+                        setStart(from);
+                        if (end <= from) setEnd(nextDay(from));
+                      },
+                      children: [
+                        t.bookFrom,
+                        " ",
+                        d.free_from
+                      ]
+                    }
+                  ) : null
+                ] }),
+                /* @__PURE__ */ jsx(
                   "button",
                   {
                     type: "button",
-                    className: "sb-vd__specs-toggle",
-                    onClick: () => setSpecsExpanded((v) => !v),
-                    children: [
-                      t.allSpecs,
-                      " ",
-                      specsExpanded ? "\u25B2" : "\u25BC"
-                    ]
+                    className: `sb-vd__share ${copied ? "is-copied" : ""}`,
+                    onClick: handleShare,
+                    "aria-label": t.share,
+                    children: copied ? t.copied : t.share
                   }
-                ) : null
-              ] })
-            ] });
-          })() : null,
-          (d.options ?? []).length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.options.map((o, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip sb-chip--ghost", children: o }, i)) }) : null
-        ] }),
-        /* @__PURE__ */ jsx("div", { className: "sb-vd__cta", children: /* @__PURE__ */ jsx(
-          "button",
-          {
-            type: "button",
-            className: "sb-btn sb-vd__cta-btn",
-            onClick: () => setStage("choice"),
-            children: t.bookCta
-          }
-        ) })
-      ] }) : stage === "choice" ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__body sb-modal__body--book", children: [
-        /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-vd__back", onClick: () => setStage("detail"), children: [
-          "\u2039 ",
-          t.back
-        ] }),
-        /* @__PURE__ */ jsx("h3", { className: "sb-bk__title", children: t.howToBook }),
-        /* @__PURE__ */ jsxs("div", { className: "sb-bk__vehicle", children: [
-          mainImg ? /* @__PURE__ */ jsx("img", { className: "sb-bk__photo", src: mainImg, alt: "" }) : null,
-          /* @__PURE__ */ jsxs("div", { className: "sb-bk__meta", children: [
-            /* @__PURE__ */ jsx("p", { className: "sb-bk__name", children: d.display_name }),
-            price != null ? /* @__PURE__ */ jsxs("p", { className: "sb-bk__price", children: [
-              /* @__PURE__ */ jsxs("small", { children: [
-                t.from,
-                " "
+                )
               ] }),
-              Math.round(price).toLocaleString("en-US"),
-              /* @__PURE__ */ jsxs("small", { children: [
-                " ",
-                t.priceUnit,
-                t.perDay
-              ] })
-            ] }) : null
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxs("div", { className: "sb-vd__dates", children: [
-          /* @__PURE__ */ jsxs("label", { children: [
-            t.dateGet,
-            /* @__PURE__ */ jsx(
-              "input",
+              (d.advantages ?? []).length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.advantages.map((a, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip", children: a }, i)) }) : null,
+              (d.pricing_table ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices", children: [
+                /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices-head", children: [
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.prices }),
+                  d.pricing_season_name ? /* @__PURE__ */ jsxs("span", { className: "sb-vd__season", children: [
+                    "\xB7 ",
+                    d.pricing_season_name
+                  ] }) : null
+                ] }),
+                /* @__PURE__ */ jsx("div", { className: "sb-vd__prices-grid", children: d.pricing_table.map((row, i) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__price-row", children: [
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__price-period", children: row.is_monthly ? `${row.period_label} ${t.days} (${t.month})` : row.min_days === row.max_days ? `${row.period_label} ${row.min_days === 1 ? t.day : t.days}` : `${row.period_label} ${t.days}` }),
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__price-value", children: row.is_monthly && row.monthly_price != null ? /* @__PURE__ */ jsxs(Fragment, { children: [
+                    money(row.monthly_price),
+                    /* @__PURE__ */ jsxs("small", { children: [
+                      " ",
+                      "(",
+                      Math.round(row.price_per_day).toLocaleString("en-US"),
+                      t.perDay,
+                      ")"
+                    ] })
+                  ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+                    Math.round(row.price_per_day).toLocaleString("en-US"),
+                    /* @__PURE__ */ jsxs("small", { children: [
+                      " ",
+                      t.priceUnit,
+                      t.perDay
+                    ] })
+                  ] }) })
+                ] }, i)) }),
+                d.pricing_spans_seasons ? /* @__PURE__ */ jsx("p", { className: "sb-vd__season-note", children: t.spansSeasons }) : null
+              ] }) : null,
+              (d.deposits ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__deposits", children: [
+                /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.deposit }),
+                /* @__PURE__ */ jsx("div", { className: "sb-vd__deposit-pills", children: d.deposits.map((dep, i) => /* @__PURE__ */ jsxs("span", { className: "sb-vd__deposit-pill", children: [
+                  money(dep.amount),
+                  " ",
+                  dep.currency_code
+                ] }, i)) })
+              ] }) : null,
+              SPEC_KEYS.some((k) => d[k]) ? (() => {
+                const present = SPEC_KEYS.filter((k) => d[k]);
+                const visible = specsExpanded ? present : present.slice(0, 4);
+                return /* @__PURE__ */ jsxs("div", { className: "sb-vd__specs-wrap", children: [
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.specs }),
+                  /* @__PURE__ */ jsxs("div", { className: "sb-vd__specs-card", children: [
+                    /* @__PURE__ */ jsx("div", { className: "sb-vd__specs", children: visible.map((k) => {
+                      const raw = String(d[k]);
+                      const val = TRANSLATED_SPEC_KEYS.has(k) ? SPEC_VALUE_LABELS[locale][raw.toLowerCase()] ?? raw : raw;
+                      return /* @__PURE__ */ jsxs("div", { className: "sb-vd__spec", children: [
+                        /* @__PURE__ */ jsx("span", { children: t.labels[k] }),
+                        /* @__PURE__ */ jsx("b", { children: val })
+                      ] }, k);
+                    }) }),
+                    present.length > 4 ? /* @__PURE__ */ jsxs(
+                      "button",
+                      {
+                        type: "button",
+                        className: "sb-vd__specs-toggle",
+                        onClick: () => setSpecsExpanded((v) => !v),
+                        children: [
+                          t.allSpecs,
+                          " ",
+                          specsExpanded ? "\u25B2" : "\u25BC"
+                        ]
+                      }
+                    ) : null
+                  ] })
+                ] });
+              })() : null,
+              (d.options ?? []).length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.options.map((o, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip sb-chip--ghost", children: o }, i)) }) : null
+            ] }),
+            /* @__PURE__ */ jsx("div", { className: "sb-vd__cta", children: /* @__PURE__ */ jsx(
+              "button",
               {
-                type: "date",
-                className: "sb-input",
-                value: start,
-                min: minStart,
-                onChange: (e) => setStart(e.target.value)
+                type: "button",
+                className: "sb-btn sb-vd__cta-btn",
+                onClick: () => setStage("choice"),
+                children: t.bookCta
+              }
+            ) })
+          ] }) : stage === "choice" ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__body sb-modal__body--book", children: [
+            /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-vd__back", onClick: () => setStage("detail"), children: [
+              "\u2039 ",
+              t.back
+            ] }),
+            /* @__PURE__ */ jsx("h3", { className: "sb-bk__title", children: t.howToBook }),
+            /* @__PURE__ */ jsxs("div", { className: "sb-bk__vehicle", children: [
+              mainImg ? /* @__PURE__ */ jsx("img", { className: "sb-bk__photo", src: mainImg, alt: "" }) : null,
+              /* @__PURE__ */ jsxs("div", { className: "sb-bk__meta", children: [
+                /* @__PURE__ */ jsx("p", { className: "sb-bk__name", children: d.display_name }),
+                price != null ? /* @__PURE__ */ jsxs("p", { className: "sb-bk__price", children: [
+                  /* @__PURE__ */ jsxs("small", { children: [
+                    t.from,
+                    " "
+                  ] }),
+                  Math.round(price).toLocaleString("en-US"),
+                  /* @__PURE__ */ jsxs("small", { children: [
+                    " ",
+                    t.priceUnit,
+                    t.perDay
+                  ] })
+                ] }) : null
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxs("div", { className: "sb-vd__dates", children: [
+              /* @__PURE__ */ jsxs("label", { children: [
+                t.dateGet,
+                /* @__PURE__ */ jsx(
+                  "input",
+                  {
+                    type: "date",
+                    className: "sb-input",
+                    value: start,
+                    min: minStart,
+                    onChange: (e) => setStart(e.target.value)
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxs("label", { children: [
+                t.dateReturn,
+                /* @__PURE__ */ jsx(
+                  "input",
+                  {
+                    type: "date",
+                    className: "sb-input",
+                    value: end,
+                    min: nextDay(start),
+                    onChange: (e) => setEnd(e.target.value)
+                  }
+                )
+              ] })
+            ] }),
+            tgHref ? /* @__PURE__ */ jsxs(
+              "a",
+              {
+                className: "sb-vd__tg-card",
+                href: tgHref,
+                target: "_blank",
+                rel: "noopener noreferrer",
+                children: [
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-icon", "aria-hidden": true, children: "\u2708" }),
+                  /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
+                    /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: t.tgQuick }),
+                    /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: t.tgQuickSub })
+                  ] }),
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
+                ]
+              }
+            ) : null,
+            /* @__PURE__ */ jsx("div", { className: "sb-vd__or", children: t.or }),
+            /* @__PURE__ */ jsxs(
+              "button",
+              {
+                type: "button",
+                className: "sb-vd__option-card",
+                disabled: !datesValid,
+                onClick: () => setStage("form"),
+                children: [
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__option-icon", "aria-hidden": true, children: "\u270E" }),
+                  /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
+                    /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: t.manual }),
+                    /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: t.manualSub })
+                  ] }),
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
+                ]
               }
             )
-          ] }),
-          /* @__PURE__ */ jsxs("label", { children: [
-            t.dateReturn,
-            /* @__PURE__ */ jsx(
-              "input",
-              {
-                type: "date",
-                className: "sb-input",
-                value: end,
-                min: nextDay(start),
-                onChange: (e) => setEnd(e.target.value)
-              }
-            )
-          ] })
-        ] }),
-        tgHref ? /* @__PURE__ */ jsxs(
-          "a",
-          {
-            className: "sb-vd__tg-card",
-            href: tgHref,
-            target: "_blank",
-            rel: "noopener noreferrer",
-            children: [
-              /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-icon", "aria-hidden": true, children: "\u2708" }),
-              /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
-                /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: t.tgQuick }),
-                /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: t.tgQuickSub })
-              ] }),
-              /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
-            ]
-          }
-        ) : null,
-        /* @__PURE__ */ jsx("div", { className: "sb-vd__or", children: t.or }),
-        /* @__PURE__ */ jsxs(
-          "button",
-          {
-            type: "button",
-            className: "sb-vd__option-card",
-            disabled: !datesValid,
-            onClick: () => setStage("form"),
-            children: [
-              /* @__PURE__ */ jsx("span", { className: "sb-vd__option-icon", "aria-hidden": true, children: "\u270E" }),
-              /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
-                /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: t.manual }),
-                /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: t.manualSub })
-              ] }),
-              /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
-            ]
-          }
-        )
-      ] }) : /* @__PURE__ */ jsxs("div", { className: "sb-modal__body sb-modal__body--book", children: [
-        /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-vd__back", onClick: () => setStage("choice"), children: [
-          "\u2039 ",
-          t.back
-        ] }),
-        /* @__PURE__ */ jsx("h3", { className: "sb-bk__title", children: t.formTitle }),
-        /* @__PURE__ */ jsxs("div", { className: "sb-bk__vehicle", children: [
-          mainImg ? /* @__PURE__ */ jsx("img", { className: "sb-bk__photo", src: mainImg, alt: "" }) : null,
-          /* @__PURE__ */ jsxs("div", { className: "sb-bk__meta", children: [
-            /* @__PURE__ */ jsx("p", { className: "sb-bk__name", children: d.display_name }),
-            price != null ? /* @__PURE__ */ jsxs("p", { className: "sb-bk__price", children: [
-              /* @__PURE__ */ jsxs("small", { children: [
-                t.from,
-                " "
-              ] }),
-              Math.round(price).toLocaleString("en-US"),
-              /* @__PURE__ */ jsxs("small", { children: [
-                " ",
-                t.priceUnit,
-                t.perDay
+          ] }) : /* @__PURE__ */ jsxs("div", { className: "sb-modal__body sb-modal__body--book", children: [
+            /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-vd__back", onClick: () => setStage("choice"), children: [
+              "\u2039 ",
+              t.back
+            ] }),
+            /* @__PURE__ */ jsx("h3", { className: "sb-bk__title", children: t.formTitle }),
+            /* @__PURE__ */ jsxs("div", { className: "sb-bk__vehicle", children: [
+              mainImg ? /* @__PURE__ */ jsx("img", { className: "sb-bk__photo", src: mainImg, alt: "" }) : null,
+              /* @__PURE__ */ jsxs("div", { className: "sb-bk__meta", children: [
+                /* @__PURE__ */ jsx("p", { className: "sb-bk__name", children: d.display_name }),
+                price != null ? /* @__PURE__ */ jsxs("p", { className: "sb-bk__price", children: [
+                  /* @__PURE__ */ jsxs("small", { children: [
+                    t.from,
+                    " "
+                  ] }),
+                  Math.round(price).toLocaleString("en-US"),
+                  /* @__PURE__ */ jsxs("small", { children: [
+                    " ",
+                    t.priceUnit,
+                    t.perDay
+                  ] })
+                ] }) : null
               ] })
-            ] }) : null
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxs("form", { className: "sb-vd__book", onSubmit: submit, children: [
-          /* @__PURE__ */ jsxs("label", { className: "sb-vd__field", children: [
-            /* @__PURE__ */ jsx("span", { className: "sb-vd__field-label", children: t.name }),
-            /* @__PURE__ */ jsx(
-              "input",
-              {
-                className: "sb-input",
-                type: "text",
-                required: true,
-                value: name,
-                onChange: (e) => setName(e.target.value)
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxs("div", { className: "sb-vd__field", children: [
-            /* @__PURE__ */ jsx("span", { className: "sb-vd__field-label", children: t.contactWay }),
-            /* @__PURE__ */ jsxs("div", { className: "sb-vd__channel", role: "group", "aria-label": t.contactWay, children: [
+            ] }),
+            /* @__PURE__ */ jsxs("form", { className: "sb-vd__book", onSubmit: submit, children: [
+              /* @__PURE__ */ jsxs("label", { className: "sb-vd__field", children: [
+                /* @__PURE__ */ jsx("span", { className: "sb-vd__field-label", children: t.name }),
+                /* @__PURE__ */ jsx(
+                  "input",
+                  {
+                    className: "sb-input",
+                    type: "text",
+                    required: true,
+                    value: name,
+                    onChange: (e) => setName(e.target.value)
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxs("div", { className: "sb-vd__field", children: [
+                /* @__PURE__ */ jsx("span", { className: "sb-vd__field-label", children: t.contactWay }),
+                /* @__PURE__ */ jsxs("div", { className: "sb-vd__channel", role: "group", "aria-label": t.contactWay, children: [
+                  /* @__PURE__ */ jsx(
+                    "button",
+                    {
+                      type: "button",
+                      className: channel === "whatsapp" ? "is-active" : "",
+                      onClick: () => setChannel("whatsapp"),
+                      children: "WhatsApp"
+                    }
+                  ),
+                  /* @__PURE__ */ jsx(
+                    "button",
+                    {
+                      type: "button",
+                      className: channel === "telegram" ? "is-active" : "",
+                      onClick: () => setChannel("telegram"),
+                      children: "Telegram"
+                    }
+                  )
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxs("label", { className: "sb-vd__field", children: [
+                /* @__PURE__ */ jsx("span", { className: "sb-vd__field-label", children: t.phoneLabel }),
+                /* @__PURE__ */ jsx(
+                  "input",
+                  {
+                    className: "sb-input",
+                    type: "text",
+                    placeholder: channel === "whatsapp" ? t.phonePh : t.tgPh,
+                    required: true,
+                    value: contact,
+                    onChange: (e) => setContact(e.target.value)
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxs("p", { className: "sb-vd__dates-summary", children: [
+                t.dateGet,
+                ": ",
+                /* @__PURE__ */ jsx("b", { children: formatShortDate(start, locale) }),
+                " \u2014 ",
+                t.dateReturn,
+                ": ",
+                /* @__PURE__ */ jsx("b", { children: formatShortDate(end, locale) })
+              ] }),
               /* @__PURE__ */ jsx(
                 "button",
                 {
-                  type: "button",
-                  className: channel === "whatsapp" ? "is-active" : "",
-                  onClick: () => setChannel("whatsapp"),
-                  children: "WhatsApp"
+                  className: "sb-btn sb-btn--block",
+                  type: "submit",
+                  disabled: submitting || !datesValid,
+                  children: t.send
                 }
               ),
-              /* @__PURE__ */ jsx(
-                "button",
-                {
-                  type: "button",
-                  className: channel === "telegram" ? "is-active" : "",
-                  onClick: () => setChannel("telegram"),
-                  children: "Telegram"
-                }
-              )
+              err ? /* @__PURE__ */ jsx("p", { className: "sb-form__status sb-form__status--err", children: err }) : null
             ] })
-          ] }),
-          /* @__PURE__ */ jsxs("label", { className: "sb-vd__field", children: [
-            /* @__PURE__ */ jsx("span", { className: "sb-vd__field-label", children: t.phoneLabel }),
-            /* @__PURE__ */ jsx(
-              "input",
-              {
-                className: "sb-input",
-                type: "text",
-                placeholder: channel === "whatsapp" ? t.phonePh : t.tgPh,
-                required: true,
-                value: contact,
-                onChange: (e) => setContact(e.target.value)
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxs("p", { className: "sb-vd__dates-summary", children: [
-            t.dateGet,
-            ": ",
-            /* @__PURE__ */ jsx("b", { children: formatShortDate(start, locale) }),
-            " \u2014 ",
-            t.dateReturn,
-            ": ",
-            /* @__PURE__ */ jsx("b", { children: formatShortDate(end, locale) })
-          ] }),
-          /* @__PURE__ */ jsx(
-            "button",
-            {
-              className: "sb-btn sb-btn--block",
-              type: "submit",
-              disabled: submitting || !datesValid,
-              children: t.send
-            }
-          ),
-          err ? /* @__PURE__ */ jsx("p", { className: "sb-form__status sb-form__status--err", children: err }) : null
-        ] })
-      ] }) : null
-    ] }) }) }),
+          ] }) : null
+        ]
+      }
+    ) }) }),
     document.body
   );
 }

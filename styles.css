@@ -1270,13 +1270,104 @@ a.sb-map__line:hover {
 }
 .sb-vd__frame {
   position: relative;
+  /* Full-bleed hero: cancel the dialog's 1.5rem padding so the photo reaches the
+     panel edges, up to the rounded top corners (the frame clips the image). */
+  margin: -1.5rem -1.5rem 0;
+  border-radius: var(--sb-radius) var(--sb-radius) 0 0;
+  overflow: hidden;
 }
 .sb-vd__photo {
   display: block;
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
-  border-radius: var(--sb-radius);
+}
+
+/* Mobile bottom-sheet grab handle (swipe down to dismiss) — hidden on desktop. */
+.sb-modal__grabber {
+  display: none;
+}
+.sb-modal__grabber-bar {
+  width: 42px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+}
+@keyframes sb-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  /* Site modal → full-width bottom sheet (FMS-style): slides up, rounded top,
+     photo full-bleed, content scrolls, CTA pinned at the bottom, drag-to-dismiss. */
+  .sb-modal {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .sb-modal__dialog {
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    max-height: 94dvh;
+    padding: 0;
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: sb-sheet-up 0.28s ease-out;
+  }
+  .sb-modal__close {
+    z-index: 4; /* above the grabber strip */
+  }
+  .sb-modal__grabber {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    display: flex;
+    justify-content: center;
+    padding: 0.55rem 0 0.85rem;
+    touch-action: none;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0));
+    border-radius: 20px 20px 0 0;
+  }
+  /* Content scrolls; the sticky CTA pins to the bottom of the sheet. */
+  .sb-modal__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* Dialog padding is 0 on mobile → the photo is naturally full-bleed (the dialog's
+     rounded top + overflow clip it); re-pad the non-photo content sections. */
+  .sb-vd__frame {
+    margin: 0;
+    border-radius: 0;
+  }
+  .sb-vd__info {
+    padding: 0 1.25rem;
+  }
+  .sb-vd__thumbs {
+    padding: 0 1.25rem;
+  }
+  .sb-vd__cta {
+    margin: 0;
+    padding: 1rem 1.25rem;
+    border-radius: 0;
+  }
+  /* Choice / form stages have no full-bleed photo → pad + clear the grab handle. */
+  .sb-modal__body--book {
+    padding: 1.9rem 1.25rem 1.25rem;
+  }
+  .sb-modal__success {
+    padding: 2rem 1.25rem 1.5rem;
+  }
 }
 .sb-vd__nav {
   position: absolute;

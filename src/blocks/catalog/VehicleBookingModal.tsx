@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type TouchEvent as ReactTouchEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
@@ -249,6 +249,42 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
     }
   };
 
+  // Mobile bottom-sheet drag-to-dismiss (mirrors frontend_catalog's ResponsiveDialog).
+  // The grabber strip is mobile-only (CSS `display:none` ≥640px), so on desktop
+  // these handlers have no target and never fire. `touch-action:none` on the
+  // grabber stops the body from scrolling while dragging.
+  const SHEET_DISMISS_PX = 120;
+  const dragStartY = useRef(0);
+  const dragging = useRef(false);
+  const dragOffsetRef = useRef(0);
+  const [dragY, setDragY] = useState(0);
+  const [dragSmooth, setDragSmooth] = useState(false);
+
+  const onGrabStart = (e: ReactTouchEvent<HTMLDivElement>) => {
+    dragging.current = true;
+    dragStartY.current = e.touches[0].clientY;
+    dragOffsetRef.current = 0;
+    setDragSmooth(false);
+  };
+  const onGrabMove = (e: ReactTouchEvent<HTMLDivElement>) => {
+    if (!dragging.current) return;
+    const dy = Math.max(0, e.touches[0].clientY - dragStartY.current);
+    dragOffsetRef.current = dy;
+    setDragY(dy);
+  };
+  const onGrabEnd = () => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    setDragSmooth(true);
+    if (dragOffsetRef.current > SHEET_DISMISS_PX) {
+      setDragY(typeof window !== 'undefined' ? window.innerHeight : 800);
+      setTimeout(onClose, 240);
+    } else {
+      setDragY(0);
+      setTimeout(() => setDragSmooth(false), 300);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     setState('loading');
@@ -323,7 +359,25 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
     // which lives outside the page's .sb-root.
     <div className="sb-root">
     <div className="sb-modal" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="sb-modal__dialog" ref={dialogRef} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="sb-modal__dialog"
+        ref={dialogRef}
+        onClick={(e) => e.stopPropagation()}
+        style={
+          dragY > 0 || dragSmooth
+            ? { transform: `translateY(${dragY}px)`, transition: dragSmooth ? 'transform 0.3s ease-out' : 'none' }
+            : undefined
+        }
+      >
+        {/* Mobile-only grab handle (CSS-hidden ≥640px): swipe down to dismiss. */}
+        <div
+          className="sb-modal__grabber"
+          onTouchStart={onGrabStart}
+          onTouchMove={onGrabMove}
+          onTouchEnd={onGrabEnd}
+        >
+          <span className="sb-modal__grabber-bar" aria-hidden />
+        </div>
         <button type="button" className="sb-modal__close" aria-label={t.close} onClick={onClose}>
           ×
         </button>
