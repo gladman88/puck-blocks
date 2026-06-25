@@ -285,6 +285,24 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
     }
   };
 
+  // Horizontal swipe on the photo → change image (touch; arrows stay for desktop).
+  // Only a clearly-horizontal gesture counts, so vertical scrolls pass through.
+  const swipeStartX = useRef(0);
+  const swipeStartY = useRef(0);
+  const onPhotoTouchStart = (e: ReactTouchEvent<HTMLDivElement>) => {
+    swipeStartX.current = e.touches[0].clientX;
+    swipeStartY.current = e.touches[0].clientY;
+  };
+  const onPhotoTouchEnd = (e: ReactTouchEvent<HTMLDivElement>) => {
+    const count = images.length;
+    if (count < 2) return;
+    const dx = e.changedTouches[0].clientX - swipeStartX.current;
+    const dy = e.changedTouches[0].clientY - swipeStartY.current;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      setGi((i) => (dx < 0 ? (i + 1) % count : (i - 1 + count) % count));
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     setState('loading');
@@ -402,7 +420,11 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
               {/* Gallery */}
               {mainImg ? (
                 <div className="sb-vd__media">
-                  <div className="sb-vd__frame">
+                  <div
+                    className="sb-vd__frame"
+                    onTouchStart={onPhotoTouchStart}
+                    onTouchEnd={onPhotoTouchEnd}
+                  >
                     <img className="sb-vd__photo" src={mainImg} alt={d.display_name} />
                     {images.length > 1 ? (
                       <>

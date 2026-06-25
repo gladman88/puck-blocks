@@ -229,8 +229,14 @@ export function VehicleCatalog({
     const id = new URLSearchParams(window.location.search).get('vehicle');
     if (!id) return;
     const match = vehicles.find((v) => v.id === id);
-    if (match) setSelected(match);
-  }, [state, vehicles]);
+    if (!match) return;
+    setSelected(match);
+    // Scroll this block's section into view (cars vs bikes) so closing the modal
+    // leaves the visitor in the right section. Runs behind the modal overlay.
+    if (anchorId) {
+      document.getElementById(anchorId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [state, vehicles, anchorId]);
 
   // Keep the URL in sync with the open card. Guard on lastSyncedId so the sibling
   // block (which never opened anything) can't clear a deep-link param it didn't set.

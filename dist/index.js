@@ -776,6 +776,21 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
       setTimeout(() => setDragSmooth(false), 300);
     }
   };
+  const swipeStartX = useRef(0);
+  const swipeStartY = useRef(0);
+  const onPhotoTouchStart = (e) => {
+    swipeStartX.current = e.touches[0].clientX;
+    swipeStartY.current = e.touches[0].clientY;
+  };
+  const onPhotoTouchEnd = (e) => {
+    const count = images.length;
+    if (count < 2) return;
+    const dx = e.changedTouches[0].clientX - swipeStartX.current;
+    const dy = e.changedTouches[0].clientY - swipeStartY.current;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      setGi((i) => dx < 0 ? (i + 1) % count : (i - 1 + count) % count);
+    }
+  };
   useEffect(() => {
     let cancelled = false;
     setState("loading");
@@ -865,36 +880,44 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
             /* @__PURE__ */ jsx("button", { type: "button", className: "sb-btn", onClick: onClose, children: "OK" })
           ] }) : stage === "detail" ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__body", children: [
             mainImg ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__media", children: [
-              /* @__PURE__ */ jsxs("div", { className: "sb-vd__frame", children: [
-                /* @__PURE__ */ jsx("img", { className: "sb-vd__photo", src: mainImg, alt: d.display_name }),
-                images.length > 1 ? /* @__PURE__ */ jsxs(Fragment, { children: [
-                  /* @__PURE__ */ jsx(
-                    "button",
-                    {
-                      type: "button",
-                      className: "sb-vd__nav sb-vd__nav--prev",
-                      "aria-label": "\u2039",
-                      onClick: () => setGi((i) => (i - 1 + images.length) % images.length),
-                      children: "\u2039"
-                    }
-                  ),
-                  /* @__PURE__ */ jsx(
-                    "button",
-                    {
-                      type: "button",
-                      className: "sb-vd__nav sb-vd__nav--next",
-                      "aria-label": "\u203A",
-                      onClick: () => setGi((i) => (i + 1) % images.length),
-                      children: "\u203A"
-                    }
-                  ),
-                  /* @__PURE__ */ jsxs("span", { className: "sb-vd__counter", children: [
-                    gi + 1,
-                    "/",
-                    images.length
-                  ] })
-                ] }) : null
-              ] }),
+              /* @__PURE__ */ jsxs(
+                "div",
+                {
+                  className: "sb-vd__frame",
+                  onTouchStart: onPhotoTouchStart,
+                  onTouchEnd: onPhotoTouchEnd,
+                  children: [
+                    /* @__PURE__ */ jsx("img", { className: "sb-vd__photo", src: mainImg, alt: d.display_name }),
+                    images.length > 1 ? /* @__PURE__ */ jsxs(Fragment, { children: [
+                      /* @__PURE__ */ jsx(
+                        "button",
+                        {
+                          type: "button",
+                          className: "sb-vd__nav sb-vd__nav--prev",
+                          "aria-label": "\u2039",
+                          onClick: () => setGi((i) => (i - 1 + images.length) % images.length),
+                          children: "\u2039"
+                        }
+                      ),
+                      /* @__PURE__ */ jsx(
+                        "button",
+                        {
+                          type: "button",
+                          className: "sb-vd__nav sb-vd__nav--next",
+                          "aria-label": "\u203A",
+                          onClick: () => setGi((i) => (i + 1) % images.length),
+                          children: "\u203A"
+                        }
+                      ),
+                      /* @__PURE__ */ jsxs("span", { className: "sb-vd__counter", children: [
+                        gi + 1,
+                        "/",
+                        images.length
+                      ] })
+                    ] }) : null
+                  ]
+                }
+              ),
               images.length > 1 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__thumbs", children: images.map((u, i) => /* @__PURE__ */ jsx(
                 "button",
                 {
@@ -1370,8 +1393,12 @@ function VehicleCatalog({
     const id = new URLSearchParams(window.location.search).get("vehicle");
     if (!id) return;
     const match = vehicles.find((v) => v.id === id);
-    if (match) setSelected(match);
-  }, [state, vehicles]);
+    if (!match) return;
+    setSelected(match);
+    if (anchorId) {
+      document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [state, vehicles, anchorId]);
   const lastSyncedId = useRef(null);
   useEffect(() => {
     const id = selected?.id ?? null;
