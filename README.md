@@ -13,16 +13,32 @@ preview and the live page render identically.
 
 ## Install
 
-Consumed as a git dependency (no npm registry):
+Consumed as a git dependency (no npm registry), **pinned to an exact commit SHA**
+(not a branch) so installs are reproducible:
 
 ```jsonc
 // package.json
 {
   "dependencies": {
-    "puck-blocks": "github:gladman88/puck-blocks#v0.2.0"
+    "puck-blocks": "github:gladman88/puck-blocks#<commit-sha>"
   }
 }
 ```
+
+> **⚠️ A puck-blocks change is INVISIBLE to the consumers until you RE-PIN.**
+> Because they pin a fixed commit SHA, `frontend_site` and `frontend_fms` keep
+> using the OLD commit until their `package.json` SHA is bumped. Re-pinning is
+> mandatory after every functional change — never skip it.
+
+**Re-pin loop** (consumers `frontend_site` + `frontend_fms`):
+1. change `src/` → `npm run build` (commit `dist/`) → bump `version` → commit →
+   **push puck-blocks**.
+2. resolve the new SHA (`git ls-remote https://github.com/gladman88/puck-blocks.git HEAD`).
+3. in EACH consumer: `npm install github:gladman88/puck-blocks#<new-sha>` →
+   `npx tsc --noEmit` → commit the `package.json` + lockfile bump → push.
+
+Docs-only changes (no `dist/` change) don't need a re-pin. Locale parity (ru + en)
+is required for every user-facing string.
 
 For local development against a checkout in a sibling folder, use a file link
 instead (don't commit this — keep the git ref in committed code):
@@ -82,13 +98,28 @@ of truth) and fetched by the renderer.
 
 ## Blocks
 
-| Block      | Purpose                | Fields                                                        |
-| ---------- | ---------------------- | ------------------------------------------------------------- |
-| `Hero`     | Top hero section       | `heading`, `subheading`, `backgroundImage`, `ctaLabel`, `ctaHref` |
-| `RichText` | Simple text section    | `content` (blank line = new paragraph)                        |
+| Block             | Purpose                                                              |
+| ----------------- | ------------------------------------------------------------------- |
+| `SiteHeader`      | Sticky header: logo, nav anchors, contacts                          |
+| `Hero`            | Top hero section (heading, CTA, background)                         |
+| `AboutPromo`      | About / promo split section                                         |
+| `StatCounters`    | Animated stat counters                                              |
+| `FeatureCards`    | Feature grid (+ optional promo `videoUrl`)                          |
+| `VehicleCatalog`  | Live vehicle catalog (cars **or** bikes via `vehicleType`) → opens the booking modal. Fetches the public catalog API; deep-link `?vehicle=<id>` opens a card |
+| `ReviewsCarousel` | Customer reviews carousel                                           |
+| `TermsAccordion`  | Rental terms accordion                                              |
+| `RichText`        | Simple text section (blank line = new paragraph)                   |
+| `LeadForm`        | «Забронировать» callback form → backend `leads` API → manager Telegram |
+| `MapContacts`     | Map + contact block                                                |
+| `Footer`          | Footer columns + contacts                                          |
 
-Page-level (root) fields `title` / `description` / `ogImage` drive SEO metadata
-on the host site — they are not visible layout.
+The catalog modal (`catalog/VehicleBookingModal`) is a mobile bottom sheet
+(drag-to-dismiss) with a native scroll-snap photo carousel and a share/​deep-link
+action — see the root project's CLAUDE.md → "Marketing Site, Catalog & Shared
+Blocks" for the full UX contract.
+
+Page-level (root) fields `title` / `description` / `ogImage` / `favicon` drive SEO
+metadata + the tab icon on the host site — they are not visible layout.
 
 ## Develop
 
