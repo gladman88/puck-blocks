@@ -608,6 +608,9 @@ var S = {
     busy: "\u0417\u0430\u043D\u044F\u0442\u0430",
     specs: "\u0425\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438",
     allSpecs: "\u0412\u0441\u0435 \u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438",
+    accessories: "\u0414\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u043E\u043F\u0446\u0438\u0438",
+    perBooking: "\u0437\u0430 \u0431\u0440\u043E\u043D\u044C",
+    accUnavailable: "\u041D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E \u043D\u0430 \u044D\u0442\u0438 \u0434\u0430\u0442\u044B",
     deposit: "\u0414\u0435\u043F\u043E\u0437\u0438\u0442",
     prices: "\u0426\u0435\u043D\u044B",
     day: "\u0434\u0435\u043D\u044C",
@@ -664,6 +667,9 @@ var S = {
     busy: "Busy",
     specs: "Specs",
     allSpecs: "All specs",
+    accessories: "Additional Options",
+    perBooking: "per booking",
+    accUnavailable: "Not available for these dates",
     deposit: "Deposit",
     prices: "Prices",
     day: "day",
@@ -722,6 +728,7 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
   const [name, setName] = useState("");
   const [channel, setChannel] = useState("whatsapp");
   const [contact, setContact] = useState("");
+  const [accessories, setAccessories] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [stage, setStage] = useState("detail");
   const [err, setErr] = useState("");
@@ -792,6 +799,7 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
   useEffect(() => {
     let cancelled = false;
     setState("loading");
+    setAccessories({});
     fetch(`${apiBase}/api/v1/catalog/vehicles/${vehicle.id}/`, { headers: HEADERS }).then((r) => {
       if (!r.ok) throw new Error(String(r.status));
       return r.json();
@@ -817,6 +825,7 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
     setSubmitting(true);
     setErr("");
     try {
+      const selectedAccessories = Object.entries(accessories).filter(([, qty]) => qty > 0).map(([accessory_id, quantity]) => ({ accessory_id, quantity }));
       const res = await fetch(`${apiBase}/api/v1/catalog/booking-requests/`, {
         method: "POST",
         headers: { "content-type": "application/json", ...HEADERS },
@@ -826,7 +835,8 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
           end_date: end,
           customer_name: name.trim(),
           contact_channel: channel,
-          contact_identifier: contact.trim()
+          contact_identifier: contact.trim(),
+          ...selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {}
         })
       });
       if (res.ok) {
@@ -1045,6 +1055,70 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
                   " ",
                   dep.currency_code
                 ] }, i)) })
+              ] }) : null,
+              (d.accessories ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__accessories", children: [
+                /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.accessories }),
+                d.accessories.map((group) => /* @__PURE__ */ jsxs("div", { className: "sb-acc__group", children: [
+                  /* @__PURE__ */ jsxs("div", { className: "sb-acc__group-head", children: [
+                    group.photo_url ? /* @__PURE__ */ jsx("img", { className: "sb-acc__group-photo", src: group.photo_url, alt: "" }) : null,
+                    /* @__PURE__ */ jsx("span", { className: "sb-acc__group-name", children: locale === "ru" ? group.name_ru : group.name_en })
+                  ] }),
+                  /* @__PURE__ */ jsx("div", { className: "sb-acc__grid", children: group.items.map((item) => {
+                    const qty = accessories[item.id] || 0;
+                    const unavailable = item.available_stock !== null && item.available_stock <= 0;
+                    const atMax = !unavailable && item.available_stock !== null && qty >= item.available_stock;
+                    const itemName = locale === "ru" ? item.name_ru : item.name_en;
+                    return /* @__PURE__ */ jsxs(
+                      "div",
+                      {
+                        className: `sb-acc__item ${unavailable ? "is-unavailable" : ""}`,
+                        children: [
+                          /* @__PURE__ */ jsx("div", { className: "sb-acc__item-photo", children: item.photo_url ? /* @__PURE__ */ jsx("img", { src: item.photo_url, alt: itemName }) : null }),
+                          /* @__PURE__ */ jsxs("div", { className: "sb-acc__item-info", children: [
+                            /* @__PURE__ */ jsx("span", { className: "sb-acc__item-name", children: itemName }),
+                            item.price != null ? /* @__PURE__ */ jsxs("span", { className: "sb-acc__item-price", children: [
+                              Math.round(item.price).toLocaleString("en-US"),
+                              " ",
+                              t.priceUnit,
+                              " ",
+                              item.price_unit === "per_day" ? t.perDay : t.perBooking
+                            ] }) : null,
+                            unavailable ? /* @__PURE__ */ jsx("span", { className: "sb-acc__item-unavailable", children: t.accUnavailable }) : null
+                          ] }),
+                          /* @__PURE__ */ jsxs("div", { className: "sb-acc__stepper", children: [
+                            /* @__PURE__ */ jsx(
+                              "button",
+                              {
+                                type: "button",
+                                "aria-label": "-",
+                                disabled: qty === 0,
+                                onClick: () => setAccessories((prev) => {
+                                  const next = { ...prev };
+                                  if (qty - 1 <= 0) delete next[item.id];
+                                  else next[item.id] = qty - 1;
+                                  return next;
+                                }),
+                                children: "\u2212"
+                              }
+                            ),
+                            /* @__PURE__ */ jsx("span", { className: "sb-acc__stepper-value", children: qty }),
+                            /* @__PURE__ */ jsx(
+                              "button",
+                              {
+                                type: "button",
+                                "aria-label": "+",
+                                disabled: unavailable || atMax,
+                                onClick: () => setAccessories((prev) => ({ ...prev, [item.id]: qty + 1 })),
+                                children: "+"
+                              }
+                            )
+                          ] })
+                        ]
+                      },
+                      item.id
+                    );
+                  }) })
+                ] }, group.id ?? "__none__"))
               ] }) : null,
               SPEC_KEYS.some((k) => d[k]) ? (() => {
                 const present = SPEC_KEYS.filter((k) => d[k]);

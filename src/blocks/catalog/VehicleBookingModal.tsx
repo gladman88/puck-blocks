@@ -20,6 +20,29 @@ interface PricingRow {
   is_monthly: boolean;
   monthly_price?: number;
 }
+// One sellable accessory item, and its category group (Stage 5,
+// plans/paid-accessories/IMPLEMENTATION_PLAN.md §6) — mirrors
+// frontend_catalog's CatalogAccessoryItem/CatalogAccessoryCategory. `id: null`
+// on a group is the "Без категории"/"Other" fallback bucket, localized
+// server-side. available_stock is null = not asked (no date window yet) or
+// untracked — never treat null as "unavailable".
+interface CatalogAccessoryItem {
+  id: string;
+  name_ru: string;
+  name_en: string;
+  photo_url: string | null;
+  price: number | null;
+  price_unit: 'per_booking' | 'per_day';
+  stock: number | null;
+  available_stock: number | null;
+}
+interface CatalogAccessoryGroup {
+  id: string | null;
+  name_ru: string;
+  name_en: string;
+  photo_url: string | null;
+  items: CatalogAccessoryItem[];
+}
 export interface CatalogVehicleDetail extends CatalogVehicle {
   fuel_type?: string;
   transmission?: string;
@@ -40,6 +63,7 @@ export interface CatalogVehicleDetail extends CatalogVehicle {
   pricing_table?: PricingRow[];
   pricing_season_name?: string | null;
   pricing_spans_seasons?: boolean;
+  accessories?: CatalogAccessoryGroup[];
 }
 
 // Order mirrors the standalone catalog: engine → power → fuel → transmission →
@@ -87,6 +111,9 @@ const S = {
     busy: 'Занята',
     specs: 'Характеристики',
     allSpecs: 'Все характеристики',
+    accessories: 'Дополнительные опции',
+    perBooking: 'за бронь',
+    accUnavailable: 'Недоступно на эти даты',
     deposit: 'Депозит',
     prices: 'Цены',
     day: 'день',
@@ -143,6 +170,9 @@ const S = {
     busy: 'Busy',
     specs: 'Specs',
     allSpecs: 'All specs',
+    accessories: 'Additional Options',
+    perBooking: 'per booking',
+    accUnavailable: 'Not available for these dates',
     deposit: 'Deposit',
     prices: 'Prices',
     day: 'day',
@@ -220,6 +250,8 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
   const [name, setName] = useState('');
   const [channel, setChannel] = useState<'whatsapp' | 'telegram'>('whatsapp');
   const [contact, setContact] = useState('');
+  // accessory id -> quantity, picked on the detail screen (Stage 5, plan §6).
+  const [accessories, setAccessories] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [stage, setStage] = useState<'detail' | 'choice' | 'form' | 'success'>('detail');
   const [err, setErr] = useState('');
@@ -306,6 +338,8 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
   useEffect(() => {
     let cancelled = false;
     setState('loading');
+    setAccessories({}); // new vehicle → discard any stale selection (defensive: the
+    // component isn't guaranteed to remount between vehicles, see VehicleCatalog.tsx)
     fetch(`${apiBase}/api/v1/catalog/vehicles/${vehicle.id}/`, { headers: HEADERS })
       .then((r) => {
         if (!r.ok) throw new Error(String(r.status));
@@ -338,6 +372,9 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
     setSubmitting(true);
     setErr('');
     try {
+      const selectedAccessories = Object.entries(accessories)
+        .filter(([, qty]) => qty > 0)
+        .map(([accessory_id, quantity]) => ({ accessory_id, quantity }));
       const res = await fetch(`${apiBase}/api/v1/catalog/booking-requests/`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...HEADERS },
@@ -348,6 +385,7 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
           customer_name: name.trim(),
           contact_channel: channel,
           contact_identifier: contact.trim(),
+          ...(selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {}),
         }),
       });
       if (res.ok) {
@@ -623,6 +661,85 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                         </span>
                       ))}
                     </div>
+                  </div>
+                ) : null}
+
+                {/* Additional paid accessories (Stage 5) — items are never hidden
+                    for being unavailable, only dimmed; a category with nothing
+                    available at all is already omitted server-side (EC9). */}
+                {(d.accessories ?? []).length > 0 ? (
+                  <div className="sb-vd__accessories">
+                    <span className="sb-vd__section-label">{t.accessories}</span>
+                    {d.accessories!.map((group) => (
+                      <div className="sb-acc__group" key={group.id ?? '__none__'}>
+                        <div className="sb-acc__group-head">
+                          {group.photo_url ? (
+                            <img className="sb-acc__group-photo" src={group.photo_url} alt="" />
+                          ) : null}
+                          <span className="sb-acc__group-name">
+                            {locale === 'ru' ? group.name_ru : group.name_en}
+                          </span>
+                        </div>
+                        <div className="sb-acc__grid">
+                          {group.items.map((item) => {
+                            const qty = accessories[item.id] || 0;
+                            const unavailable = item.available_stock !== null && item.available_stock <= 0;
+                            const atMax = !unavailable && item.available_stock !== null && qty >= item.available_stock;
+                            const itemName = locale === 'ru' ? item.name_ru : item.name_en;
+                            return (
+                              <div
+                                className={`sb-acc__item ${unavailable ? 'is-unavailable' : ''}`}
+                                key={item.id}
+                              >
+                                <div className="sb-acc__item-photo">
+                                  {item.photo_url ? <img src={item.photo_url} alt={itemName} /> : null}
+                                </div>
+                                <div className="sb-acc__item-info">
+                                  <span className="sb-acc__item-name">{itemName}</span>
+                                  {item.price != null ? (
+                                    <span className="sb-acc__item-price">
+                                      {Math.round(item.price).toLocaleString('en-US')} {t.priceUnit}{' '}
+                                      {item.price_unit === 'per_day' ? t.perDay : t.perBooking}
+                                    </span>
+                                  ) : null}
+                                  {unavailable ? (
+                                    <span className="sb-acc__item-unavailable">{t.accUnavailable}</span>
+                                  ) : null}
+                                </div>
+                                <div className="sb-acc__stepper">
+                                  <button
+                                    type="button"
+                                    aria-label="-"
+                                    disabled={qty === 0}
+                                    onClick={() =>
+                                      setAccessories((prev) => {
+                                        const next = { ...prev };
+                                        if (qty - 1 <= 0) delete next[item.id];
+                                        else next[item.id] = qty - 1;
+                                        return next;
+                                      })
+                                    }
+                                  >
+                                    −
+                                  </button>
+                                  <span className="sb-acc__stepper-value">{qty}</span>
+                                  <button
+                                    type="button"
+                                    aria-label="+"
+                                    disabled={unavailable || atMax}
+                                    onClick={() =>
+                                      setAccessories((prev) => ({ ...prev, [item.id]: qty + 1 }))
+                                    }
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : null}
 

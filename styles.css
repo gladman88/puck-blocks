@@ -1667,6 +1667,118 @@ a.sb-map__line:hover {
   flex-direction: column;
   gap: 0.4rem;
 }
+/* Additional paid accessories (Stage 5, plans/paid-accessories/ §6) */
+.sb-vd__accessories {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.sb-acc__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.sb-acc__group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.sb-acc__group-photo {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+.sb-acc__group-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--sb-text-muted);
+}
+.sb-acc__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.5rem;
+}
+.sb-acc__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius);
+  background: var(--sb-bg-alt);
+  transition: opacity 0.15s ease;
+}
+.sb-acc__item.is-unavailable {
+  opacity: 0.45;
+}
+.sb-acc__item-photo {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--sb-surface);
+}
+.sb-acc__item-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sb-acc__item-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.sb-acc__item-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--sb-text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sb-acc__item-price {
+  font-size: 0.76rem;
+  color: var(--sb-accent);
+}
+.sb-acc__item-unavailable {
+  font-size: 0.7rem;
+  color: #f87171;
+}
+.sb-acc__stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+.sb-acc__stepper button {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--sb-border);
+  border-radius: 6px;
+  background: var(--sb-bg);
+  color: var(--sb-text);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.sb-acc__stepper button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.sb-acc__stepper-value {
+  min-width: 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--sb-text-strong);
+}
 .sb-vd__specs-toggle {
   display: flex;
   align-items: center;
