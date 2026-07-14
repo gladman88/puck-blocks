@@ -50,6 +50,15 @@ export interface VehicleCatalogProps {
   /** Telegram bot username for the quick-booking deep link in the card popup. */
   telegramBot?: string;
   /**
+   * Google Maps JS API key for the delivery-address picker in the booking
+   * popup (Stage 6, plans/paid-accessories/ §Stage 6). Infra config, not
+   * page content — deliberately NOT a Puck-editable field; defaults to
+   * `process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (see config.tsx), same
+   * pattern as frontend_fms's existing staff-only key. Undefined/empty →
+   * the picker degrades to an "unavailable" message, never a broken widget.
+   */
+  googleMapsApiKey?: string;
+  /**
    * Category name preselected on load and shown first in the tab row (e.g.
    * «Премиум» for cars, «Мотоциклы» for bikes). The «Все» tab is always last.
    * Empty / not found → «Все» is preselected.
@@ -164,6 +173,11 @@ export function VehicleCatalog({
   vehicleType = 'car',
   apiBase = '',
   telegramBot = 'shiba_cars_test_bot',
+  // Not a Puck field (see the prop's own docstring): the default reads the
+  // HOST's own env at build time. It is deliberately NOT baked into Puck's
+  // static `defaultProps` (config.tsx) — that would freeze the literal key
+  // VALUE into every page's stored JSON forever, defeating key rotation.
+  googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
   defaultCategory,
   puck,
 }: VehicleCatalogProps & PuckInjected) {
@@ -366,6 +380,7 @@ export function VehicleCatalog({
           apiBase={apiBase}
           locale={locale}
           botUsername={telegramBot.trim() || 'shiba_cars_test_bot'}
+          googleMapsApiKey={googleMapsApiKey}
           onClose={() => setSelected(null)}
         />
       ) : null}

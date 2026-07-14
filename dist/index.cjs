@@ -555,6 +555,129 @@ function buildTelegramDeepLink(botUsername, vehicleId, dates) {
   }
   return `https://t.me/${botUsername}?start=${payload}`;
 }
+function DeliveryAddressPicker({ apiKey, onSelect, unavailableText, loadingText }) {
+  const containerRef = react.useRef(null);
+  const [status, setStatus] = react.useState(
+    apiKey ? "loading" : "unavailable"
+  );
+  react.useEffect(() => {
+    if (!apiKey || !containerRef.current) return;
+    let cancelled = false;
+    let element = null;
+    let listener = null;
+    (async () => {
+      try {
+        const google = window.google;
+        if (!google) throw new Error("Google Maps bootstrap loader missing");
+        const { PlaceAutocompleteElement } = await google.maps.importLibrary("places");
+        if (cancelled || !containerRef.current) return;
+        element = new PlaceAutocompleteElement();
+        containerRef.current.appendChild(element);
+        listener = async ({ placePrediction }) => {
+          const place = placePrediction.toPlace();
+          await place.fetchFields({ fields: ["formattedAddress", "location", "id", "displayName"] });
+          if (!place.location) return;
+          onSelect({
+            address: place.formattedAddress || place.displayName || "",
+            lat: place.location.lat(),
+            lng: place.location.lng(),
+            place_id: place.id,
+            name: place.displayName
+          });
+        };
+        element.addEventListener("gmp-select", listener);
+        setStatus("ready");
+      } catch {
+        if (!cancelled) setStatus("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (element && listener) element.removeEventListener("gmp-select", listener);
+      element?.remove();
+    };
+  }, [apiKey]);
+  if (status === "unavailable") {
+    return /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vd__addr-msg", children: unavailableText });
+  }
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("div", { ref: containerRef, "data-testid": "delivery-address-picker-container" }),
+    status === "loading" && /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vd__addr-msg", children: loadingText }),
+    status === "error" && /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vd__addr-msg sb-vd__addr-msg--err", children: unavailableText })
+  ] });
+}
+function ToggleRow({ label, enabled, location, apiKey, onToggle, onSelect, unavailableText, loadingText }) {
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__addr-row", children: [
+    /* @__PURE__ */ jsxRuntime.jsxs(
+      "button",
+      {
+        type: "button",
+        role: "switch",
+        "aria-checked": enabled,
+        className: `sb-vd__addr-switch ${enabled ? "is-on" : ""}`,
+        onClick: () => onToggle(!enabled),
+        children: [
+          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__addr-switch-track", children: /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__addr-switch-thumb" }) }),
+          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__addr-switch-label", children: label })
+        ]
+      }
+    ),
+    enabled ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__addr-picker", children: [
+      /* @__PURE__ */ jsxRuntime.jsx(
+        DeliveryAddressPicker,
+        {
+          apiKey,
+          onSelect,
+          unavailableText,
+          loadingText
+        }
+      ),
+      location ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vd__addr-picked", children: location.address }) : null
+    ] }) : null
+  ] });
+}
+function DeliveryAddressSection({
+  apiKey,
+  pickupEnabled,
+  dropoffEnabled,
+  pickupLocation,
+  dropoffLocation,
+  onPickupToggle,
+  onDropoffToggle,
+  onPickupSelect,
+  onDropoffSelect,
+  strings
+}) {
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__addr-section", children: [
+    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__field-label", children: strings.title }),
+    /* @__PURE__ */ jsxRuntime.jsx(
+      ToggleRow,
+      {
+        label: strings.pickupToggle,
+        enabled: pickupEnabled,
+        location: pickupLocation,
+        apiKey,
+        onToggle: onPickupToggle,
+        onSelect: onPickupSelect,
+        unavailableText: strings.unavailable,
+        loadingText: strings.loading
+      }
+    ),
+    /* @__PURE__ */ jsxRuntime.jsx(
+      ToggleRow,
+      {
+        label: strings.dropoffToggle,
+        enabled: dropoffEnabled,
+        location: dropoffLocation,
+        apiKey,
+        onToggle: onDropoffToggle,
+        onSelect: onDropoffSelect,
+        unavailableText: strings.unavailable,
+        loadingText: strings.loading
+      }
+    )
+  ] });
+}
 var SPEC_KEYS = [
   "engine_volume",
   "horse_power",
@@ -643,6 +766,10 @@ var S = {
     sendErr: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437.",
     phonePh: "+66...",
     tgPh: "@username",
+    deliveryTitle: "\u0414\u043E\u0441\u0442\u0430\u0432\u043A\u0430",
+    deliveryPickup: "\u0414\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u043C\u0430\u0448\u0438\u043D\u0443 \u043F\u043E \u0430\u0434\u0440\u0435\u0441\u0443",
+    deliveryDropoff: "\u0417\u0430\u0431\u0435\u0440\u0451\u043C \u043C\u0430\u0448\u0438\u043D\u0443 \u043F\u043E \u0430\u0434\u0440\u0435\u0441\u0443",
+    deliveryUnavailable: "\u041F\u043E\u0438\u0441\u043A \u0430\u0434\u0440\u0435\u0441\u0430 \u0432\u0440\u0435\u043C\u0435\u043D\u043D\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D",
     labels: {
       fuel_type: "\u0422\u043E\u043F\u043B\u0438\u0432\u043E",
       transmission: "\u041A\u041F\u041F",
@@ -702,6 +829,10 @@ var S = {
     sendErr: "Could not send. Please try again.",
     phonePh: "+66...",
     tgPh: "@username",
+    deliveryTitle: "Delivery",
+    deliveryPickup: "Deliver the vehicle to my address",
+    deliveryDropoff: "We'll pick it up from my address",
+    deliveryUnavailable: "Address search is temporarily unavailable",
     labels: {
       fuel_type: "Fuel",
       transmission: "Transmission",
@@ -718,7 +849,7 @@ var S = {
   }
 };
 var HEADERS = { "ngrok-skip-browser-warning": "true" };
-function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose }) {
+function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, googleMapsApiKey, onClose }) {
   const t = S[locale];
   const [detail, setDetail] = react.useState(null);
   const [state, setState] = react.useState("loading");
@@ -731,6 +862,10 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
   const [channel, setChannel] = react.useState("whatsapp");
   const [contact, setContact] = react.useState("");
   const [accessories, setAccessories] = react.useState({});
+  const [pickupEnabled, setPickupEnabled] = react.useState(false);
+  const [dropoffEnabled, setDropoffEnabled] = react.useState(false);
+  const [pickupLocation, setPickupLocation] = react.useState(null);
+  const [dropoffLocation, setDropoffLocation] = react.useState(null);
   const [submitting, setSubmitting] = react.useState(false);
   const [stage, setStage] = react.useState("detail");
   const [err, setErr] = react.useState("");
@@ -838,7 +973,9 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
           customer_name: name.trim(),
           contact_channel: channel,
           contact_identifier: contact.trim(),
-          ...selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {}
+          ...selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {},
+          ...pickupEnabled && pickupLocation ? { pickup_location: pickupLocation } : {},
+          ...dropoffEnabled && dropoffLocation ? { dropoff_location: dropoffLocation } : {}
         })
       });
       if (res.ok) {
@@ -1325,6 +1462,33 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose })
                   }
                 )
               ] }),
+              /* @__PURE__ */ jsxRuntime.jsx(
+                DeliveryAddressSection,
+                {
+                  apiKey: googleMapsApiKey,
+                  pickupEnabled,
+                  dropoffEnabled,
+                  pickupLocation,
+                  dropoffLocation,
+                  onPickupToggle: (enabled) => {
+                    setPickupEnabled(enabled);
+                    if (!enabled) setPickupLocation(null);
+                  },
+                  onDropoffToggle: (enabled) => {
+                    setDropoffEnabled(enabled);
+                    if (!enabled) setDropoffLocation(null);
+                  },
+                  onPickupSelect: setPickupLocation,
+                  onDropoffSelect: setDropoffLocation,
+                  strings: {
+                    title: t.deliveryTitle,
+                    pickupToggle: t.deliveryPickup,
+                    dropoffToggle: t.deliveryDropoff,
+                    unavailable: t.deliveryUnavailable,
+                    loading: t.loading
+                  }
+                }
+              ),
               /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-vd__dates-summary", children: [
                 t.dateGet,
                 ": ",
@@ -1439,6 +1603,11 @@ function VehicleCatalog({
   vehicleType = "car",
   apiBase = "",
   telegramBot = "shiba_cars_test_bot",
+  // Not a Puck field (see the prop's own docstring): the default reads the
+  // HOST's own env at build time. It is deliberately NOT baked into Puck's
+  // static `defaultProps` (config.tsx) — that would freeze the literal key
+  // VALUE into every page's stored JSON forever, defeating key rotation.
+  googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
   defaultCategory,
   puck
 }) {
@@ -1590,6 +1759,7 @@ function VehicleCatalog({
         apiBase,
         locale,
         botUsername: telegramBot.trim() || "shiba_cars_test_bot",
+        googleMapsApiKey,
         onClose: () => setSelected(null)
       }
     ) : null

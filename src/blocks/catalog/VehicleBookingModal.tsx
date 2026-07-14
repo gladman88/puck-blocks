@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
 import { buildTelegramDeepLink, formatShortDate, money, nextDay, todayISO } from './dates';
+import { DeliveryAddressSection, type PickedLocation } from './DeliveryAddressSection';
 
 interface GalleryImage {
   image_url: string;
@@ -144,6 +145,10 @@ const S = {
     sendErr: 'Не удалось отправить. Попробуйте ещё раз.',
     phonePh: '+66...',
     tgPh: '@username',
+    deliveryTitle: 'Доставка',
+    deliveryPickup: 'Доставить машину по адресу',
+    deliveryDropoff: 'Заберём машину по адресу',
+    deliveryUnavailable: 'Поиск адреса временно недоступен',
     labels: {
       fuel_type: 'Топливо',
       transmission: 'КПП',
@@ -203,6 +208,10 @@ const S = {
     sendErr: 'Could not send. Please try again.',
     phonePh: '+66...',
     tgPh: '@username',
+    deliveryTitle: 'Delivery',
+    deliveryPickup: 'Deliver the vehicle to my address',
+    deliveryDropoff: "We'll pick it up from my address",
+    deliveryUnavailable: 'Address search is temporarily unavailable',
     labels: {
       fuel_type: 'Fuel',
       transmission: 'Transmission',
@@ -226,6 +235,11 @@ interface Props {
   apiBase: string;
   locale: 'ru' | 'en';
   botUsername: string;
+  /** Google Maps JS API key for the delivery-address picker (Stage 6, plan
+   *  §Stage 6). Undefined/empty → the picker degrades to an "unavailable"
+   *  message; see VehicleCatalog's default (reads
+   *  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY at the host's build time). */
+  googleMapsApiKey?: string;
   onClose: () => void;
 }
 
@@ -234,7 +248,7 @@ interface Props {
  * SAME backend endpoints: GET /catalog/vehicles/{id}/ and
  * POST /catalog/booking-requests/. Rendered in a portal to document.body.
  */
-export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onClose }: Props) {
+export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, googleMapsApiKey, onClose }: Props) {
   const t = S[locale];
   const [detail, setDetail] = useState<CatalogVehicleDetail | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -252,6 +266,13 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
   const [contact, setContact] = useState('');
   // accessory id -> quantity, picked on the detail screen (Stage 5, plan §6).
   const [accessories, setAccessories] = useState<Record<string, number>>({});
+  // Delivery/collection by address (Stage 6, plan §Stage 6) — "enabled" and
+  // "location picked" are separate: the toggle reveals the picker, but nothing
+  // is submitted until a real Places selection lands (see DeliveryAddressSection).
+  const [pickupEnabled, setPickupEnabled] = useState(false);
+  const [dropoffEnabled, setDropoffEnabled] = useState(false);
+  const [pickupLocation, setPickupLocation] = useState<PickedLocation | null>(null);
+  const [dropoffLocation, setDropoffLocation] = useState<PickedLocation | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [stage, setStage] = useState<'detail' | 'choice' | 'form' | 'success'>('detail');
   const [err, setErr] = useState('');
@@ -386,6 +407,8 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
           contact_channel: channel,
           contact_identifier: contact.trim(),
           ...(selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {}),
+          ...(pickupEnabled && pickupLocation ? { pickup_location: pickupLocation } : {}),
+          ...(dropoffEnabled && dropoffLocation ? { dropoff_location: dropoffLocation } : {}),
         }),
       });
       if (res.ok) {
@@ -956,6 +979,32 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, onC
                     onChange={(e) => setContact(e.target.value)}
                   />
                 </label>
+
+                {/* Delivery/collection by address (Stage 6) */}
+                <DeliveryAddressSection
+                  apiKey={googleMapsApiKey}
+                  pickupEnabled={pickupEnabled}
+                  dropoffEnabled={dropoffEnabled}
+                  pickupLocation={pickupLocation}
+                  dropoffLocation={dropoffLocation}
+                  onPickupToggle={(enabled) => {
+                    setPickupEnabled(enabled);
+                    if (!enabled) setPickupLocation(null);
+                  }}
+                  onDropoffToggle={(enabled) => {
+                    setDropoffEnabled(enabled);
+                    if (!enabled) setDropoffLocation(null);
+                  }}
+                  onPickupSelect={setPickupLocation}
+                  onDropoffSelect={setDropoffLocation}
+                  strings={{
+                    title: t.deliveryTitle,
+                    pickupToggle: t.deliveryPickup,
+                    dropoffToggle: t.deliveryDropoff,
+                    unavailable: t.deliveryUnavailable,
+                    loading: t.loading,
+                  }}
+                />
 
                 <p className="sb-vd__dates-summary">
                   {t.dateGet}: <b>{formatShortDate(start, locale)}</b>

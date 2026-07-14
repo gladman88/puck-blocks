@@ -1956,6 +1956,78 @@ a.sb-map__line:hover {
 .sb-btn--block {
   width: 100%;
 }
+/* Delivery/collection by address (Stage 6, plans/paid-accessories/ §Stage 6) */
+.sb-vd__addr-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.sb-vd__addr-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius);
+  background: var(--sb-bg-alt);
+}
+.sb-vd__addr-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.sb-vd__addr-switch-track {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--sb-border);
+  transition: background 0.15s ease;
+}
+.sb-vd__addr-switch.is-on .sb-vd__addr-switch-track {
+  background: var(--sb-accent);
+}
+.sb-vd__addr-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+.sb-vd__addr-switch.is-on .sb-vd__addr-switch-thumb {
+  transform: translateX(14px);
+}
+.sb-vd__addr-switch-label {
+  font-size: 0.85rem;
+  color: var(--sb-text);
+}
+.sb-vd__addr-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.sb-vd__addr-msg {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--sb-text-muted);
+}
+.sb-vd__addr-msg--err {
+  color: #f87171;
+}
+.sb-vd__addr-picked {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--sb-text-strong);
+}
 /* Window 1 → 2 split (catalog booking) */
 .sb-vd__cta {
   position: sticky;

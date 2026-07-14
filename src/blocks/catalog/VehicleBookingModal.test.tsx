@@ -190,3 +190,131 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     expect(payload.accessories).toEqual([{ accessory_id: 'acc-1', quantity: 1 }]);
   });
 });
+
+describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
+  function stubBookingFetch(detail: unknown, onBookingRequest: (body: string) => void) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        const u = String(url);
+        if (u.includes('/booking-requests/')) {
+          onBookingRequest(init?.body as string);
+          return Promise.resolve(new Response(JSON.stringify({ success: true, booking_id: 'b1' }), { status: 201 }));
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(detail), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
+  }
+
+  async function goToForm() {
+    fireEvent.click(screen.getByText('Book'));
+    fireEvent.click(await screen.findByText('Fill in manually'));
+  }
+
+  it('renders the toggles on the form step and omits location fields when nothing is toggled on', async () => {
+    let capturedBody: string | undefined;
+    stubBookingFetch(baseDetail, (b) => (capturedBody = b));
+
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+    await screen.findByText('BMW Z4');
+    await goToForm();
+
+    expect(screen.getByText('Deliver the vehicle to my address')).toBeTruthy();
+    expect(screen.getByText("We'll pick it up from my address")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
+    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66123456' } });
+    fireEvent.click(screen.getByText('Send request'));
+
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    const payload = JSON.parse(capturedBody!);
+    expect(payload.pickup_location).toBeUndefined();
+    expect(payload.dropoff_location).toBeUndefined();
+  });
+
+  it('toggling pickup on with no API key configured shows the unavailable message and still omits the field', async () => {
+    let capturedBody: string | undefined;
+    stubBookingFetch(baseDetail, (b) => (capturedBody = b));
+
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+    await screen.findByText('BMW Z4');
+    await goToForm();
+
+    fireEvent.click(screen.getAllByRole('switch')[0]);
+    expect(screen.getByText('Address search is temporarily unavailable')).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
+    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66123456' } });
+    fireEvent.click(screen.getByText('Send request'));
+
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    const payload = JSON.parse(capturedBody!);
+    expect(payload.pickup_location).toBeUndefined();
+  });
+
+  it('includes pickup_location in the payload once a location is actually picked', async () => {
+    let capturedBody: string | undefined;
+    stubBookingFetch(baseDetail, (b) => (capturedBody = b));
+
+    class FakeAutocompleteElement {
+      constructor() {
+        return document.createElement('div');
+      }
+    }
+    window.google = {
+      maps: {
+        importLibrary: vi.fn().mockResolvedValue({ PlaceAutocompleteElement: FakeAutocompleteElement }),
+      },
+    };
+
+    render(
+      <VehicleBookingModal
+        vehicle={vehicle}
+        apiBase=""
+        locale="en"
+        botUsername="test_bot"
+        googleMapsApiKey="test-key"
+        onClose={vi.fn()}
+      />,
+    );
+    await screen.findByText('BMW Z4');
+    await goToForm();
+
+    fireEvent.click(screen.getAllByRole('switch')[0]);
+    const fakeElement = await waitFor(() => {
+      const container = screen.getByTestId('delivery-address-picker-container');
+      const el = container.firstElementChild;
+      expect(el).not.toBeNull();
+      return el as HTMLDivElement;
+    });
+    const event = new Event('gmp-select') as Event & { placePrediction: unknown };
+    event.placePrediction = {
+      toPlace: () => ({
+        formattedAddress: 'Patong Beach Road',
+        id: 'place-1',
+        location: { lat: () => 7.9, lng: () => 98.29 },
+        fetchFields: vi.fn().mockResolvedValue(undefined),
+      }),
+    };
+    fakeElement.dispatchEvent(event);
+    await screen.findByText('Patong Beach Road');
+
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
+    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66123456' } });
+    fireEvent.click(screen.getByText('Send request'));
+
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    const payload = JSON.parse(capturedBody!);
+    expect(payload.pickup_location).toEqual({
+      address: 'Patong Beach Road',
+      lat: 7.9,
+      lng: 98.29,
+      place_id: 'place-1',
+    });
+    expect(payload.dropoff_location).toBeUndefined();
+
+    delete window.google;
+  });
+});
