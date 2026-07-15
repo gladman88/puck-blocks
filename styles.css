@@ -1672,47 +1672,43 @@ a.sb-map__line:hover {
   flex-direction: column;
   gap: 0.4rem;
 }
-/* Additional paid accessories (Stage 5, plans/paid-accessories/ §6) */
+/* Additional paid accessories (Stage 5, plans/paid-accessories/ §6) — a
+   SINGLE horizontal scroll-snap row, not a grid (design review 2026-07-16):
+   a grid would otherwise grow the modal's height indefinitely with many
+   items. Native scroll-snap gives a proper finger-swipe feel on mobile; the
+   thin, visible scrollbar doubles as a desktop drag "slider". */
 .sb-vd__accessories {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
-.sb-acc__group {
+.sb-acc__row {
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-.sb-acc__group-head {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-.sb-acc__group-photo {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  object-fit: cover;
-  flex: 0 0 auto;
-}
-.sb-acc__group-name {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--sb-text-muted);
-}
-.sb-acc__grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
   gap: 0.6rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  padding-bottom: 0.4rem;
+  /* Bleed to the dialog's own edge padding so the row reaches the sheet
+     edges — MUST match .sb-modal__dialog's padding (1.5rem) / .sb-vd__info's
+     mobile override (1.25rem, ≤640px) below, or the row misaligns. */
+  margin: 0 -1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
 }
-@media (min-width: 480px) {
-  .sb-acc__grid {
-    grid-template-columns: repeat(3, 1fr);
+@media (max-width: 640px) {
+  .sb-acc__row {
+    margin: 0 -1.25rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
   }
 }
 .sb-acc__item {
   display: flex;
   flex-direction: column;
+  width: 150px;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
   overflow: hidden;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius);
@@ -1722,13 +1718,26 @@ a.sb-map__line:hover {
 .sb-acc__item.is-unavailable {
   opacity: 0.45;
 }
+.sb-acc__item-category {
+  padding: 0.5rem 0.5rem 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--sb-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .sb-acc__item-photo {
-  width: 100%;
+  width: calc(100% - 1rem);
+  margin: 0.25rem 0.5rem 0;
   aspect-ratio: 1 / 1;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  border-radius: 8px;
   background: var(--sb-surface);
 }
 .sb-acc__item-photo img {
@@ -1759,16 +1768,18 @@ a.sb-map__line:hover {
   font-size: 0.7rem;
   color: #f87171;
 }
+/* 44x44 touch targets (Apple HIG / Material minimum) — was 24x24. */
 .sb-acc__stepper {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.35rem;
+  margin: 0.25rem -0.5rem -0.5rem;
   padding: 0.4rem 0.5rem 0.5rem;
 }
 .sb-acc__stepper button {
-  width: 24px;
-  height: 24px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;

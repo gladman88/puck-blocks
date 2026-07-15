@@ -1197,21 +1197,19 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, googleMaps
               ] }) : null,
               (d.accessories ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__accessories", children: [
                 /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.accessories }),
-                d.accessories.map((group) => /* @__PURE__ */ jsxs("div", { className: "sb-acc__group", children: [
-                  /* @__PURE__ */ jsxs("div", { className: "sb-acc__group-head", children: [
-                    group.photo_url ? /* @__PURE__ */ jsx("img", { className: "sb-acc__group-photo", src: group.photo_url, alt: "" }) : null,
-                    /* @__PURE__ */ jsx("span", { className: "sb-acc__group-name", children: locale === "ru" ? group.name_ru : group.name_en })
-                  ] }),
-                  /* @__PURE__ */ jsx("div", { className: "sb-acc__grid", children: group.items.map((item) => {
+                /* @__PURE__ */ jsx("div", { className: "sb-acc__row", children: d.accessories.flatMap(
+                  (group) => group.items.map((item) => {
                     const qty = accessories[item.id] || 0;
                     const unavailable = item.available_stock !== null && item.available_stock <= 0;
                     const atMax = !unavailable && item.available_stock !== null && qty >= item.available_stock;
                     const itemName = locale === "ru" ? item.name_ru : item.name_en;
+                    const categoryName = locale === "ru" ? group.name_ru : group.name_en;
                     return /* @__PURE__ */ jsxs(
                       "div",
                       {
                         className: `sb-acc__item ${unavailable ? "is-unavailable" : ""}`,
                         children: [
+                          /* @__PURE__ */ jsx("span", { className: "sb-acc__item-category", children: categoryName }),
                           /* @__PURE__ */ jsx("div", { className: "sb-acc__item-photo", children: item.photo_url ? /* @__PURE__ */ jsx("img", { src: item.photo_url, alt: itemName }) : null }),
                           /* @__PURE__ */ jsxs("div", { className: "sb-acc__item-info", children: [
                             /* @__PURE__ */ jsx("span", { className: "sb-acc__item-name", children: itemName }),
@@ -1256,8 +1254,8 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, googleMaps
                       },
                       item.id
                     );
-                  }) })
-                ] }, group.id ?? "__none__"))
+                  })
+                ) })
               ] }) : null,
               (d.options ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__equipment-wrap", children: [
                 /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.equipment }),

@@ -689,82 +689,84 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, goo
                   </div>
                 ) : null}
 
-                {/* Additional paid accessories (Stage 5) — items are never hidden
-                    for being unavailable, only dimmed; a category with nothing
+                {/* Additional paid accessories (Stage 5) — a SINGLE horizontal
+                    scroll-snap row, not a grid (design review 2026-07-16):
+                    with many categories/items a grid would otherwise grow
+                    the modal's height indefinitely. Categories are
+                    flattened into one ordered list (never interleaved —
+                    all of one category's items before the next); each tile
+                    carries its OWN small category caption above it, since
+                    there's no room for a sticky group header in a
+                    horizontal strip. Items are never hidden for being
+                    unavailable, only dimmed; a category with nothing
                     available at all is already omitted server-side (EC9). */}
                 {(d.accessories ?? []).length > 0 ? (
                   <div className="sb-vd__accessories">
                     <span className="sb-vd__section-label">{t.accessories}</span>
-                    {d.accessories!.map((group) => (
-                      <div className="sb-acc__group" key={group.id ?? '__none__'}>
-                        <div className="sb-acc__group-head">
-                          {group.photo_url ? (
-                            <img className="sb-acc__group-photo" src={group.photo_url} alt="" />
-                          ) : null}
-                          <span className="sb-acc__group-name">
-                            {locale === 'ru' ? group.name_ru : group.name_en}
-                          </span>
-                        </div>
-                        <div className="sb-acc__grid">
-                          {group.items.map((item) => {
-                            const qty = accessories[item.id] || 0;
-                            const unavailable = item.available_stock !== null && item.available_stock <= 0;
-                            const atMax = !unavailable && item.available_stock !== null && qty >= item.available_stock;
-                            const itemName = locale === 'ru' ? item.name_ru : item.name_en;
-                            return (
-                              <div
-                                className={`sb-acc__item ${unavailable ? 'is-unavailable' : ''}`}
-                                key={item.id}
-                              >
-                                <div className="sb-acc__item-photo">
-                                  {item.photo_url ? <img src={item.photo_url} alt={itemName} /> : null}
-                                </div>
-                                <div className="sb-acc__item-info">
-                                  <span className="sb-acc__item-name">{itemName}</span>
-                                  {item.price != null ? (
-                                    <span className="sb-acc__item-price">
-                                      {Math.round(item.price).toLocaleString('en-US')} {t.priceUnit}{' '}
-                                      {item.price_unit === 'per_day' ? t.perDay : t.perBooking}
-                                    </span>
-                                  ) : null}
-                                  {unavailable ? (
-                                    <span className="sb-acc__item-unavailable">{t.accUnavailable}</span>
-                                  ) : null}
-                                </div>
-                                <div className="sb-acc__stepper">
-                                  <button
-                                    type="button"
-                                    aria-label="-"
-                                    disabled={qty === 0}
-                                    onClick={() =>
-                                      setAccessories((prev) => {
-                                        const next = { ...prev };
-                                        if (qty - 1 <= 0) delete next[item.id];
-                                        else next[item.id] = qty - 1;
-                                        return next;
-                                      })
-                                    }
-                                  >
-                                    −
-                                  </button>
-                                  <span className="sb-acc__stepper-value">{qty}</span>
-                                  <button
-                                    type="button"
-                                    aria-label="+"
-                                    disabled={unavailable || atMax}
-                                    onClick={() =>
-                                      setAccessories((prev) => ({ ...prev, [item.id]: qty + 1 }))
-                                    }
-                                  >
-                                    +
-                                  </button>
-                                </div>
+                    <div className="sb-acc__row">
+                      {d.accessories!.flatMap((group) =>
+                        group.items.map((item) => {
+                          const qty = accessories[item.id] || 0;
+                          const unavailable = item.available_stock !== null && item.available_stock <= 0;
+                          const atMax = !unavailable && item.available_stock !== null && qty >= item.available_stock;
+                          const itemName = locale === 'ru' ? item.name_ru : item.name_en;
+                          const categoryName = locale === 'ru' ? group.name_ru : group.name_en;
+                          return (
+                            <div
+                              className={`sb-acc__item ${unavailable ? 'is-unavailable' : ''}`}
+                              key={item.id}
+                            >
+                              <span className="sb-acc__item-category">{categoryName}</span>
+                              <div className="sb-acc__item-photo">
+                                {item.photo_url ? <img src={item.photo_url} alt={itemName} /> : null}
                               </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
+                              <div className="sb-acc__item-info">
+                                <span className="sb-acc__item-name">{itemName}</span>
+                                {item.price != null ? (
+                                  <span className="sb-acc__item-price">
+                                    {Math.round(item.price).toLocaleString('en-US')} {t.priceUnit}{' '}
+                                    {item.price_unit === 'per_day' ? t.perDay : t.perBooking}
+                                  </span>
+                                ) : null}
+                                {unavailable ? (
+                                  <span className="sb-acc__item-unavailable">{t.accUnavailable}</span>
+                                ) : null}
+                              </div>
+                              {/* 44x44 touch targets (Apple HIG / Material minimum) —
+                                  was a compact inline row, too small to tap comfortably. */}
+                              <div className="sb-acc__stepper">
+                                <button
+                                  type="button"
+                                  aria-label="-"
+                                  disabled={qty === 0}
+                                  onClick={() =>
+                                    setAccessories((prev) => {
+                                      const next = { ...prev };
+                                      if (qty - 1 <= 0) delete next[item.id];
+                                      else next[item.id] = qty - 1;
+                                      return next;
+                                    })
+                                  }
+                                >
+                                  −
+                                </button>
+                                <span className="sb-acc__stepper-value">{qty}</span>
+                                <button
+                                  type="button"
+                                  aria-label="+"
+                                  disabled={unavailable || atMax}
+                                  onClick={() =>
+                                    setAccessories((prev) => ({ ...prev, [item.id]: qty + 1 }))
+                                  }
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }),
+                      )}
+                    </div>
                   </div>
                 ) : null}
 
