@@ -32,7 +32,14 @@ export { LeadForm } from './blocks/LeadForm';
 export type { LeadFormProps } from './blocks/LeadForm';
 
 export { VehicleCatalog } from './blocks/VehicleCatalog';
-export type { VehicleCatalogProps, CatalogVehicle, CatalogCategory } from './blocks/VehicleCatalog';
+export type {
+  VehicleCatalogProps,
+  CatalogVehicle,
+  CatalogCategory,
+  TelegramCatalogUser,
+  CatalogFilterState,
+  CatalogSortOption,
+} from './blocks/VehicleCatalog';
 
 export { MapContacts } from './blocks/MapContacts';
 export type { MapContactsProps } from './blocks/MapContacts';

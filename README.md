@@ -105,7 +105,7 @@ of truth) and fetched by the renderer.
 | `AboutPromo`      | About / promo split section                                         |
 | `StatCounters`    | Animated stat counters                                              |
 | `FeatureCards`    | Feature grid (+ optional promo `videoUrl`)                          |
-| `VehicleCatalog`  | Live vehicle catalog (cars **or** bikes via `vehicleType`) → opens the booking modal. Fetches the public catalog API; deep-link `?vehicle=<id>` opens a card |
+| `VehicleCatalog`  | Live vehicle catalog (cars **or** bikes via `vehicleType`) → opens the booking modal. Fetches the public catalog API; deep-link `?vehicle=<id>` opens a card. Optional `showFilters` renders a full type/category/search/date/sort filter bar instead of category tabs (default off — site behavior unchanged); optional `referralCode` / `telegramUser` thread agent attribution and Telegram Mini App prefill into the booking flow (both host-supplied, this block never reads `window.Telegram`/localStorage itself) |
 | `ReviewsCarousel` | Customer reviews carousel                                           |
 | `TermsAccordion`  | Rental terms accordion                                              |
 | `RichText`        | Simple text section (blank line = new paragraph)                   |

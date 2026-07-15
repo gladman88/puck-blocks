@@ -425,3 +425,155 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     delete window.google;
   });
 });
+
+describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-blocks §4.1b)', () => {
+  function stubBookingFetch(detail: unknown, onBookingRequest: (body: string) => void) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        const u = String(url);
+        if (u.includes('/booking-requests/')) {
+          onBookingRequest(init?.body as string);
+          return Promise.resolve(new Response(JSON.stringify({ success: true, booking_id: 'b1' }), { status: 201 }));
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(detail), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
+  }
+
+  async function submitManualForm() {
+    fireEvent.click(screen.getByText('Book'));
+    fireEvent.click(await screen.findByText('Fill in manually'));
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
+    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66123456' } });
+    fireEvent.click(screen.getByText('Send request'));
+  }
+
+  it('adds referral_code to the booking payload when set', async () => {
+    let capturedBody: string | undefined;
+    stubBookingFetch(baseDetail, (b) => (capturedBody = b));
+    render(
+      <VehicleBookingModal
+        vehicle={vehicle}
+        apiBase=""
+        locale="en"
+        botUsername="test_bot"
+        referralCode="AG1234"
+        onClose={vi.fn()}
+      />,
+    );
+    await screen.findByText('BMW Z4');
+    await submitManualForm();
+
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    expect(JSON.parse(capturedBody!).referral_code).toBe('AG1234');
+  });
+
+  it('omits referral_code entirely when absent (current site behavior)', async () => {
+    let capturedBody: string | undefined;
+    stubBookingFetch(baseDetail, (b) => (capturedBody = b));
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+    await screen.findByText('BMW Z4');
+    await submitManualForm();
+
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    expect('referral_code' in JSON.parse(capturedBody!)).toBe(false);
+  });
+
+  it('appends the referral code to the Telegram quick-book deep link', async () => {
+    stubDetailFetch(baseDetail);
+    render(
+      <VehicleBookingModal
+        vehicle={vehicle}
+        apiBase=""
+        locale="en"
+        botUsername="test_bot"
+        referralCode="AG1234"
+        onClose={vi.fn()}
+      />,
+    );
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    await screen.findByText('1-click booking via Telegram');
+
+    const tgLink = document.querySelector('.sb-vd__tg-card') as HTMLAnchorElement;
+    expect(tgLink.href).toContain('_AG1234');
+  });
+
+  it('appends &ref= to the share link when a referral code is set', async () => {
+    stubDetailFetch(baseDetail);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+    render(
+      <VehicleBookingModal
+        vehicle={vehicle}
+        apiBase=""
+        locale="en"
+        botUsername="test_bot"
+        referralCode="AG1234"
+        onClose={vi.fn()}
+      />,
+    );
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByLabelText('Share'));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    const sharedUrl = writeText.mock.calls[0][0] as string;
+    expect(sharedUrl).toContain('ref=AG1234');
+  });
+});
+
+describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-puck-blocks §4.1c)', () => {
+  it('prefills name/channel/contact from telegramUser and echoes telegram_user_data in the payload', async () => {
+    let capturedBody: string | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        const u = String(url);
+        if (u.includes('/booking-requests/')) {
+          capturedBody = init?.body as string;
+          return Promise.resolve(new Response(JSON.stringify({ success: true, booking_id: 'b1' }), { status: 201 }));
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
+
+    render(
+      <VehicleBookingModal
+        vehicle={vehicle}
+        apiBase=""
+        locale="en"
+        botUsername="test_bot"
+        telegramUser={{ user_id: 42, username: 'ivan_p', first_name: 'Ivan' }}
+        onClose={vi.fn()}
+      />,
+    );
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    fireEvent.click(await screen.findByText('Fill in manually'));
+
+    expect((screen.getByLabelText('Your name') as HTMLInputElement).value).toBe('Ivan');
+    expect((screen.getByLabelText('Phone number') as HTMLInputElement).value).toBe('@ivan_p');
+
+    fireEvent.click(screen.getByText('Send request'));
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    const payload = JSON.parse(capturedBody!);
+    expect(payload.telegram_user_data).toEqual({ user_id: 42, username: 'ivan_p', first_name: 'Ivan' });
+  });
+
+  it('defaults to WhatsApp with an empty name/contact when telegramUser is absent', async () => {
+    stubDetailFetch(baseDetail);
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    fireEvent.click(await screen.findByText('Fill in manually'));
+
+    expect((screen.getByLabelText('Your name') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Phone number') as HTMLInputElement).value).toBe('');
+  });
+});

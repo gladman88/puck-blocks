@@ -40,15 +40,25 @@ export function formatShortDate(isoDate: string, lang: 'en' | 'ru'): string {
   });
 }
 
-/** Telegram deep link for catalog booking — mirrors frontend_catalog/services/deeplink. */
+/**
+ * Telegram deep link for catalog booking — mirrors frontend_catalog/services/deeplink.
+ * Format: bk_<vehicle_hex>[_<startYYYYMMDD>_<endYYYYMMDD>][_<referralCode>].
+ * `start` payload is capped at 64 chars by Telegram; a UUID-hex vehicle id (32)
+ * + dates (17) + a referral code (max 20, per apps.agents.models.ReferralCode)
+ * fits comfortably, so no truncation is needed here (matches the standalone).
+ */
 export function buildTelegramDeepLink(
   botUsername: string,
   vehicleId: string,
   dates?: { from?: string; to?: string },
+  referralCode?: string | null,
 ): string {
   let payload = `bk_${vehicleId.replace(/-/g, '')}`;
   if (dates?.from && dates?.to) {
     payload += `_${dates.from.replace(/-/g, '')}_${dates.to.replace(/-/g, '')}`;
+  }
+  if (referralCode) {
+    payload += `_${referralCode}`;
   }
   return `https://t.me/${botUsername}?start=${payload}`;
 }

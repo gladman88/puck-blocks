@@ -46,4 +46,18 @@ describe('date helpers', () => {
       'https://t.me/bot?start=bk_abc_20260619_20260620',
     );
   });
+
+  it('appends the referral code when set, with or without dates', () => {
+    expect(buildTelegramDeepLink('bot', 'a-b-c', undefined, 'AG1234')).toBe(
+      'https://t.me/bot?start=bk_abc_AG1234',
+    );
+    expect(
+      buildTelegramDeepLink('bot', 'a-b-c', { from: '2026-06-19', to: '2026-06-20' }, 'AG1234'),
+    ).toBe('https://t.me/bot?start=bk_abc_20260619_20260620_AG1234');
+  });
+
+  it('omits the referral suffix when the code is null/empty', () => {
+    expect(buildTelegramDeepLink('bot', 'a-b-c', undefined, null)).toBe('https://t.me/bot?start=bk_abc');
+    expect(buildTelegramDeepLink('bot', 'a-b-c', undefined, '')).toBe('https://t.me/bot?start=bk_abc');
+  });
 });

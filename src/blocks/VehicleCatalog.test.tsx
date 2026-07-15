@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { VehicleCatalog } from './VehicleCatalog';
 
 afterEach(() => {
@@ -153,5 +153,100 @@ describe('VehicleCatalog', () => {
       <VehicleCatalog vehicleType="car" puck={{ metadata: { locale: 'en' } }} />,
     );
     await findByText('on request');
+  });
+
+  it('an explicit locale prop overrides puck metadata locale (non-Puck hosts have no puck prop at all)', async () => {
+    stubFetch([cat], [{ ...vehicle, min_price_per_day: null, is_available: false, free_from: null }]);
+    const { findByText } = render(<VehicleCatalog vehicleType="car" locale="en" />);
+    await findByText('on request');
+  });
+});
+
+describe('VehicleCatalog — showFilters=false (site) backward-compat guard', () => {
+  it('renders no filter bar and fetches the exact same URL as before showFilters existed', async () => {
+    const fetchMock = vi.fn((url: string) => {
+      const body = String(url).includes('/categories/') ? [cat] : [vehicle];
+      return Promise.resolve(
+        new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } }),
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { container, findByText } = render(<VehicleCatalog vehicleType="car" apiBase="" />);
+    await findByText('BMW Z4');
+
+    expect(container.querySelector('.sb-filterbar')).toBeNull();
+    const vehiclesCall = fetchMock.mock.calls.find(([u]) => String(u).includes('/vehicles/'));
+    expect(vehiclesCall?.[0]).toBe('/api/v1/catalog/vehicles/?vehicle_type=car');
+  });
+});
+
+describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
+  function stubFilteredFetch() {
+    const fetchMock = vi.fn((url: string) => {
+      const u = String(url);
+      const body = u.includes('/categories/') ? [cat] : [vehicle];
+      return Promise.resolve(
+        new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } }),
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('renders the filter bar instead of category tabs', async () => {
+    const fetchMock = stubFilteredFetch();
+    const { container, findByText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
+    await findByText('BMW Z4');
+
+    expect(container.querySelector('.sb-filterbar')).not.toBeNull();
+    expect(container.querySelector('.sb-vcatalog__tabs')).toBeNull();
+    // Starts unfiltered ("Все") — no vehicle_type in the initial request.
+    const firstVehiclesCall = fetchMock.mock.calls.find(([u]) => String(u).includes('/vehicles/'));
+    expect(firstVehiclesCall?.[0]).toBe('/api/v1/catalog/vehicles/');
+  });
+
+  it('clicking the Cars pill re-fetches with vehicle_type=car', async () => {
+    const fetchMock = stubFilteredFetch();
+    const { findByText, getByText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
+    await findByText('BMW Z4');
+
+    fireEvent.click(getByText('Cars'));
+    await waitFor(() => {
+      const last = fetchMock.mock.calls.filter(([u]) => String(u).includes('/vehicles/')).pop();
+      expect(last?.[0]).toBe('/api/v1/catalog/vehicles/?vehicle_type=car');
+    });
+  });
+
+  it('debounces the search field (300ms) but applies other filters immediately', async () => {
+    const fetchMock = stubFilteredFetch();
+    const { getByPlaceholderText, getByText, findByText } = render(
+      <VehicleCatalog showFilters apiBase="" locale="en" />,
+    );
+    await findByText('BMW Z4');
+
+    const callsBefore = fetchMock.mock.calls.length;
+    fireEvent.change(getByPlaceholderText('Search...'), { target: { value: 'BMW' } });
+    // Not yet — well under the 300ms debounce.
+    expect(fetchMock.mock.calls.length).toBe(callsBefore);
+
+    await waitFor(() => {
+      const searchCall = fetchMock.mock.calls.filter(([u]) => String(u).includes('/vehicles/')).pop();
+      expect(searchCall?.[0]).toContain('search=BMW');
+    });
+
+    // A non-search filter (type pill) applies immediately, no debounce wait.
+    const callsAfterSearch = fetchMock.mock.calls.length;
+    fireEvent.click(getByText('Cars'));
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(callsAfterSearch);
+    });
+  });
+
+  it('category badge is shown on cards (parity with the standalone catalog, which has no "all" tab gate)', async () => {
+    stubFilteredFetch();
+    const { container, findByText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
+    await findByText('BMW Z4');
+    expect(container.querySelector('.sb-vcard__badge')).not.toBeNull();
   });
 });

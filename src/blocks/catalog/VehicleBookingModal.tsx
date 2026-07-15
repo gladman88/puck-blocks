@@ -237,6 +237,16 @@ const S = {
 
 const HEADERS = { 'ngrok-skip-browser-warning': 'true' };
 
+/** Telegram Mini App user, forwarded by the HOST app from its own
+ *  `window.Telegram.WebApp.initData` — this component never reads
+ *  `window.Telegram` itself (see VehicleCatalogProps.telegramUser). */
+export interface TelegramCatalogUser {
+  user_id: number;
+  username?: string;
+  first_name?: string;
+  language_code?: string;
+}
+
 interface Props {
   vehicle: CatalogVehicle;
   apiBase: string;
@@ -247,6 +257,14 @@ interface Props {
    *  message; see VehicleCatalog's default (reads
    *  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY at the host's build time). */
   googleMapsApiKey?: string;
+  /** Agent/referral attribution code (`?ref=`) — captured by the HOST app
+   *  (see VehicleCatalogProps.referralCode). Threaded into the booking
+   *  payload, the Telegram deep link, and the share link. */
+  referralCode?: string | null;
+  /** Telegram Mini App user — prefills name/contact and is echoed into the
+   *  booking payload as `telegram_user_data` (parity with frontend_catalog's
+   *  BookingForm). */
+  telegramUser?: TelegramCatalogUser | null;
   onClose: () => void;
 }
 
@@ -255,7 +273,16 @@ interface Props {
  * SAME backend endpoints: GET /catalog/vehicles/{id}/ and
  * POST /catalog/booking-requests/. Rendered in a portal to document.body.
  */
-export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, googleMapsApiKey, onClose }: Props) {
+export function VehicleBookingModal({
+  vehicle,
+  apiBase,
+  locale,
+  botUsername,
+  googleMapsApiKey,
+  referralCode,
+  telegramUser,
+  onClose,
+}: Props) {
   const t = S[locale];
   const [detail, setDetail] = useState<CatalogVehicleDetail | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -268,9 +295,12 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, goo
       : todayISO();
   const [start, setStart] = useState(minStart);
   const [end, setEnd] = useState(nextDay(minStart));
-  const [name, setName] = useState('');
-  const [channel, setChannel] = useState<'whatsapp' | 'telegram'>('whatsapp');
-  const [contact, setContact] = useState('');
+  // Prefill from the Telegram Mini App user, if the host passed one (parity
+  // with frontend_catalog's BookingForm — name/channel/contact are just a
+  // starting point, still editable).
+  const [name, setName] = useState(telegramUser?.first_name || '');
+  const [channel, setChannel] = useState<'whatsapp' | 'telegram'>(telegramUser ? 'telegram' : 'whatsapp');
+  const [contact, setContact] = useState(telegramUser?.username ? `@${telegramUser.username}` : '');
   // accessory id -> quantity, picked on the detail screen (Stage 5, plan §6).
   const [accessories, setAccessories] = useState<Record<string, number>>({});
   // Fullscreen accessory-photo preview (Stage 5.5, design review 2026-07-16)
@@ -298,6 +328,9 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, goo
   const handleShare = async () => {
     const url = new URL(window.location.href);
     url.searchParams.set('vehicle', vehicle.id);
+    // Preserve agent attribution across a re-share (parity with the standalone
+    // catalog's VehicleDetail — a forwarded link must keep crediting the agent).
+    if (referralCode) url.searchParams.set('ref', referralCode);
     const shareUrl = url.toString();
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
@@ -422,6 +455,16 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, goo
           customer_name: name.trim(),
           contact_channel: channel,
           contact_identifier: contact.trim(),
+          ...(referralCode ? { referral_code: referralCode } : {}),
+          ...(telegramUser?.user_id
+            ? {
+                telegram_user_data: {
+                  user_id: telegramUser.user_id,
+                  username: telegramUser.username,
+                  first_name: telegramUser.first_name,
+                },
+              }
+            : {}),
           ...(selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {}),
           ...(pickupEnabled && pickupLocation ? { pickup_location: pickupLocation } : {}),
           ...(dropoffEnabled && dropoffLocation ? { dropoff_location: dropoffLocation } : {}),
@@ -447,7 +490,12 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, goo
   const gallery = galleryUrls.length ? galleryUrls : fallbackImg ? [fallbackImg] : [];
   const mainImg = gallery[gi] || fallbackImg || '';
   const tgHref = safeHref(
-    buildTelegramDeepLink(botUsername, vehicle.id, datesValid ? { from: start, to: end } : undefined),
+    buildTelegramDeepLink(
+      botUsername,
+      vehicle.id,
+      datesValid ? { from: start, to: end } : undefined,
+      referralCode,
+    ),
   );
   const price = d?.min_price_per_day ?? vehicle.min_price_per_day;
 

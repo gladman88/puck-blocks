@@ -1,5 +1,5 @@
 import { jsxs, jsx, Fragment } from 'react/jsx-runtime';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 
 // src/sanitize.ts
@@ -546,10 +546,13 @@ function formatShortDate(isoDate, lang) {
     timeZone: "UTC"
   });
 }
-function buildTelegramDeepLink(botUsername, vehicleId, dates) {
+function buildTelegramDeepLink(botUsername, vehicleId, dates, referralCode) {
   let payload = `bk_${vehicleId.replace(/-/g, "")}`;
   if (dates?.from && dates?.to) {
     payload += `_${dates.from.replace(/-/g, "")}_${dates.to.replace(/-/g, "")}`;
+  }
+  if (referralCode) {
+    payload += `_${referralCode}`;
   }
   return `https://t.me/${botUsername}?start=${payload}`;
 }
@@ -851,7 +854,16 @@ var S = {
   }
 };
 var HEADERS = { "ngrok-skip-browser-warning": "true" };
-function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, googleMapsApiKey, onClose }) {
+function VehicleBookingModal({
+  vehicle,
+  apiBase,
+  locale,
+  botUsername,
+  googleMapsApiKey,
+  referralCode,
+  telegramUser,
+  onClose
+}) {
   const t = S[locale];
   const [detail, setDetail] = useState(null);
   const [state, setState] = useState("loading");
@@ -860,9 +872,9 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, googleMaps
   const minStart = !vehicle.is_available && vehicle.free_from && vehicle.free_from > todayISO() ? vehicle.free_from : todayISO();
   const [start, setStart] = useState(minStart);
   const [end, setEnd] = useState(nextDay(minStart));
-  const [name, setName] = useState("");
-  const [channel, setChannel] = useState("whatsapp");
-  const [contact, setContact] = useState("");
+  const [name, setName] = useState(telegramUser?.first_name || "");
+  const [channel, setChannel] = useState(telegramUser ? "telegram" : "whatsapp");
+  const [contact, setContact] = useState(telegramUser?.username ? `@${telegramUser.username}` : "");
   const [accessories, setAccessories] = useState({});
   const [accessoryLightbox, setAccessoryLightbox] = useState(null);
   const [pickupEnabled, setPickupEnabled] = useState(false);
@@ -877,6 +889,7 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, googleMaps
   const handleShare = async () => {
     const url = new URL(window.location.href);
     url.searchParams.set("vehicle", vehicle.id);
+    if (referralCode) url.searchParams.set("ref", referralCode);
     const shareUrl = url.toString();
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
@@ -977,6 +990,14 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, googleMaps
           customer_name: name.trim(),
           contact_channel: channel,
           contact_identifier: contact.trim(),
+          ...referralCode ? { referral_code: referralCode } : {},
+          ...telegramUser?.user_id ? {
+            telegram_user_data: {
+              user_id: telegramUser.user_id,
+              username: telegramUser.username,
+              first_name: telegramUser.first_name
+            }
+          } : {},
           ...selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {},
           ...pickupEnabled && pickupLocation ? { pickup_location: pickupLocation } : {},
           ...dropoffEnabled && dropoffLocation ? { dropoff_location: dropoffLocation } : {}
@@ -999,7 +1020,12 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, googleMaps
   const gallery = galleryUrls.length ? galleryUrls : fallbackImg ? [fallbackImg] : [];
   const mainImg = gallery[gi] || fallbackImg || "";
   const tgHref = safeHref(
-    buildTelegramDeepLink(botUsername, vehicle.id, datesValid ? { from: start, to: end } : void 0)
+    buildTelegramDeepLink(
+      botUsername,
+      vehicle.id,
+      datesValid ? { from: start, to: end } : void 0,
+      referralCode
+    )
   );
   const price = d?.min_price_per_day ?? vehicle.min_price_per_day;
   return createPortal(
@@ -1582,6 +1608,167 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, googleMaps
     document.body
   );
 }
+function defaultFilterState() {
+  return { vehicleType: void 0, category: void 0, search: void 0, sort: "default" };
+}
+function FilterBar({ filters, categories, onChange, strings: t }) {
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const today = todayISO();
+  const handleFromChange = (value) => {
+    const patch = { availableFrom: value || void 0 };
+    if (filters.availableTo && value && filters.availableTo <= value) {
+      patch.availableTo = nextDay(value);
+    }
+    onChange(patch);
+  };
+  const hasActiveFilters = Boolean(
+    filters.search || filters.vehicleType || filters.category || filters.availableFrom || filters.availableTo || filters.sort && filters.sort !== "default"
+  );
+  const activeCategory = categories.find((c) => c.id === filters.category);
+  const cycleSort = () => {
+    const order = ["default", "price_asc", "price_desc"];
+    const next = order[(order.indexOf(filters.sort) + 1) % order.length];
+    onChange({ sort: next });
+  };
+  const sortLabel = filters.sort === "price_asc" ? t.sortPriceAsc : filters.sort === "price_desc" ? t.sortPriceDesc : t.sortDefault;
+  return /* @__PURE__ */ jsxs("div", { className: "sb-filterbar", children: [
+    /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__search", children: [
+      /* @__PURE__ */ jsxs("svg", { className: "sb-filterbar__search-ico", viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+        /* @__PURE__ */ jsx("circle", { cx: "11", cy: "11", r: "7" }),
+        /* @__PURE__ */ jsx("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" })
+      ] }),
+      /* @__PURE__ */ jsx(
+        "input",
+        {
+          type: "text",
+          className: "sb-input sb-filterbar__search-input",
+          value: filters.search || "",
+          onChange: (e) => onChange({ search: e.target.value || void 0 }),
+          placeholder: t.search
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__row", children: [
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          className: `sb-filterbar__pill ${!filters.vehicleType && !filters.category ? "is-active" : ""}`,
+          onClick: () => onChange({ vehicleType: void 0, category: void 0 }),
+          children: t.all
+        }
+      ),
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          className: `sb-filterbar__pill ${filters.vehicleType === "car" && !filters.category ? "is-active" : ""}`,
+          onClick: () => onChange({ vehicleType: "car", category: void 0 }),
+          children: t.cars
+        }
+      ),
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          className: `sb-filterbar__pill ${filters.vehicleType === "motorcycle" && !filters.category ? "is-active" : ""}`,
+          onClick: () => onChange({ vehicleType: "motorcycle", category: void 0 }),
+          children: t.motorcycles
+        }
+      ),
+      categories.length > 0 ? /* @__PURE__ */ jsxs(
+        "button",
+        {
+          type: "button",
+          className: `sb-filterbar__pill ${filters.category ? "is-active" : ""}`,
+          style: activeCategory ? { backgroundColor: activeCategory.color, borderColor: "transparent" } : void 0,
+          onClick: () => setCategoryOpen((v) => !v),
+          children: [
+            /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+              /* @__PURE__ */ jsx("line", { x1: "4", y1: "6", x2: "20", y2: "6" }),
+              /* @__PURE__ */ jsx("line", { x1: "4", y1: "12", x2: "20", y2: "12" }),
+              /* @__PURE__ */ jsx("line", { x1: "4", y1: "18", x2: "20", y2: "18" }),
+              /* @__PURE__ */ jsx("circle", { cx: "8", cy: "6", r: "1.5", fill: "currentColor", stroke: "none" }),
+              /* @__PURE__ */ jsx("circle", { cx: "16", cy: "12", r: "1.5", fill: "currentColor", stroke: "none" }),
+              /* @__PURE__ */ jsx("circle", { cx: "10", cy: "18", r: "1.5", fill: "currentColor", stroke: "none" })
+            ] }),
+            activeCategory ? activeCategory.name : t.category
+          ]
+        }
+      ) : null,
+      hasActiveFilters ? /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          className: "sb-filterbar__clear",
+          onClick: () => {
+            onChange(defaultFilterState());
+            setCategoryOpen(false);
+          },
+          "aria-label": "\xD7",
+          children: /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+            /* @__PURE__ */ jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
+            /* @__PURE__ */ jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
+          ] })
+        }
+      ) : null
+    ] }),
+    categoryOpen ? /* @__PURE__ */ jsx("div", { className: "sb-filterbar__categories", children: categories.map((cat) => /* @__PURE__ */ jsx(
+      "button",
+      {
+        type: "button",
+        className: `sb-filterbar__pill ${filters.category === cat.id ? "is-active" : ""}`,
+        style: filters.category === cat.id ? { backgroundColor: cat.color, borderColor: "transparent" } : { backgroundColor: `${cat.color}1f`, borderColor: `${cat.color}33` },
+        onClick: () => {
+          onChange({ category: filters.category === cat.id ? void 0 : cat.id, vehicleType: void 0 });
+          setCategoryOpen(false);
+        },
+        children: cat.name
+      },
+      cat.id
+    )) }) : null,
+    /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__row", children: [
+      /* @__PURE__ */ jsxs("svg", { className: "sb-filterbar__cal-ico", viewBox: "0 0 24 24", width: "14", height: "14", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+        /* @__PURE__ */ jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
+        /* @__PURE__ */ jsx("line", { x1: "16", y1: "2", x2: "16", y2: "6" }),
+        /* @__PURE__ */ jsx("line", { x1: "8", y1: "2", x2: "8", y2: "6" }),
+        /* @__PURE__ */ jsx("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
+      ] }),
+      /* @__PURE__ */ jsx(
+        "input",
+        {
+          type: "date",
+          className: "sb-input sb-filterbar__date",
+          "aria-label": t.dateFrom,
+          value: filters.availableFrom || "",
+          min: today,
+          onChange: (e) => handleFromChange(e.target.value)
+        }
+      ),
+      /* @__PURE__ */ jsx("span", { className: "sb-filterbar__date-sep", children: "\u2014" }),
+      /* @__PURE__ */ jsx(
+        "input",
+        {
+          type: "date",
+          className: "sb-input sb-filterbar__date",
+          "aria-label": t.dateTo,
+          value: filters.availableTo || "",
+          min: filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
+          onChange: (e) => onChange({ availableTo: e.target.value || void 0 })
+        }
+      ),
+      /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-filterbar__sort", onClick: cycleSort, children: [
+        /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+          /* @__PURE__ */ jsx("line", { x1: "3", y1: "6", x2: "9", y2: "6" }),
+          /* @__PURE__ */ jsx("line", { x1: "3", y1: "12", x2: "7", y2: "12" }),
+          /* @__PURE__ */ jsx("line", { x1: "3", y1: "18", x2: "5", y2: "18" }),
+          /* @__PURE__ */ jsx("path", { d: "M17 4v16m0 0-4-4m4 4 4-4" })
+        ] }),
+        /* @__PURE__ */ jsx("span", { className: filters.sort !== "default" ? "sb-filterbar__sort-active" : "", children: sortLabel })
+      ] })
+    ] })
+  ] });
+}
 function setVehicleParam(id) {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
@@ -1602,7 +1789,17 @@ var STRINGS = {
     viewAll: "\u0421\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0432\u0435\u0441\u044C \u043A\u0430\u0442\u0430\u043B\u043E\u0433",
     empty: "\u041D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0445 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432",
     loading: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026",
-    error: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043A\u0430\u0442\u0430\u043B\u043E\u0433"
+    error: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043A\u0430\u0442\u0430\u043B\u043E\u0433",
+    // Filter bar (showFilters=true only) — parity with frontend_catalog i18n.
+    cars: "\u041C\u0430\u0448\u0438\u043D\u044B",
+    motorcycles: "\u041C\u043E\u0442\u043E\u0446\u0438\u043A\u043B\u044B",
+    category: "\u041A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u044F",
+    search: "\u041F\u043E\u0438\u0441\u043A...",
+    sortDefault: "\u0421\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u043A\u0430",
+    sortPriceAsc: "\u0414\u0435\u0448\u0435\u0432\u043B\u0435",
+    sortPriceDesc: "\u0414\u043E\u0440\u043E\u0436\u0435",
+    dateFrom: "\u0414\u0430\u0442\u0430 \u0441",
+    dateTo: "\u0414\u0430\u0442\u0430 \u043F\u043E"
   },
   en: {
     all: "All",
@@ -1616,9 +1813,28 @@ var STRINGS = {
     viewAll: "View full catalog",
     empty: "No vehicles available",
     loading: "Loading\u2026",
-    error: "Failed to load catalog"
+    error: "Failed to load catalog",
+    cars: "Cars",
+    motorcycles: "Motorcycles",
+    category: "Category",
+    search: "Search...",
+    sortDefault: "Sort",
+    sortPriceAsc: "Cheapest",
+    sortPriceDesc: "Priciest",
+    dateFrom: "From date",
+    dateTo: "To date"
   }
 };
+function buildFilteredVehiclesUrl(apiBase, f) {
+  const qs = new URLSearchParams();
+  if (f.vehicleType) qs.set("vehicle_type", f.vehicleType);
+  if (f.category) qs.set("category", f.category);
+  if (f.search) qs.set("search", f.search);
+  if (f.availableFrom) qs.set("available_from", f.availableFrom);
+  if (f.availableTo) qs.set("available_to", f.availableTo);
+  const s = qs.toString();
+  return `${apiBase}/api/v1/catalog/vehicles/${s ? `?${s}` : ""}`;
+}
 function groupVehicles(vehicles) {
   const groups = /* @__PURE__ */ new Map();
   for (const v of vehicles) {
@@ -1675,40 +1891,62 @@ function VehicleCatalog({
   // VALUE into every page's stored JSON forever, defeating key rotation.
   googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
   defaultCategory,
+  locale: localeProp,
+  showFilters = false,
+  referralCode,
+  telegramUser,
   puck
 }) {
-  const locale = puck?.metadata?.locale === "en" ? "en" : "ru";
+  const locale = localeProp ?? (puck?.metadata?.locale === "en" ? "en" : "ru");
   const t = STRINGS[locale];
   const [categories, setCategories] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [activeCat, setActiveCat] = useState(null);
   const [state, setState] = useState("loading");
   const [selected, setSelected] = useState(null);
+  const [filters, setFilters] = useState(defaultFilterState);
+  const [debouncedFilters, setDebouncedFilters] = useState(filters);
+  const filterDebounceRef = useRef(void 0);
+  const handleFiltersChange = (patch) => {
+    setFilters((prev) => {
+      const next = { ...prev, ...patch };
+      if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
+      const keys = Object.keys(patch);
+      const searchOnly = keys.length === 1 && keys[0] === "search";
+      if (searchOnly) {
+        filterDebounceRef.current = setTimeout(() => setDebouncedFilters(next), 300);
+      } else {
+        setDebouncedFilters(next);
+      }
+      return next;
+    });
+  };
   useEffect(() => {
     let cancelled = false;
     setState("loading");
     setActiveCat(null);
     const headers = { "ngrok-skip-browser-warning": "true" };
+    const vehiclesUrl = showFilters ? buildFilteredVehiclesUrl(apiBase, debouncedFilters) : `${apiBase}/api/v1/catalog/vehicles/?vehicle_type=${vehicleType}`;
     Promise.all([
       fetch(`${apiBase}/api/v1/catalog/categories/`, { headers }).then(
         (r) => r.ok ? r.json() : []
       ),
-      fetch(`${apiBase}/api/v1/catalog/vehicles/?vehicle_type=${vehicleType}`, { headers }).then(
-        (r) => {
-          if (!r.ok) throw new Error(String(r.status));
-          return r.json();
-        }
-      )
+      fetch(vehiclesUrl, { headers }).then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json();
+      })
     ]).then(([cats, list]) => {
       if (cancelled) return;
       const catList = Array.isArray(cats) ? cats : [];
       const vehList = Array.isArray(list) ? list : [];
       setCategories(catList);
       setVehicles(vehList);
-      const want = (defaultCategory ?? "").trim().toLowerCase();
-      const usedIds = new Set(vehList.map((v) => v.category?.id).filter(Boolean));
-      const def = want ? catList.find((c) => usedIds.has(c.id) && c.name.trim().toLowerCase() === want) : void 0;
-      setActiveCat(def ? def.id : null);
+      if (!showFilters) {
+        const want = (defaultCategory ?? "").trim().toLowerCase();
+        const usedIds = new Set(vehList.map((v) => v.category?.id).filter(Boolean));
+        const def = want ? catList.find((c) => usedIds.has(c.id) && c.name.trim().toLowerCase() === want) : void 0;
+        setActiveCat(def ? def.id : null);
+      }
       setState("ready");
     }).catch(() => {
       if (!cancelled) setState("error");
@@ -1716,7 +1954,7 @@ function VehicleCatalog({
     return () => {
       cancelled = true;
     };
-  }, [apiBase, vehicleType, defaultCategory]);
+  }, [apiBase, vehicleType, defaultCategory, showFilters, debouncedFilters]);
   const didDeepLink = useRef(false);
   useEffect(() => {
     if (didDeepLink.current || state !== "ready") return;
@@ -1756,12 +1994,30 @@ function VehicleCatalog({
     return [d, ...copy];
   }, [categories, vehicles, defaultCategory]);
   const groups = useMemo(() => {
+    if (showFilters) return groupVehicles(vehicles);
     const list = activeCat ? vehicles.filter((v) => v.category?.id === activeCat) : vehicles;
     return groupVehicles(list);
-  }, [vehicles, activeCat]);
+  }, [vehicles, activeCat, showFilters]);
+  const displayGroups = useMemo(() => {
+    if (!showFilters || filters.sort === "default") return groups;
+    const dir = filters.sort === "price_asc" ? 1 : -1;
+    return [...groups].sort((a, b) => {
+      const pa = a.vehicle.min_price_per_day ?? Infinity;
+      const pb = b.vehicle.min_price_per_day ?? Infinity;
+      return (pa - pb) * dir;
+    });
+  }, [groups, showFilters, filters.sort]);
   return /* @__PURE__ */ jsxs(Section, { className: "sb-vcatalog", id: anchorId || void 0, children: [
     heading ? /* @__PURE__ */ jsx("h2", { className: "sb-h2", children: heading }) : null,
-    state === "ready" && tabs.length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vcatalog__tabs", children: [
+    showFilters ? /* @__PURE__ */ jsx(
+      FilterBar,
+      {
+        filters,
+        categories,
+        onChange: handleFiltersChange,
+        strings: t
+      }
+    ) : state === "ready" && tabs.length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vcatalog__tabs", children: [
       tabs.map((c) => /* @__PURE__ */ jsx(
         "button",
         {
@@ -1784,14 +2040,16 @@ function VehicleCatalog({
     ] }) : null,
     state === "loading" ? /* @__PURE__ */ jsx("p", { className: "sb-vcatalog__state", children: t.loading }) : null,
     state === "error" ? /* @__PURE__ */ jsx("p", { className: "sb-vcatalog__state", children: t.error }) : null,
-    state === "ready" && (groups.length === 0 ? /* @__PURE__ */ jsx("p", { className: "sb-vcatalog__state", children: t.empty }) : /* @__PURE__ */ jsx("div", { className: "sb-vcatalog__grid", children: groups.map((g) => {
+    state === "ready" && (displayGroups.length === 0 ? /* @__PURE__ */ jsx("p", { className: "sb-vcatalog__state", children: t.empty }) : /* @__PURE__ */ jsx("div", { className: "sb-vcatalog__grid", children: displayGroups.map((g) => {
       const v = g.vehicle;
       const countLabel = g.total > 1 ? g.availableCount > 0 ? `${g.availableCount} ${t.available}` : `${g.total} ${t.total}` : null;
       return /* @__PURE__ */ jsx("button", { type: "button", className: "sb-vcard", onClick: () => setSelected(v), children: /* @__PURE__ */ jsxs("div", { className: "sb-vcard__media", children: [
         v.photo_url ? /* @__PURE__ */ jsx("img", { src: v.photo_url, alt: v.display_name, loading: "lazy" }) : null,
-        v.category && activeCat === null ? (
-          // Badge only makes sense on «Все» — on a specific category tab
-          // every card is that category, so it's just noise.
+        v.category && (showFilters || activeCat === null) ? (
+          // Tab mode: badge only makes sense on «Все» — on a specific
+          // category tab every card is that category, so it's just
+          // noise. Filter mode has no such tab (parity with the
+          // standalone catalog's VehicleCard, which always shows it).
           /* @__PURE__ */ jsx("span", { className: "sb-vcard__badge", style: { backgroundColor: v.category.color }, children: v.category.name })
         ) : null,
         countLabel ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__count", children: countLabel }) : null,
@@ -1826,6 +2084,8 @@ function VehicleCatalog({
         locale,
         botUsername: telegramBot.trim() || "shiba_cars_test_bot",
         googleMapsApiKey,
+        referralCode,
+        telegramUser,
         onClose: () => setSelected(null)
       }
     ) : null

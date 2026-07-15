@@ -177,6 +177,31 @@ interface LeadFormProps {
  */
 declare function LeadForm({ heading, text, contactLabel, buttonLabel, successMessage, endpoint, image, }: LeadFormProps): react.JSX.Element;
 
+/** Telegram Mini App user, forwarded by the HOST app from its own
+ *  `window.Telegram.WebApp.initData` — this component never reads
+ *  `window.Telegram` itself (see VehicleCatalogProps.telegramUser). */
+interface TelegramCatalogUser {
+    user_id: number;
+    username?: string;
+    first_name?: string;
+    language_code?: string;
+}
+
+type CatalogSortOption = 'default' | 'price_asc' | 'price_desc';
+/**
+ * Live filter state for the standalone-catalog view (`showFilters=true`).
+ * `vehicleType: undefined` means "Все" (no type filter, both cars and bikes) —
+ * this state is entirely separate from the site's per-block `vehicleType` prop.
+ */
+interface CatalogFilterState {
+    vehicleType?: 'car' | 'motorcycle';
+    category?: string;
+    search?: string;
+    availableFrom?: string;
+    availableTo?: string;
+    sort: CatalogSortOption;
+}
+
 interface CatalogCategory {
     id: string;
     name: string;
@@ -219,9 +244,39 @@ interface VehicleCatalogProps {
     /**
      * Category name preselected on load and shown first in the tab row (e.g.
      * «Премиум» for cars, «Мотоциклы» for bikes). The «Все» tab is always last.
-     * Empty / not found → «Все» is preselected.
+     * Empty / not found → «Все» is preselected. Ignored when `showFilters` is on
+     * (the filter bar's own category picker takes over).
      */
     defaultCategory?: string;
+    /**
+     * Explicit locale override — takes priority over Puck's injected page
+     * metadata locale (`puck.metadata.locale`). Needed by non-Puck hosts (e.g.
+     * the standalone catalog's Vite shell), which never pass a `puck` prop at
+     * all and so have no metadata locale to fall back on.
+     */
+    locale?: 'ru' | 'en';
+    /**
+     * Renders a full filter bar (type/category/search/availability date-range/
+     * sort) above the grid, REPLACING the plain category-tab row. Off by
+     * default — the site uses two fixed-type blocks (cars/bikes) with simple
+     * tabs; the standalone catalog app (one block, all vehicle types, user
+     * picks the type via the filter bar) turns this on. See
+     * plans/catalog-on-puck-blocks/IMPLEMENTATION_PLAN.md §4.1a.
+     */
+    showFilters?: boolean;
+    /**
+     * Agent/referral attribution code (`?ref=`) — captured and persisted by the
+     * HOST app (see frontend_catalog's useReferralCode). This component never
+     * reads the URL/localStorage itself; the code is threaded into the booking
+     * payload, the Telegram deep link, and the share link (VehicleBookingModal).
+     */
+    referralCode?: string | null;
+    /**
+     * Telegram Mini App user (from the host's `window.Telegram.WebApp.initData`)
+     * — this component never reads `window.Telegram` itself. Used to prefill
+     * the booking form (VehicleBookingModal).
+     */
+    telegramUser?: TelegramCatalogUser | null;
 }
 type PuckInjected = {
     puck?: {
@@ -236,7 +291,7 @@ type PuckInjected = {
  * card (like frontend_catalog), with a per-section category filter. Used twice
  * (cars / bikes). Locale comes from Puck metadata (page locale).
  */
-declare function VehicleCatalog({ heading, anchorId, vehicleType, apiBase, telegramBot, googleMapsApiKey, defaultCategory, puck, }: VehicleCatalogProps & PuckInjected): react.JSX.Element;
+declare function VehicleCatalog({ heading, anchorId, vehicleType, apiBase, telegramBot, googleMapsApiKey, defaultCategory, locale: localeProp, showFilters, referralCode, telegramUser, puck, }: VehicleCatalogProps & PuckInjected): react.JSX.Element;
 
 interface MapContactsProps {
     /** Section anchor id (e.g. "contacts"). */
@@ -281,4 +336,4 @@ interface RootProps {
 }
 declare const puckConfig: Config;
 
-export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogVehicle, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, MapContacts, type MapContactsProps, type MediaReview, type NavLink, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, VehicleCatalog, type VehicleCatalogProps, puckConfig };
+export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogFilterState, type CatalogSortOption, type CatalogVehicle, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, MapContacts, type MapContactsProps, type MediaReview, type NavLink, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, VehicleCatalog, type VehicleCatalogProps, puckConfig };
