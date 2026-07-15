@@ -190,6 +190,57 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     expect(payload.accessories).toEqual([{ accessory_id: 'acc-1', quantity: 1 }]);
   });
 
+  it('shows a summary of selected accessories on the "how to book" choice screen (owner feedback 2026-07-15: only the vehicle was shown)', async () => {
+    const detail = {
+      ...baseDetail,
+      accessories: [
+        {
+          id: 'cat-1', name_ru: 'Кресла', name_en: 'Seats', photo_url: null,
+          items: [
+            {
+              id: 'acc-1', name_ru: 'Детское кресло', name_en: 'Child seat', photo_url: null,
+              price: 500, price_unit: 'per_booking', stock: null, available_stock: null,
+            },
+          ],
+        },
+      ],
+    };
+    renderModal(detail);
+    await screen.findByText('Additional Options');
+
+    const plusButton = screen.getByRole('button', { name: '+' });
+    fireEvent.click(plusButton);
+    fireEvent.click(plusButton); // quantity 2 → summary should show "× 2"
+    fireEvent.click(screen.getByText('Book'));
+
+    await screen.findByText('How to book?');
+    expect(screen.getByText('Additional Options')).toBeTruthy(); // section label, reused
+    expect(screen.getByText('Child seat × 2')).toBeTruthy();
+  });
+
+  it('omits the accessories summary on the choice screen when nothing is selected', async () => {
+    const detail = {
+      ...baseDetail,
+      accessories: [
+        {
+          id: 'cat-1', name_ru: 'Кресла', name_en: 'Seats', photo_url: null,
+          items: [
+            {
+              id: 'acc-1', name_ru: 'Детское кресло', name_en: 'Child seat', photo_url: null,
+              price: 500, price_unit: 'per_booking', stock: null, available_stock: null,
+            },
+          ],
+        },
+      ],
+    };
+    renderModal(detail);
+    await screen.findByText('Additional Options');
+    fireEvent.click(screen.getByText('Book'));
+
+    await screen.findByText('How to book?');
+    expect(screen.queryByText('Child seat')).toBeNull();
+  });
+
   it('an item with no photo renders no expand button, just the placeholder tile', async () => {
     const detail = {
       ...baseDetail,
@@ -482,8 +533,23 @@ describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-bl
     expect('referral_code' in JSON.parse(capturedBody!)).toBe(false);
   });
 
-  it('appends the referral code to the Telegram quick-book deep link', async () => {
-    stubDetailFetch(baseDetail);
+  it('1-click Telegram button POSTs the referral code to booking-intents and redirects with the token', async () => {
+    let capturedBody: string | undefined;
+    // jsdom cannot actually navigate — mute its "Not implemented: navigation" error.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        const u = String(url);
+        if (u.includes('/booking-intents/')) {
+          capturedBody = init?.body as string;
+          return Promise.resolve(new Response(JSON.stringify({ token: 'tok123' }), { status: 201 }));
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
     render(
       <VehicleBookingModal
         vehicle={vehicle}
@@ -496,10 +562,63 @@ describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-bl
     );
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
-    await screen.findByText('1-click booking via Telegram');
+    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
 
-    const tgLink = document.querySelector('.sb-vd__tg-card') as HTMLAnchorElement;
-    expect(tgLink.href).toContain('_AG1234');
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    expect(JSON.parse(capturedBody!).referral_code).toBe('AG1234');
+    errSpy.mockRestore();
+  });
+
+  it('1-click Telegram button omits accessories/pickup/dropoff from the intent when none are set', async () => {
+    let capturedBody: string | undefined;
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        const u = String(url);
+        if (u.includes('/booking-intents/')) {
+          capturedBody = init?.body as string;
+          return Promise.resolve(new Response(JSON.stringify({ token: 'tok123' }), { status: 201 }));
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    const payload = JSON.parse(capturedBody!);
+    expect('referral_code' in payload).toBe(false);
+    expect('accessories' in payload).toBe(false);
+    expect('pickup_location' in payload).toBe(false);
+    errSpy.mockRestore();
+  });
+
+  it('1-click Telegram button shows an inline error and stays retryable when the intent POST fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const u = String(url);
+        if (u.includes('/booking-intents/')) {
+          return Promise.resolve(new Response('', { status: 500 }));
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+
+    await screen.findByText('Could not send. Please try again.');
+    const tgButton = screen.getByText('1-click booking via Telegram').closest('button') as HTMLButtonElement;
+    expect(tgButton.disabled).toBe(false);
   });
 
   it('appends &ref= to the share link when a referral code is set', async () => {

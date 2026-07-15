@@ -2041,12 +2041,20 @@ a.sb-map__line:hover {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  width: 100%;
   padding: 0.8rem 1rem;
   border-radius: var(--sb-radius);
   background: rgba(34, 158, 217, 0.12);
   border: 1px solid rgba(34, 158, 217, 0.4);
   color: var(--sb-text);
+  font: inherit;
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
+}
+.sb-vd__tg-card:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .sb-vd__tg-icon {
   display: flex;
@@ -2332,6 +2340,26 @@ a.sb-map__line:hover {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 800;
+}
+.sb-bk__accessories {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.sb-bk__accessories-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.sb-bk__accessories-list li {
+  font-size: 0.85rem;
+  color: var(--sb-text);
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--sb-border);
+  border-radius: 8px;
 }
 @media (max-width: 600px) {
   .sb-vd__specs {

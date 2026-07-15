@@ -548,17 +548,6 @@ function formatShortDate(isoDate, lang) {
     timeZone: "UTC"
   });
 }
-var MAX_START_PAYLOAD_LEN = 64;
-function buildTelegramDeepLink(botUsername, vehicleId, dates, referralCode) {
-  const vehiclePart = `bk_${vehicleId.replace(/-/g, "")}`;
-  const refPart = referralCode ? `_${referralCode}` : "";
-  const datesPart = dates?.from && dates?.to ? `_${dates.from.replace(/-/g, "")}_${dates.to.replace(/-/g, "")}` : "";
-  let payload = vehiclePart + datesPart + refPart;
-  if (payload.length > MAX_START_PAYLOAD_LEN) {
-    payload = vehiclePart + refPart;
-  }
-  return `https://t.me/${botUsername}?start=${payload}`;
-}
 function DeliveryAddressPicker({ apiKey, onSelect, unavailableText, loadingText }) {
   const containerRef = react.useRef(null);
   const [status, setStatus] = react.useState(
@@ -887,6 +876,8 @@ function VehicleBookingModal({
   const [submitting, setSubmitting] = react.useState(false);
   const [stage, setStage] = react.useState("detail");
   const [err, setErr] = react.useState("");
+  const [tgSubmitting, setTgSubmitting] = react.useState(false);
+  const [tgErr, setTgErr] = react.useState("");
   const [copied, setCopied] = react.useState(false);
   const dialogRef = react.useRef(null);
   const handleShare = async () => {
@@ -976,13 +967,13 @@ function VehicleBookingModal({
     if (start && (!end || end <= start)) setEnd(nextDay(start));
   }, [start, end]);
   const datesValid = Boolean(start && end && start >= minStart && end > start);
+  const selectedAccessories = Object.entries(accessories).filter(([, qty]) => qty > 0).map(([accessory_id, quantity]) => ({ accessory_id, quantity }));
   const submit = async (e) => {
     e.preventDefault();
     if (!datesValid || !name.trim() || !contact.trim()) return;
     setSubmitting(true);
     setErr("");
     try {
-      const selectedAccessories = Object.entries(accessories).filter(([, qty]) => qty > 0).map(([accessory_id, quantity]) => ({ accessory_id, quantity }));
       const res = await fetch(`${apiBase}/api/v1/catalog/booking-requests/`, {
         method: "POST",
         headers: { "content-type": "application/json", ...HEADERS },
@@ -1017,19 +1008,46 @@ function VehicleBookingModal({
       setSubmitting(false);
     }
   };
+  const handleTelegramBooking = async () => {
+    if (!datesValid) return;
+    setTgSubmitting(true);
+    setTgErr("");
+    try {
+      const res = await fetch(`${apiBase}/api/v1/catalog/booking-intents/`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...HEADERS },
+        body: JSON.stringify({
+          vehicle_id: vehicle.id,
+          start_date: start,
+          end_date: end,
+          ...referralCode ? { referral_code: referralCode } : {},
+          ...selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {},
+          ...pickupEnabled && pickupLocation ? { pickup_location: pickupLocation } : {},
+          ...dropoffEnabled && dropoffLocation ? { dropoff_location: dropoffLocation } : {}
+        })
+      });
+      if (!res.ok) {
+        setTgErr(res.status === 429 ? t.tooMany : t.sendErr);
+        return;
+      }
+      const { token } = await res.json();
+      const href = safeHref(`https://t.me/${botUsername}?start=bk_${token}`);
+      if (!href) {
+        setTgErr(t.sendErr);
+        return;
+      }
+      window.location.href = href;
+    } catch {
+      setTgErr(t.sendErr);
+    } finally {
+      setTgSubmitting(false);
+    }
+  };
   const d = detail;
   const galleryUrls = (d?.gallery_images ?? []).map((g) => safeImageUrl(g.image_url)).filter((u) => Boolean(u));
   const fallbackImg = safeImageUrl(vehicle.photo_url ?? "") || "";
   const gallery = galleryUrls.length ? galleryUrls : fallbackImg ? [fallbackImg] : [];
   const mainImg = gallery[gi] || fallbackImg || "";
-  const tgHref = safeHref(
-    buildTelegramDeepLink(
-      botUsername,
-      vehicle.id,
-      datesValid ? { from: start, to: end } : void 0,
-      referralCode
-    )
-  );
   const price = d?.min_price_per_day ?? vehicle.min_price_per_day;
   return reactDom.createPortal(
     // Wrap in .sb-root so the design tokens (--sb-*) cascade into the portal,
@@ -1415,23 +1433,36 @@ function VehicleBookingModal({
                   )
                 ] })
               ] }),
-              tgHref ? /* @__PURE__ */ jsxRuntime.jsxs(
-                "a",
+              selectedAccessories.length > 0 ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-bk__accessories", children: [
+                /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__section-label", children: t.accessories }),
+                /* @__PURE__ */ jsxRuntime.jsx("ul", { className: "sb-bk__accessories-list", children: selectedAccessories.map(({ accessory_id, quantity }) => {
+                  const item = (d.accessories ?? []).flatMap((group) => group.items).find((it) => it.id === accessory_id);
+                  if (!item) return null;
+                  const itemName = locale === "ru" ? item.name_ru : item.name_en;
+                  return /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
+                    itemName,
+                    quantity > 1 ? ` \xD7 ${quantity}` : ""
+                  ] }, accessory_id);
+                }) })
+              ] }) : null,
+              /* @__PURE__ */ jsxRuntime.jsxs(
+                "button",
                 {
+                  type: "button",
                   className: "sb-vd__tg-card",
-                  href: tgHref,
-                  target: "_blank",
-                  rel: "noopener noreferrer",
+                  disabled: !datesValid || tgSubmitting,
+                  onClick: handleTelegramBooking,
                   children: [
                     /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-icon", "aria-hidden": true, children: "\u2708" }),
                     /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__tg-text", children: [
                       /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-title", children: t.tgQuick }),
-                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-sub", children: t.tgQuickSub })
+                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-sub", children: tgSubmitting ? t.loading : t.tgQuickSub })
                     ] }),
                     /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
                   ]
                 }
-              ) : null,
+              ),
+              tgErr ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-form__status sb-form__status--err", children: tgErr }) : null,
               /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__or", children: t.or }),
               /* @__PURE__ */ jsxRuntime.jsxs(
                 "button",

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type TouchEvent as ReactTo
 import { createPortal } from 'react-dom';
 import { categoryLabel, type CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
-import { buildTelegramDeepLink, formatShortDate, money, nextDay, todayISO } from './dates';
+import { formatShortDate, money, nextDay, todayISO } from './dates';
 import { DeliveryAddressSection, type PickedLocation } from './DeliveryAddressSection';
 
 interface GalleryImage {
@@ -320,6 +320,13 @@ export function VehicleBookingModal({
   const [submitting, setSubmitting] = useState(false);
   const [stage, setStage] = useState<'detail' | 'choice' | 'form' | 'success'>('detail');
   const [err, setErr] = useState('');
+  // 1-click Telegram booking (plans/catalog-telegram-booking-intent/) — POSTs
+  // the current selection to /booking-intents/, then redirects to the bot
+  // with the returned token. Separate loading/error state from the manual
+  // form's (submitting/err) since they're two independent flows on the same
+  // "choice" screen.
+  const [tgSubmitting, setTgSubmitting] = useState(false);
+  const [tgErr, setTgErr] = useState('');
   const [copied, setCopied] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -436,15 +443,19 @@ export function VehicleBookingModal({
 
   const datesValid = Boolean(start && end && start >= minStart && end > start);
 
+  // Shared by both booking paths (manual form + 1-click Telegram) — the
+  // catalog-picked accessory selection in the {accessory_id, quantity} shape
+  // both /booking-requests/ and /booking-intents/ accept.
+  const selectedAccessories = Object.entries(accessories)
+    .filter(([, qty]) => qty > 0)
+    .map(([accessory_id, quantity]) => ({ accessory_id, quantity }));
+
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!datesValid || !name.trim() || !contact.trim()) return;
     setSubmitting(true);
     setErr('');
     try {
-      const selectedAccessories = Object.entries(accessories)
-        .filter(([, qty]) => qty > 0)
-        .map(([accessory_id, quantity]) => ({ accessory_id, quantity }));
       const res = await fetch(`${apiBase}/api/v1/catalog/booking-requests/`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...HEADERS },
@@ -482,6 +493,47 @@ export function VehicleBookingModal({
     }
   };
 
+  // 1-click Telegram booking (plans/catalog-telegram-booking-intent/):
+  // Telegram's /start payload caps at 64 chars, far too small to carry
+  // accessories/delivery addresses directly — so the current selection is
+  // POSTed to a booking-intent first, and only the returned token travels in
+  // the deep link. The bot resolves it back into the full selection.
+  const handleTelegramBooking = async () => {
+    if (!datesValid) return;
+    setTgSubmitting(true);
+    setTgErr('');
+    try {
+      const res = await fetch(`${apiBase}/api/v1/catalog/booking-intents/`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...HEADERS },
+        body: JSON.stringify({
+          vehicle_id: vehicle.id,
+          start_date: start,
+          end_date: end,
+          ...(referralCode ? { referral_code: referralCode } : {}),
+          ...(selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {}),
+          ...(pickupEnabled && pickupLocation ? { pickup_location: pickupLocation } : {}),
+          ...(dropoffEnabled && dropoffLocation ? { dropoff_location: dropoffLocation } : {}),
+        }),
+      });
+      if (!res.ok) {
+        setTgErr(res.status === 429 ? t.tooMany : t.sendErr);
+        return;
+      }
+      const { token } = (await res.json()) as { token: string };
+      const href = safeHref(`https://t.me/${botUsername}?start=bk_${token}`);
+      if (!href) {
+        setTgErr(t.sendErr);
+        return;
+      }
+      window.location.href = href;
+    } catch {
+      setTgErr(t.sendErr);
+    } finally {
+      setTgSubmitting(false);
+    }
+  };
+
   const d = detail;
   const galleryUrls = (d?.gallery_images ?? [])
     .map((g) => safeImageUrl(g.image_url))
@@ -489,14 +541,6 @@ export function VehicleBookingModal({
   const fallbackImg = safeImageUrl(vehicle.photo_url ?? '') || '';
   const gallery = galleryUrls.length ? galleryUrls : fallbackImg ? [fallbackImg] : [];
   const mainImg = gallery[gi] || fallbackImg || '';
-  const tgHref = safeHref(
-    buildTelegramDeepLink(
-      botUsername,
-      vehicle.id,
-      datesValid ? { from: start, to: end } : undefined,
-      referralCode,
-    ),
-  );
   const price = d?.min_price_per_day ?? vehicle.min_price_per_day;
 
   return createPortal(
@@ -975,25 +1019,50 @@ export function VehicleBookingModal({
                 </label>
               </div>
 
-              {tgHref ? (
-                <a
-                  className="sb-vd__tg-card"
-                  href={tgHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <span className="sb-vd__tg-icon" aria-hidden>
-                    ✈
-                  </span>
-                  <span className="sb-vd__tg-text">
-                    <span className="sb-vd__tg-title">{t.tgQuick}</span>
-                    <span className="sb-vd__tg-sub">{t.tgQuickSub}</span>
-                  </span>
-                  <span className="sb-vd__tg-arrow" aria-hidden>
-                    ›
-                  </span>
-                </a>
+              {/* Selected paid accessories summary (owner feedback
+                  2026-07-15: the choice screen showed only the vehicle, not
+                  what add-ons the customer picked). Names resolved from the
+                  detail payload's own accessory groups, localized like
+                  everywhere else in this modal. */}
+              {selectedAccessories.length > 0 ? (
+                <div className="sb-bk__accessories">
+                  <span className="sb-vd__section-label">{t.accessories}</span>
+                  <ul className="sb-bk__accessories-list">
+                    {selectedAccessories.map(({ accessory_id, quantity }) => {
+                      const item = (d.accessories ?? [])
+                        .flatMap((group) => group.items)
+                        .find((it) => it.id === accessory_id);
+                      if (!item) return null;
+                      const itemName = locale === 'ru' ? item.name_ru : item.name_en;
+                      return (
+                        <li key={accessory_id}>
+                          {itemName}
+                          {quantity > 1 ? ` × ${quantity}` : ''}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               ) : null}
+
+              <button
+                type="button"
+                className="sb-vd__tg-card"
+                disabled={!datesValid || tgSubmitting}
+                onClick={handleTelegramBooking}
+              >
+                <span className="sb-vd__tg-icon" aria-hidden>
+                  ✈
+                </span>
+                <span className="sb-vd__tg-text">
+                  <span className="sb-vd__tg-title">{t.tgQuick}</span>
+                  <span className="sb-vd__tg-sub">{tgSubmitting ? t.loading : t.tgQuickSub}</span>
+                </span>
+                <span className="sb-vd__tg-arrow" aria-hidden>
+                  ›
+                </span>
+              </button>
+              {tgErr ? <p className="sb-form__status sb-form__status--err">{tgErr}</p> : null}
 
               <div className="sb-vd__or">{t.or}</div>
 
