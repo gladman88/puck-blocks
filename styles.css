@@ -1730,6 +1730,7 @@ a.sb-map__line:hover {
   white-space: nowrap;
 }
 .sb-acc__item-photo {
+  position: relative;
   width: calc(100% - 1rem);
   margin: 0.25rem 0.5rem 0;
   aspect-ratio: 1 / 1;
@@ -1744,6 +1745,80 @@ a.sb-map__line:hover {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+/* Reset <button> chrome — the photo tile is a real button so it's a proper
+   tap target for the fullscreen preview (Stage 5.5, design review 2026-07-16). */
+.sb-acc__item-photo--clickable {
+  padding: 0;
+  border: none;
+  cursor: zoom-in;
+  -webkit-tap-highlight-color: transparent;
+}
+.sb-acc__item-expand {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(2px);
+}
+
+/* Fullscreen accessory-photo preview — a small custom lightbox (no library
+   dependency in puck-blocks). Portalled to document.body ABOVE the booking
+   modal itself (z-index 1000), so it must exceed that. */
+.sb-acc-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+  cursor: zoom-out;
+}
+.sb-acc-lightbox__photo {
+  max-width: 92vw;
+  max-height: 92vh;
+  object-fit: contain;
+  cursor: default;
+}
+.sb-acc-lightbox__close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.9rem;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+/* Dark gradient caption banner pinned to the bottom (Instagram-style),
+   mirrors frontend_catalog's .acc-photo-caption. pointer-events:none so it
+   never blocks tap-to-close on the backdrop behind it. */
+.sb-acc-lightbox__caption {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  padding: 1.5rem 1.25rem;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.45) 65%, transparent);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  pointer-events: none;
 }
 .sb-acc__item-info {
   display: flex;

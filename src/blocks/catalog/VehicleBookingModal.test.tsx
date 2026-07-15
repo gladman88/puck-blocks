@@ -189,6 +189,79 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     const payload = JSON.parse(capturedBody!);
     expect(payload.accessories).toEqual([{ accessory_id: 'acc-1', quantity: 1 }]);
   });
+
+  it('an item with no photo renders no expand button, just the placeholder tile', async () => {
+    const detail = {
+      ...baseDetail,
+      accessories: [
+        {
+          id: 'cat-1', name_ru: 'Кресла', name_en: 'Seats', photo_url: null,
+          items: [
+            {
+              id: 'acc-1', name_ru: 'Кресло', name_en: 'Seat', photo_url: null, description: '',
+              price: 500, price_unit: 'per_booking', stock: null, available_stock: null,
+            },
+          ],
+        },
+      ],
+    };
+    renderModal(detail);
+    await screen.findByText('Additional Options');
+    expect(screen.queryByRole('button', { name: 'Seat' })).toBeNull();
+  });
+
+  it('tapping an item photo opens the fullscreen preview with the description caption; closing removes it', async () => {
+    const detail = {
+      ...baseDetail,
+      accessories: [
+        {
+          id: 'cat-1', name_ru: 'Кресла', name_en: 'Seats', photo_url: null,
+          items: [
+            {
+              id: 'acc-1', name_ru: 'Кресло', name_en: 'Seat', photo_url: 'https://example.com/seat.jpg',
+              description: 'Компактное кресло для детей 9-18 кг.',
+              price: 500, price_unit: 'per_booking', stock: null, available_stock: null,
+            },
+          ],
+        },
+      ],
+    };
+    renderModal(detail);
+    await screen.findByText('Additional Options');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Seat' }));
+    expect(await screen.findByText('Компактное кресло для детей 9-18 кг.')).toBeTruthy();
+    expect(screen.getAllByAltText('Seat').length).toBeGreaterThan(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close photo' }));
+    await waitFor(() => {
+      expect(screen.queryByText('Компактное кресло для детей 9-18 кг.')).toBeNull();
+    });
+  });
+
+  it('an item with a photo but no description opens the preview without a caption', async () => {
+    const detail = {
+      ...baseDetail,
+      accessories: [
+        {
+          id: 'cat-1', name_ru: 'Кресла', name_en: 'Seats', photo_url: null,
+          items: [
+            {
+              id: 'acc-1', name_ru: 'Кресло', name_en: 'Seat', photo_url: 'https://example.com/seat.jpg',
+              description: '',
+              price: 500, price_unit: 'per_booking', stock: null, available_stock: null,
+            },
+          ],
+        },
+      ],
+    };
+    renderModal(detail);
+    await screen.findByText('Additional Options');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Seat' }));
+    await screen.findAllByAltText('Seat');
+    expect(document.querySelector('.sb-acc-lightbox__caption')).toBeNull();
+  });
 });
 
 describe('VehicleBookingModal — delivery by address (Stage 6)', () => {

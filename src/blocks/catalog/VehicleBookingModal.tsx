@@ -32,6 +32,9 @@ interface CatalogAccessoryItem {
   name_ru: string;
   name_en: string;
   photo_url: string | null;
+  /** Optional client-facing text — shown as a caption banner in the
+   *  fullscreen photo preview. Always a string, '' when not set. */
+  description: string;
   price: number | null;
   price_unit: 'per_booking' | 'per_day';
   stock: number | null;
@@ -102,6 +105,7 @@ const SPEC_VALUE_LABELS: Record<'ru' | 'en', Record<string, string>> = {
 const S = {
   ru: {
     close: 'Закрыть',
+    closePhoto: 'Закрыть фото',
     share: 'Поделиться',
     copied: 'Ссылка скопирована',
     from: 'от',
@@ -166,6 +170,7 @@ const S = {
   },
   en: {
     close: 'Close',
+    closePhoto: 'Close photo',
     share: 'Share',
     copied: 'Link copied',
     from: 'from',
@@ -268,6 +273,13 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, goo
   const [contact, setContact] = useState('');
   // accessory id -> quantity, picked on the detail screen (Stage 5, plan §6).
   const [accessories, setAccessories] = useState<Record<string, number>>({});
+  // Fullscreen accessory-photo preview (Stage 5.5, design review 2026-07-16)
+  // — null = closed. No lightbox library exists in puck-blocks (framework-
+  // neutral, no heavy deps), so this is a small custom one, portalled above
+  // the booking modal itself (see the render at the bottom of this component).
+  const [accessoryLightbox, setAccessoryLightbox] = useState<
+    { photoUrl: string; description: string; name: string } | null
+  >(null);
   // Delivery/collection by address (Stage 6, plan §Stage 6) — "enabled" and
   // "location picked" are separate: the toggle reveals the picker, but nothing
   // is submitted until a real Places selection lands (see DeliveryAddressSection).
@@ -717,9 +729,37 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, goo
                               key={item.id}
                             >
                               <span className="sb-acc__item-category">{categoryName}</span>
-                              <div className="sb-acc__item-photo">
-                                {item.photo_url ? <img src={item.photo_url} alt={itemName} /> : null}
-                              </div>
+                              {item.photo_url ? (
+                                // Tapping the photo OR the expand badge opens the
+                                // same fullscreen preview — the badge is purely a
+                                // visual "you can tap this" affordance (design
+                                // review 2026-07-16), no separate handler needed
+                                // since it's inside the same clickable wrapper.
+                                <button
+                                  type="button"
+                                  className="sb-acc__item-photo sb-acc__item-photo--clickable"
+                                  onClick={() =>
+                                    setAccessoryLightbox({
+                                      photoUrl: safeImageUrl(item.photo_url ?? undefined) ?? '',
+                                      description: item.description,
+                                      name: itemName,
+                                    })
+                                  }
+                                  aria-label={itemName}
+                                >
+                                  <img src={safeImageUrl(item.photo_url ?? undefined)} alt={itemName} />
+                                  <span className="sb-acc__item-expand" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="m21 21-6-6m6 6v-4.8m0 4.8h-4.8" />
+                                      <path d="M3 16.2V21m0 0h4.8M3 21l6-6" />
+                                      <path d="M21 7.8V3m0 0h-4.8M21 3l-6 6" />
+                                      <path d="M3 7.8V3m0 0h4.8M3 3l6 6" />
+                                    </svg>
+                                  </span>
+                                </button>
+                              ) : (
+                                <div className="sb-acc__item-photo" />
+                              )}
                               <div className="sb-acc__item-info">
                                 <span className="sb-acc__item-name">{itemName}</span>
                                 {item.price != null ? (
@@ -1039,6 +1079,32 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, goo
         ) : null}
       </div>
     </div>
+    {accessoryLightbox ? (
+      <div
+        className="sb-acc-lightbox"
+        role="dialog"
+        aria-modal="true"
+        onClick={() => setAccessoryLightbox(null)}
+      >
+        <button
+          type="button"
+          className="sb-acc-lightbox__close"
+          aria-label={t.closePhoto}
+          onClick={() => setAccessoryLightbox(null)}
+        >
+          ×
+        </button>
+        <img
+          className="sb-acc-lightbox__photo"
+          src={accessoryLightbox.photoUrl}
+          alt={accessoryLightbox.name}
+          onClick={(e) => e.stopPropagation()}
+        />
+        {accessoryLightbox.description ? (
+          <div className="sb-acc-lightbox__caption">{accessoryLightbox.description}</div>
+        ) : null}
+      </div>
+    ) : null}
     </div>,
     document.body,
   );
