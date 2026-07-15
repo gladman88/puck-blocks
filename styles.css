@@ -1667,6 +1667,11 @@ a.sb-map__line:hover {
   flex-direction: column;
   gap: 0.4rem;
 }
+.sb-vd__equipment-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
 /* Additional paid accessories (Stage 5, plans/paid-accessories/ §6) */
 .sb-vd__accessories {
   display: flex;

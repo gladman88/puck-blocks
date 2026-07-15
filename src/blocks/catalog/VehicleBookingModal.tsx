@@ -112,6 +112,7 @@ const S = {
     busy: 'Занята',
     specs: 'Характеристики',
     allSpecs: 'Все характеристики',
+    equipment: 'Комплектация',
     accessories: 'Дополнительные опции',
     perBooking: 'за бронь',
     accUnavailable: 'Недоступно на эти даты',
@@ -175,6 +176,7 @@ const S = {
     busy: 'Busy',
     specs: 'Specs',
     allSpecs: 'All specs',
+    equipment: 'Equipment',
     accessories: 'Additional Options',
     perBooking: 'per booking',
     accUnavailable: 'Not available for these dates',
@@ -766,6 +768,25 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, goo
                   </div>
                 ) : null}
 
+                {/* Equipment (vehicle.options — concrete features like CarPlay/
+                    sunroof) — more decision-relevant to a renter than raw
+                    technical Specs, so it comes first (conversion-order
+                    review 2026-07-15). Labelled (unlike the previous bare
+                    chip row) to match the section-label pattern used
+                    elsewhere (Specs/Deposit/Additional Options). */}
+                {(d.options ?? []).length > 0 ? (
+                  <div className="sb-vd__equipment-wrap">
+                    <span className="sb-vd__section-label">{t.equipment}</span>
+                    <div className="sb-vd__chips">
+                      {d.options!.map((o, i) => (
+                        <span className="sb-chip sb-chip--ghost" key={i}>
+                          {o}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 {/* Specs — first 4, rest behind a toggle (matches the standalone) */}
                 {SPEC_KEYS.some((k) => d[k])
                   ? (() => {
@@ -803,16 +824,6 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, goo
                       );
                     })()
                   : null}
-
-                {(d.options ?? []).length > 0 ? (
-                  <div className="sb-vd__chips">
-                    {d.options!.map((o, i) => (
-                      <span className="sb-chip sb-chip--ghost" key={i}>
-                        {o}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
               </div>
 
               <div className="sb-vd__cta">
