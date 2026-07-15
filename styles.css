@@ -1689,19 +1689,12 @@ a.sb-map__line:hover {
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
   padding-bottom: 0.4rem;
-  /* Bleed to the dialog's own edge padding so the row reaches the sheet
-     edges — MUST match .sb-modal__dialog's padding (1.5rem) / .sb-vd__info's
-     mobile override (1.25rem, ≤640px) below, or the row misaligns. */
-  margin: 0 -1.5rem;
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
-}
-@media (max-width: 640px) {
-  .sb-acc__row {
-    margin: 0 -1.25rem;
-    padding-left: 1.25rem;
-    padding-right: 1.25rem;
-  }
+  /* Deliberately NOT bled past the dialog's own edge padding (tried that,
+     reverted 2026-07-16 — a real-device visual bug where the row sat flush
+     against the screen edge even at scroll position 0, misaligned with
+     every other content block). Sitting inside the normal padding like any
+     other child guarantees alignment with zero margin/padding arithmetic to
+     get wrong, at the minor cost of not bleeding true edge-to-edge. */
 }
 .sb-acc__item {
   display: flex;
