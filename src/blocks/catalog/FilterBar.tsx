@@ -33,6 +33,7 @@ export interface FilterBarStrings {
   sortPriceDesc: string;
   dateFrom: string;
   dateTo: string;
+  clearFilters: string;
 }
 
 interface Props {
@@ -93,6 +94,7 @@ export function FilterBar({ filters, categories, onChange, strings: t }: Props) 
           value={filters.search || ''}
           onChange={(e) => onChange({ search: e.target.value || undefined })}
           placeholder={t.search}
+          aria-label={t.search}
         />
       </div>
 
@@ -146,7 +148,7 @@ export function FilterBar({ filters, categories, onChange, strings: t }: Props) 
               onChange(defaultFilterState());
               setCategoryOpen(false);
             }}
-            aria-label="×"
+            aria-label={t.clearFilters}
           >
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <line x1="18" y1="6" x2="6" y2="18" />

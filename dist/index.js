@@ -1645,7 +1645,8 @@ function FilterBar({ filters, categories, onChange, strings: t }) {
           className: "sb-input sb-filterbar__search-input",
           value: filters.search || "",
           onChange: (e) => onChange({ search: e.target.value || void 0 }),
-          placeholder: t.search
+          placeholder: t.search,
+          "aria-label": t.search
         }
       )
     ] }),
@@ -1706,7 +1707,7 @@ function FilterBar({ filters, categories, onChange, strings: t }) {
             onChange(defaultFilterState());
             setCategoryOpen(false);
           },
-          "aria-label": "\xD7",
+          "aria-label": t.clearFilters,
           children: /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
             /* @__PURE__ */ jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
             /* @__PURE__ */ jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
@@ -1800,7 +1801,8 @@ var STRINGS = {
     sortPriceAsc: "\u0414\u0435\u0448\u0435\u0432\u043B\u0435",
     sortPriceDesc: "\u0414\u043E\u0440\u043E\u0436\u0435",
     dateFrom: "\u0414\u0430\u0442\u0430 \u0441",
-    dateTo: "\u0414\u0430\u0442\u0430 \u043F\u043E"
+    dateTo: "\u0414\u0430\u0442\u0430 \u043F\u043E",
+    clearFilters: "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0444\u0438\u043B\u044C\u0442\u0440\u044B"
   },
   en: {
     all: "All",
@@ -1823,7 +1825,8 @@ var STRINGS = {
     sortPriceAsc: "Cheapest",
     sortPriceDesc: "Priciest",
     dateFrom: "From date",
-    dateTo: "To date"
+    dateTo: "To date",
+    clearFilters: "Clear filters"
   }
 };
 function buildFilteredVehiclesUrl(apiBase, f) {

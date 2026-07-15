@@ -207,6 +207,16 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
     expect(firstVehiclesCall?.[0]).toBe('/api/v1/catalog/vehicles/');
   });
 
+  it('gives the search input and the clear-filters button real accessible names, not a bare "×"', async () => {
+    stubFilteredFetch();
+    const { findByText, getByLabelText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
+    await findByText('BMW Z4');
+
+    expect(getByLabelText('Search...')).toBeTruthy();
+    fireEvent.change(getByLabelText('Search...'), { target: { value: 'BMW' } });
+    expect(getByLabelText('Clear filters')).toBeTruthy();
+  });
+
   it('clicking the Cars pill re-fetches with vehicle_type=car', async () => {
     const fetchMock = stubFilteredFetch();
     const { findByText, getByText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);

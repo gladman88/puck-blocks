@@ -124,6 +124,7 @@ const STRINGS = {
     sortPriceDesc: 'Дороже',
     dateFrom: 'Дата с',
     dateTo: 'Дата по',
+    clearFilters: 'Сбросить фильтры',
   },
   en: {
     all: 'All',
@@ -147,6 +148,7 @@ const STRINGS = {
     sortPriceDesc: 'Priciest',
     dateFrom: 'From date',
     dateTo: 'To date',
+    clearFilters: 'Clear filters',
   },
 } as const;
 
