@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CatalogCategory } from '../VehicleCatalog';
+import { categoryLabel, type CatalogCategory } from '../VehicleCatalog';
 import { nextDay, todayISO } from './dates';
 
 export type CatalogSortOption = 'default' | 'price_asc' | 'price_desc';
@@ -41,6 +41,7 @@ interface Props {
   categories: CatalogCategory[];
   onChange: (patch: Partial<CatalogFilterState>) => void;
   strings: FilterBarStrings;
+  locale: 'ru' | 'en';
 }
 
 /**
@@ -51,7 +52,7 @@ interface Props {
  * Hidden entirely when VehicleCatalogProps.showFilters is false (the site's
  * category-tabs-only view is unaffected — see VehicleCatalog.tsx).
  */
-export function FilterBar({ filters, categories, onChange, strings: t }: Props) {
+export function FilterBar({ filters, categories, onChange, strings: t, locale }: Props) {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const today = todayISO();
 
@@ -136,7 +137,7 @@ export function FilterBar({ filters, categories, onChange, strings: t }: Props) 
               <circle cx="16" cy="12" r="1.5" fill="currentColor" stroke="none" />
               <circle cx="10" cy="18" r="1.5" fill="currentColor" stroke="none" />
             </svg>
-            {activeCategory ? activeCategory.name : t.category}
+            {activeCategory ? categoryLabel(activeCategory, locale) : t.category}
           </button>
         ) : null}
 
@@ -175,7 +176,7 @@ export function FilterBar({ filters, categories, onChange, strings: t }: Props) 
                 setCategoryOpen(false);
               }}
             >
-              {cat.name}
+              {categoryLabel(cat, locale)}
             </button>
           ))}
         </div>

@@ -24,8 +24,20 @@ function setVehicleParam(id: string | null) {
 export interface CatalogCategory {
   id: string;
   name: string;
+  /** Optional English translation (public catalog/site only) — '' when the
+   *  category hasn't been translated in FMS. Use `categoryLabel()` below
+   *  rather than reading `name`/`name_en` directly, so every display site
+   *  falls back to `name` consistently. */
+  name_en?: string;
   color: string;
   vehicle_count: number;
+}
+
+/** Locale-aware category display name — falls back to `name` (ru) when
+ *  `name_en` is unset/blank, so an untranslated category never renders empty
+ *  on the English catalog. */
+export function categoryLabel(category: Pick<CatalogCategory, 'name' | 'name_en'>, locale: 'ru' | 'en'): string {
+  return locale === 'en' && category.name_en ? category.name_en : category.name;
 }
 
 export interface CatalogVehicle {
@@ -423,6 +435,7 @@ export function VehicleCatalog({
           categories={categories}
           onChange={handleFiltersChange}
           strings={t}
+          locale={locale}
         />
       ) : state === 'ready' && tabs.length > 0 ? (
         <div className="sb-vcatalog__tabs">
@@ -433,7 +446,7 @@ export function VehicleCatalog({
               className={`sb-vcatalog__tab ${activeCat === c.id ? 'sb-vcatalog__tab--active' : ''}`}
               onClick={() => setActiveCat(c.id)}
             >
-              {c.name}
+              {categoryLabel(c, locale)}
             </button>
           ))}
           <button
@@ -472,7 +485,7 @@ export function VehicleCatalog({
                     // noise. Filter mode has no such tab (parity with the
                     // standalone catalog's VehicleCard, which always shows it).
                     <span className="sb-vcard__badge" style={{ backgroundColor: v.category.color }}>
-                      {v.category.name}
+                      {categoryLabel(v.category, locale)}
                     </span>
                   ) : null}
                   {countLabel ? <span className="sb-vcard__count">{countLabel}</span> : null}

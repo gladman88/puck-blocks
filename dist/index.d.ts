@@ -205,9 +205,18 @@ interface CatalogFilterState {
 interface CatalogCategory {
     id: string;
     name: string;
+    /** Optional English translation (public catalog/site only) — '' when the
+     *  category hasn't been translated in FMS. Use `categoryLabel()` below
+     *  rather than reading `name`/`name_en` directly, so every display site
+     *  falls back to `name` consistently. */
+    name_en?: string;
     color: string;
     vehicle_count: number;
 }
+/** Locale-aware category display name — falls back to `name` (ru) when
+ *  `name_en` is unset/blank, so an untranslated category never renders empty
+ *  on the English catalog. */
+declare function categoryLabel(category: Pick<CatalogCategory, 'name' | 'name_en'>, locale: 'ru' | 'en'): string;
 interface CatalogVehicle {
     id: string;
     display_name: string;
@@ -336,4 +345,4 @@ interface RootProps {
 }
 declare const puckConfig: Config;
 
-export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogFilterState, type CatalogSortOption, type CatalogVehicle, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, MapContacts, type MapContactsProps, type MediaReview, type NavLink, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, VehicleCatalog, type VehicleCatalogProps, puckConfig };
+export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogFilterState, type CatalogSortOption, type CatalogVehicle, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, MapContacts, type MapContactsProps, type MediaReview, type NavLink, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, VehicleCatalog, type VehicleCatalogProps, categoryLabel, puckConfig };

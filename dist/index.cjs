@@ -1133,7 +1133,7 @@ function VehicleBookingModal({
                 ] }),
                 /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__meta-row", children: [
                   d.year ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__year", children: d.year }) : null,
-                  d.category ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__badge", style: { backgroundColor: d.category.color }, children: d.category.name }) : null,
+                  d.category ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__badge", style: { backgroundColor: d.category.color }, children: categoryLabel(d.category, locale) }) : null,
                   /* @__PURE__ */ jsxRuntime.jsxs(
                     "button",
                     {
@@ -1614,7 +1614,7 @@ function VehicleBookingModal({
 function defaultFilterState() {
   return { vehicleType: void 0, category: void 0, search: void 0, sort: "default" };
 }
-function FilterBar({ filters, categories, onChange, strings: t }) {
+function FilterBar({ filters, categories, onChange, strings: t, locale }) {
   const [categoryOpen, setCategoryOpen] = react.useState(false);
   const today = todayISO();
   const handleFromChange = (value) => {
@@ -1696,7 +1696,7 @@ function FilterBar({ filters, categories, onChange, strings: t }) {
               /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "16", cy: "12", r: "1.5", fill: "currentColor", stroke: "none" }),
               /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "10", cy: "18", r: "1.5", fill: "currentColor", stroke: "none" })
             ] }),
-            activeCategory ? activeCategory.name : t.category
+            activeCategory ? categoryLabel(activeCategory, locale) : t.category
           ]
         }
       ) : null,
@@ -1727,7 +1727,7 @@ function FilterBar({ filters, categories, onChange, strings: t }) {
           onChange({ category: filters.category === cat.id ? void 0 : cat.id, vehicleType: void 0 });
           setCategoryOpen(false);
         },
-        children: cat.name
+        children: categoryLabel(cat, locale)
       },
       cat.id
     )) }) : null,
@@ -1779,6 +1779,9 @@ function setVehicleParam(id) {
   if (id) url.searchParams.set("vehicle", id);
   else url.searchParams.delete("vehicle");
   window.history.replaceState(null, "", url.toString());
+}
+function categoryLabel(category, locale) {
+  return locale === "en" && category.name_en ? category.name_en : category.name;
 }
 var STRINGS = {
   ru: {
@@ -2023,7 +2026,8 @@ function VehicleCatalog({
         filters,
         categories,
         onChange: handleFiltersChange,
-        strings: t
+        strings: t,
+        locale
       }
     ) : state === "ready" && tabs.length > 0 ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcatalog__tabs", children: [
       tabs.map((c) => /* @__PURE__ */ jsxRuntime.jsx(
@@ -2032,7 +2036,7 @@ function VehicleCatalog({
           type: "button",
           className: `sb-vcatalog__tab ${activeCat === c.id ? "sb-vcatalog__tab--active" : ""}`,
           onClick: () => setActiveCat(c.id),
-          children: c.name
+          children: categoryLabel(c, locale)
         },
         c.id
       )),
@@ -2058,7 +2062,7 @@ function VehicleCatalog({
           // category tab every card is that category, so it's just
           // noise. Filter mode has no such tab (parity with the
           // standalone catalog's VehicleCard, which always shows it).
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__badge", style: { backgroundColor: v.category.color }, children: v.category.name })
+          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__badge", style: { backgroundColor: v.category.color }, children: categoryLabel(v.category, locale) })
         ) : null,
         countLabel ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__count", children: countLabel }) : null,
         /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__overlay", children: [
@@ -2668,4 +2672,5 @@ exports.SiteHeader = SiteHeader;
 exports.StatCounters = StatCounters;
 exports.TermsAccordion = TermsAccordion;
 exports.VehicleCatalog = VehicleCatalog;
+exports.categoryLabel = categoryLabel;
 exports.puckConfig = puckConfig;

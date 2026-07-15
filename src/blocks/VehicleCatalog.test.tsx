@@ -1,7 +1,22 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
-import { VehicleCatalog } from './VehicleCatalog';
+import { VehicleCatalog, categoryLabel } from './VehicleCatalog';
+
+describe('categoryLabel', () => {
+  it('uses name_en on the English catalog when the category has been translated', () => {
+    expect(categoryLabel({ name: 'Премиум', name_en: 'Premium' }, 'en')).toBe('Premium');
+  });
+
+  it('falls back to `name` (ru) on English when the category has no translation yet', () => {
+    expect(categoryLabel({ name: 'Премиум', name_en: '' }, 'en')).toBe('Премиум');
+    expect(categoryLabel({ name: 'Премиум' }, 'en')).toBe('Премиум');
+  });
+
+  it('always uses `name` on the Russian catalog, even if name_en is set', () => {
+    expect(categoryLabel({ name: 'Премиум', name_en: 'Premium' }, 'ru')).toBe('Премиум');
+  });
+});
 
 afterEach(() => {
   cleanup(); // unmount prior renders incl. portal'd modals, so screen queries don't leak across tests
@@ -161,6 +176,16 @@ describe('VehicleCatalog', () => {
     const { findByText } = render(<VehicleCatalog vehicleType="car" locale="en" />);
     await findByText('on request');
   });
+
+  it('category tab shows the translated name (locale=en) when set, else falls back to the Russian name', async () => {
+    const translatedCat = { id: 'c2', name: 'Премиум', name_en: 'Premium', color: '#ff0000', vehicle_count: 1 };
+    stubFetch([translatedCat], [{ ...vehicle, category: translatedCat }]);
+    const { container, findByText } = render(<VehicleCatalog vehicleType="car" locale="en" />);
+    await findByText('BMW Z4');
+    // Translated name appears both as the tab label and the (locale=en → activeCat===null) card badge.
+    const tab = container.querySelector('.sb-vcatalog__tab');
+    expect(tab?.textContent).toBe('Premium');
+  });
 });
 
 describe('VehicleCatalog — showFilters=false (site) backward-compat guard', () => {
@@ -259,6 +284,21 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
     const { container, findByText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
     await findByText('BMW Z4');
     expect(container.querySelector('.sb-vcard__badge')).not.toBeNull();
+  });
+
+  it('shows the translated category name on the card badge when locale=en and name_en is set', async () => {
+    const translatedCat = { id: 'c2', name: 'Премиум', name_en: 'Premium', color: '#ff0000', vehicle_count: 1 };
+    stubFetch([translatedCat], [{ ...vehicle, category: translatedCat }]);
+    const { container, findByText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
+    await findByText('BMW Z4');
+    expect(container.querySelector('.sb-vcard__badge')?.textContent).toBe('Premium');
+  });
+
+  it('falls back to the Russian category name on the card badge when locale=en but name_en is unset', async () => {
+    stubFetch([cat], [vehicle]); // `cat` has no name_en
+    const { container, findByText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
+    await findByText('BMW Z4');
+    expect(container.querySelector('.sb-vcard__badge')?.textContent).toBe('Премиум');
   });
 
   it('under React.StrictMode, a single non-search filter click still issues exactly one extra fetch (code review 2026-07-15: the filter-state updater must stay pure — StrictMode double-invokes it in dev — so the debounce/refetch trigger was moved to a useEffect keyed on `filters` instead of living inside the setFilters callback)', async () => {

@@ -31,7 +31,7 @@ export type { FooterProps } from './blocks/Footer';
 export { LeadForm } from './blocks/LeadForm';
 export type { LeadFormProps } from './blocks/LeadForm';
 
-export { VehicleCatalog } from './blocks/VehicleCatalog';
+export { VehicleCatalog, categoryLabel } from './blocks/VehicleCatalog';
 export type {
   VehicleCatalogProps,
   CatalogVehicle,

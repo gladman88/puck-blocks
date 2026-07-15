@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type TouchEvent as ReactTouchEvent } from 'react';
 import { createPortal } from 'react-dom';
-import type { CatalogVehicle } from '../VehicleCatalog';
+import { categoryLabel, type CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
 import { buildTelegramDeepLink, formatShortDate, money, nextDay, todayISO } from './dates';
 import { DeliveryAddressSection, type PickedLocation } from './DeliveryAddressSection';
@@ -623,7 +623,7 @@ export function VehicleBookingModal({
                   {d.year ? <span className="sb-vd__year">{d.year}</span> : null}
                   {d.category ? (
                     <span className="sb-vd__badge" style={{ backgroundColor: d.category.color }}>
-                      {d.category.name}
+                      {categoryLabel(d.category, locale)}
                     </span>
                   ) : null}
                   <button
