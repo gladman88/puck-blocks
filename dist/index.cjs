@@ -729,6 +729,7 @@ var S = {
     allSpecs: "\u0412\u0441\u0435 \u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438",
     equipment: "\u041A\u043E\u043C\u043F\u043B\u0435\u043A\u0442\u0430\u0446\u0438\u044F",
     accessories: "\u0414\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u043E\u043F\u0446\u0438\u0438",
+    accessoryFallback: "\u0414\u043E\u043F. \u043E\u043F\u0446\u0438\u044F",
     perBooking: "\u0437\u0430 \u0431\u0440\u043E\u043D\u044C",
     accUnavailable: "\u041D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E \u043D\u0430 \u044D\u0442\u0438 \u0434\u0430\u0442\u044B",
     deposit: "\u0414\u0435\u043F\u043E\u0437\u0438\u0442",
@@ -794,6 +795,7 @@ var S = {
     allSpecs: "All specs",
     equipment: "Equipment",
     accessories: "Additional Options",
+    accessoryFallback: "Add-on",
     perBooking: "per booking",
     accUnavailable: "Not available for these dates",
     deposit: "Deposit",
@@ -970,7 +972,7 @@ function VehicleBookingModal({
   const selectedAccessories = Object.entries(accessories).filter(([, qty]) => qty > 0).map(([accessory_id, quantity]) => ({ accessory_id, quantity }));
   const submit = async (e) => {
     e.preventDefault();
-    if (!datesValid || !name.trim() || !contact.trim()) return;
+    if (submitting || !datesValid || !name.trim() || !contact.trim()) return;
     setSubmitting(true);
     setErr("");
     try {
@@ -1009,7 +1011,7 @@ function VehicleBookingModal({
     }
   };
   const handleTelegramBooking = async () => {
-    if (!datesValid) return;
+    if (tgSubmitting || !datesValid) return;
     setTgSubmitting(true);
     setTgErr("");
     try {
@@ -1031,7 +1033,11 @@ function VehicleBookingModal({
         return;
       }
       const { token } = await res.json();
-      const href = safeHref(`https://t.me/${botUsername}?start=bk_${token}`);
+      if (!token) {
+        setTgErr(t.sendErr);
+        return;
+      }
+      const href = safeHref(`https://t.me/${botUsername}?start=bk_${encodeURIComponent(token)}`);
       if (!href) {
         setTgErr(t.sendErr);
         return;
@@ -1437,8 +1443,7 @@ function VehicleBookingModal({
                 /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__section-label", children: t.accessories }),
                 /* @__PURE__ */ jsxRuntime.jsx("ul", { className: "sb-bk__accessories-list", children: selectedAccessories.map(({ accessory_id, quantity }) => {
                   const item = (d.accessories ?? []).flatMap((group) => group.items).find((it) => it.id === accessory_id);
-                  if (!item) return null;
-                  const itemName = locale === "ru" ? item.name_ru : item.name_en;
+                  const itemName = item ? locale === "ru" ? item.name_ru : item.name_en : t.accessoryFallback;
                   return /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
                     itemName,
                     quantity > 1 ? ` \xD7 ${quantity}` : ""

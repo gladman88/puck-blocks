@@ -621,6 +621,31 @@ describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-bl
     expect(tgButton.disabled).toBe(false);
   });
 
+  it('1-click Telegram button shows a retryable error instead of navigating when the intent response has no token', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const u = String(url);
+        if (u.includes('/booking-intents/')) {
+          // 2xx but malformed/partial body — no `token` key.
+          return Promise.resolve(new Response(JSON.stringify({}), { status: 201 }));
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+
+    await screen.findByText('Could not send. Please try again.');
+    const tgButton = screen.getByText('1-click booking via Telegram').closest('button') as HTMLButtonElement;
+    expect(tgButton.disabled).toBe(false);
+    expect(window.location.href).not.toContain('bk_');
+  });
+
   it('appends &ref= to the share link when a referral code is set', async () => {
     stubDetailFetch(baseDetail);
     const writeText = vi.fn().mockResolvedValue(undefined);

@@ -118,6 +118,7 @@ const S = {
     allSpecs: 'Все характеристики',
     equipment: 'Комплектация',
     accessories: 'Дополнительные опции',
+    accessoryFallback: 'Доп. опция',
     perBooking: 'за бронь',
     accUnavailable: 'Недоступно на эти даты',
     deposit: 'Депозит',
@@ -183,6 +184,7 @@ const S = {
     allSpecs: 'All specs',
     equipment: 'Equipment',
     accessories: 'Additional Options',
+    accessoryFallback: 'Add-on',
     perBooking: 'per booking',
     accUnavailable: 'Not available for these dates',
     deposit: 'Deposit',
@@ -452,7 +454,7 @@ export function VehicleBookingModal({
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!datesValid || !name.trim() || !contact.trim()) return;
+    if (submitting || !datesValid || !name.trim() || !contact.trim()) return;
     setSubmitting(true);
     setErr('');
     try {
@@ -499,7 +501,7 @@ export function VehicleBookingModal({
   // POSTed to a booking-intent first, and only the returned token travels in
   // the deep link. The bot resolves it back into the full selection.
   const handleTelegramBooking = async () => {
-    if (!datesValid) return;
+    if (tgSubmitting || !datesValid) return;
     setTgSubmitting(true);
     setTgErr('');
     try {
@@ -520,8 +522,15 @@ export function VehicleBookingModal({
         setTgErr(res.status === 429 ? t.tooMany : t.sendErr);
         return;
       }
-      const { token } = (await res.json()) as { token: string };
-      const href = safeHref(`https://t.me/${botUsername}?start=bk_${token}`);
+      // Guard the token explicitly rather than trusting the response shape —
+      // a malformed/partial 2xx body must show a retryable error, not
+      // silently navigate to a broken `bk_undefined` deep link.
+      const { token } = (await res.json()) as { token?: string };
+      if (!token) {
+        setTgErr(t.sendErr);
+        return;
+      }
+      const href = safeHref(`https://t.me/${botUsername}?start=bk_${encodeURIComponent(token)}`);
       if (!href) {
         setTgErr(t.sendErr);
         return;
@@ -1032,8 +1041,10 @@ export function VehicleBookingModal({
                       const item = (d.accessories ?? [])
                         .flatMap((group) => group.items)
                         .find((it) => it.id === accessory_id);
-                      if (!item) return null;
-                      const itemName = locale === 'ru' ? item.name_ru : item.name_en;
+                      // A selected id not found in the current detail payload
+                      // still went into the request — show a generic label
+                      // instead of silently under-reporting what was picked.
+                      const itemName = item ? (locale === 'ru' ? item.name_ru : item.name_en) : t.accessoryFallback;
                       return (
                         <li key={accessory_id}>
                           {itemName}
