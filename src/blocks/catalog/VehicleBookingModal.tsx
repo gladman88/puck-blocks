@@ -375,6 +375,8 @@ export function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, goo
     setState('loading');
     setAccessories({}); // new vehicle → discard any stale selection (defensive: the
     // component isn't guaranteed to remount between vehicles, see VehicleCatalog.tsx)
+    setAccessoryLightbox(null); // same reason — an open photo preview from the
+    // previous vehicle must not linger over the new one (code review 2026-07-16)
     fetch(`${apiBase}/api/v1/catalog/vehicles/${vehicle.id}/`, { headers: HEADERS })
       .then((r) => {
         if (!r.ok) throw new Error(String(r.status));

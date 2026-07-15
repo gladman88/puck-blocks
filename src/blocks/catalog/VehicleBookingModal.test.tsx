@@ -262,6 +262,40 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     await screen.findAllByAltText('Seat');
     expect(document.querySelector('.sb-acc-lightbox__caption')).toBeNull();
   });
+
+  it('switching to a different vehicle (no guaranteed remount) closes an open lightbox (code review 2026-07-16)', async () => {
+    const detail = {
+      ...baseDetail,
+      accessories: [
+        {
+          id: 'cat-1', name_ru: 'Кресла', name_en: 'Seats', photo_url: null,
+          items: [
+            {
+              id: 'acc-1', name_ru: 'Кресло', name_en: 'Seat', photo_url: 'https://example.com/seat.jpg',
+              description: 'Компактное кресло для детей 9-18 кг.',
+              price: 500, price_unit: 'per_booking', stock: null, available_stock: null,
+            },
+          ],
+        },
+      ],
+    };
+    stubDetailFetch(detail);
+    const { rerender } = render(
+      <VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />,
+    );
+    await screen.findByText('Additional Options');
+    fireEvent.click(screen.getByRole('button', { name: 'Seat' }));
+    expect(await screen.findByText('Компактное кресло для детей 9-18 кг.')).toBeTruthy();
+
+    const otherVehicle: CatalogVehicle = { ...vehicle, id: 'v2', display_name: 'Toyota Yaris' };
+    rerender(
+      <VehicleBookingModal vehicle={otherVehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Компактное кресло для детей 9-18 кг.')).toBeNull();
+    });
+  });
 });
 
 describe('VehicleBookingModal — delivery by address (Stage 6)', () => {

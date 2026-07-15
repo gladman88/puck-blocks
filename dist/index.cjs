@@ -942,6 +942,7 @@ function VehicleBookingModal({ vehicle, apiBase, locale, botUsername, googleMaps
     let cancelled = false;
     setState("loading");
     setAccessories({});
+    setAccessoryLightbox(null);
     fetch(`${apiBase}/api/v1/catalog/vehicles/${vehicle.id}/`, { headers: HEADERS }).then((r) => {
       if (!r.ok) throw new Error(String(r.status));
       return r.json();
