@@ -115,8 +115,8 @@ const STRINGS = {
     loading: 'Загрузка…',
     error: 'Не удалось загрузить каталог',
     // Filter bar (showFilters=true only) — parity with frontend_catalog i18n.
-    cars: 'Машины',
-    motorcycles: 'Мотоциклы',
+    cars: 'Авто',
+    motorcycles: 'Мото',
     category: 'Категория',
     search: 'Поиск...',
     sortDefault: 'Сортировка',
