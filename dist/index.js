@@ -2064,7 +2064,10 @@ function VehicleCatalog({
         ) : null,
         countLabel ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__count", children: countLabel }) : null,
         /* @__PURE__ */ jsxs("div", { className: "sb-vcard__overlay", children: [
-          !v.is_available ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__status", children: v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy }) : null,
+          !v.is_available ? /* @__PURE__ */ jsxs("span", { className: `sb-vcard__status ${v.free_from ? "sb-vcard__status--free" : ""}`, children: [
+            /* @__PURE__ */ jsx("span", { className: "sb-vcard__status-dot", "aria-hidden": true }),
+            v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy
+          ] }) : null,
           /* @__PURE__ */ jsx("h3", { className: "sb-vcard__name", children: v.display_name }),
           /* @__PURE__ */ jsxs("div", { className: "sb-vcard__meta", children: [
             /* @__PURE__ */ jsxs("span", { className: "sb-vcard__year", children: [

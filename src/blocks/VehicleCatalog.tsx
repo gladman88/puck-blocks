@@ -491,7 +491,8 @@ export function VehicleCatalog({
                   {countLabel ? <span className="sb-vcard__count">{countLabel}</span> : null}
                   <div className="sb-vcard__overlay">
                     {!v.is_available ? (
-                      <span className="sb-vcard__status">
+                      <span className={`sb-vcard__status ${v.free_from ? 'sb-vcard__status--free' : ''}`}>
+                        <span className="sb-vcard__status-dot" aria-hidden />
                         {v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy}
                       </span>
                     ) : null}

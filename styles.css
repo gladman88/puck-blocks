@@ -1136,15 +1136,33 @@ a.sb-map__line:hover {
   backdrop-filter: blur(4px);
 }
 .sb-vcard__status {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   margin-bottom: 0.35rem;
-  padding: 0.1rem 0.45rem;
+  padding: 0.15rem 0.5rem;
   border-radius: 6px;
   font-size: 0.6rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
+}
+/* "Free from <date>" — a known return date is a more actionable signal than a
+   plain "busy", so it gets the amber highlight treatment (parity with the
+   standalone catalog's original design; owner feedback 2026-07-15: the plain
+   dark chip "looked worse" than this). */
+.sb-vcard__status--free {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+.sb-vcard__status-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
 }
 .sb-vcard__overlay {
   position: absolute;

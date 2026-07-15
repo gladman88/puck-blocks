@@ -93,6 +93,25 @@ describe('VehicleCatalog', () => {
     await findByText('Поделиться');
   });
 
+  it('gives the "free from <date>" chip the amber highlight treatment (owner feedback 2026-07-15: the plain dark chip looked worse than the old catalog\'s)', async () => {
+    const freesUp = { ...vehicle, is_available: false, free_from: '2026-08-01' };
+    stubFetch([cat], [freesUp]);
+    const { container, findByText } = render(<VehicleCatalog vehicleType="car" />);
+    await findByText('BMW Z4');
+    const status = container.querySelector('.sb-vcard__status');
+    expect(status?.classList.contains('sb-vcard__status--free')).toBe(true);
+    expect(status?.querySelector('.sb-vcard__status-dot')).not.toBeNull();
+  });
+
+  it('leaves a plain "busy" chip (no known return date) without the amber modifier', async () => {
+    const busy = { ...vehicle, is_available: false, free_from: null };
+    stubFetch([cat], [busy]);
+    const { container, findByText } = render(<VehicleCatalog vehicleType="car" />);
+    await findByText('BMW Z4');
+    const status = container.querySelector('.sb-vcard__status');
+    expect(status?.classList.contains('sb-vcard__status--free')).toBe(false);
+  });
+
   it('shows an error state when the API fails', async () => {
     stubFetch([], [], false);
     const { findByText } = render(<VehicleCatalog vehicleType="car" />);
