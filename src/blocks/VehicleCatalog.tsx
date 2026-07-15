@@ -267,22 +267,32 @@ export function VehicleCatalog({
   // (mirrors frontend_catalog/App.tsx's apiFilters/handleFiltersChange).
   const [filters, setFilters] = useState<CatalogFilterState>(defaultFilterState);
   const [debouncedFilters, setDebouncedFilters] = useState<CatalogFilterState>(filters);
-  const filterDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handleFiltersChange = (patch: Partial<CatalogFilterState>) => {
-    setFilters((prev) => {
-      const next = { ...prev, ...patch };
-      if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
-      const keys = Object.keys(patch);
-      const searchOnly = keys.length === 1 && keys[0] === 'search';
-      if (searchOnly) {
-        filterDebounceRef.current = setTimeout(() => setDebouncedFilters(next), 300);
-      } else {
-        setDebouncedFilters(next);
-      }
-      return next;
-    });
+    setFilters((prev) => ({ ...prev, ...patch }));
   };
+
+  // Drives `debouncedFilters` off `filters` as an effect (not inside the
+  // setFilters updater above) — a setState updater must stay pure, and
+  // scheduling a timer / calling another setState from inside one breaks
+  // under React StrictMode's dev-mode double-invoke (double-fetch bug,
+  // code review 2026-07-15). Only a lone `search` change debounces; any
+  // other field (or a multi-field change, e.g. the filter-bar's "clear all")
+  // applies immediately.
+  const prevFiltersRef = useRef(filters);
+  useEffect(() => {
+    const prev = prevFiltersRef.current;
+    prevFiltersRef.current = filters;
+    const changedKeys = (Object.keys(filters) as (keyof CatalogFilterState)[]).filter(
+      (key) => filters[key] !== prev[key],
+    );
+    const searchOnly = changedKeys.length === 1 && changedKeys[0] === 'search';
+    if (searchOnly) {
+      const timer = setTimeout(() => setDebouncedFilters(filters), 300);
+      return () => clearTimeout(timer);
+    }
+    setDebouncedFilters(filters);
+  }, [filters]);
 
   useEffect(() => {
     let cancelled = false;

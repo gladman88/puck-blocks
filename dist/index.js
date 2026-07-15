@@ -546,13 +546,14 @@ function formatShortDate(isoDate, lang) {
     timeZone: "UTC"
   });
 }
+var MAX_START_PAYLOAD_LEN = 64;
 function buildTelegramDeepLink(botUsername, vehicleId, dates, referralCode) {
-  let payload = `bk_${vehicleId.replace(/-/g, "")}`;
-  if (dates?.from && dates?.to) {
-    payload += `_${dates.from.replace(/-/g, "")}_${dates.to.replace(/-/g, "")}`;
-  }
-  if (referralCode) {
-    payload += `_${referralCode}`;
+  const vehiclePart = `bk_${vehicleId.replace(/-/g, "")}`;
+  const refPart = referralCode ? `_${referralCode}` : "";
+  const datesPart = dates?.from && dates?.to ? `_${dates.from.replace(/-/g, "")}_${dates.to.replace(/-/g, "")}` : "";
+  let payload = vehiclePart + datesPart + refPart;
+  if (payload.length > MAX_START_PAYLOAD_LEN) {
+    payload = vehiclePart + refPart;
   }
   return `https://t.me/${botUsername}?start=${payload}`;
 }
@@ -1906,21 +1907,23 @@ function VehicleCatalog({
   const [selected, setSelected] = useState(null);
   const [filters, setFilters] = useState(defaultFilterState);
   const [debouncedFilters, setDebouncedFilters] = useState(filters);
-  const filterDebounceRef = useRef(void 0);
   const handleFiltersChange = (patch) => {
-    setFilters((prev) => {
-      const next = { ...prev, ...patch };
-      if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
-      const keys = Object.keys(patch);
-      const searchOnly = keys.length === 1 && keys[0] === "search";
-      if (searchOnly) {
-        filterDebounceRef.current = setTimeout(() => setDebouncedFilters(next), 300);
-      } else {
-        setDebouncedFilters(next);
-      }
-      return next;
-    });
+    setFilters((prev) => ({ ...prev, ...patch }));
   };
+  const prevFiltersRef = useRef(filters);
+  useEffect(() => {
+    const prev = prevFiltersRef.current;
+    prevFiltersRef.current = filters;
+    const changedKeys = Object.keys(filters).filter(
+      (key) => filters[key] !== prev[key]
+    );
+    const searchOnly = changedKeys.length === 1 && changedKeys[0] === "search";
+    if (searchOnly) {
+      const timer = setTimeout(() => setDebouncedFilters(filters), 300);
+      return () => clearTimeout(timer);
+    }
+    setDebouncedFilters(filters);
+  }, [filters]);
   useEffect(() => {
     let cancelled = false;
     setState("loading");

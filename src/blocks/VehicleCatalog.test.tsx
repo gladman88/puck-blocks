@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { VehicleCatalog } from './VehicleCatalog';
 
 afterEach(() => {
@@ -248,5 +249,24 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
     const { container, findByText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
     await findByText('BMW Z4');
     expect(container.querySelector('.sb-vcard__badge')).not.toBeNull();
+  });
+
+  it('under React.StrictMode, a single non-search filter click still issues exactly one extra fetch (code review 2026-07-15: the filter-state updater must stay pure — StrictMode double-invokes it in dev — so the debounce/refetch trigger was moved to a useEffect keyed on `filters` instead of living inside the setFilters callback)', async () => {
+    const fetchMock = stubFilteredFetch();
+    const { findByText, getByText } = render(
+      <StrictMode>
+        <VehicleCatalog showFilters apiBase="" locale="en" />
+      </StrictMode>,
+    );
+    await findByText('BMW Z4');
+
+    const vehiclesCallsBefore = fetchMock.mock.calls.filter(([u]) => String(u).includes('/vehicles/')).length;
+    fireEvent.click(getByText('Cars'));
+    await waitFor(() => {
+      const last = fetchMock.mock.calls.filter(([u]) => String(u).includes('/vehicles/')).pop();
+      expect(last?.[0]).toBe('/api/v1/catalog/vehicles/?vehicle_type=car');
+    });
+    const vehiclesCallsAfter = fetchMock.mock.calls.filter(([u]) => String(u).includes('/vehicles/')).length;
+    expect(vehiclesCallsAfter - vehiclesCallsBefore).toBe(1);
   });
 });

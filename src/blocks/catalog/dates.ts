@@ -40,12 +40,21 @@ export function formatShortDate(isoDate: string, lang: 'en' | 'ru'): string {
   });
 }
 
+// Telegram caps the `/start` deep-link payload at this many characters.
+const MAX_START_PAYLOAD_LEN = 64;
+
 /**
  * Telegram deep link for catalog booking — mirrors frontend_catalog/services/deeplink.
  * Format: bk_<vehicle_hex>[_<startYYYYMMDD>_<endYYYYMMDD>][_<referralCode>].
- * `start` payload is capped at 64 chars by Telegram; a UUID-hex vehicle id (32)
- * + dates (17) + a referral code (max 20, per apps.agents.models.ReferralCode)
- * fits comfortably, so no truncation is needed here (matches the standalone).
+ * A UUID-hex vehicle id (32) + dates (18) + `_` + a referral code fits under
+ * the 64-char cap only while the code stays at the auto-generated length (6,
+ * see apps.agents.models.REFERRAL_CODE_LENGTH) — the field itself allows up
+ * to 20 (`ReferralCode.code`), which alongside a date range CAN overflow
+ * (bk_ + 32 + _YYYYMMDD_YYYYMMDD + _ + 20 = 74). Rather than silently
+ * truncating raw text (Telegram would just reject/garble an invalid
+ * payload), drop the date segment first when over budget — attribution
+ * matters more than the date prefill, and the booking form still lets the
+ * customer pick dates manually.
  */
 export function buildTelegramDeepLink(
   botUsername: string,
@@ -53,12 +62,14 @@ export function buildTelegramDeepLink(
   dates?: { from?: string; to?: string },
   referralCode?: string | null,
 ): string {
-  let payload = `bk_${vehicleId.replace(/-/g, '')}`;
-  if (dates?.from && dates?.to) {
-    payload += `_${dates.from.replace(/-/g, '')}_${dates.to.replace(/-/g, '')}`;
-  }
-  if (referralCode) {
-    payload += `_${referralCode}`;
+  const vehiclePart = `bk_${vehicleId.replace(/-/g, '')}`;
+  const refPart = referralCode ? `_${referralCode}` : '';
+  const datesPart =
+    dates?.from && dates?.to ? `_${dates.from.replace(/-/g, '')}_${dates.to.replace(/-/g, '')}` : '';
+
+  let payload = vehiclePart + datesPart + refPart;
+  if (payload.length > MAX_START_PAYLOAD_LEN) {
+    payload = vehiclePart + refPart;
   }
   return `https://t.me/${botUsername}?start=${payload}`;
 }

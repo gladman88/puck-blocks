@@ -60,4 +60,28 @@ describe('date helpers', () => {
     expect(buildTelegramDeepLink('bot', 'a-b-c', undefined, null)).toBe('https://t.me/bot?start=bk_abc');
     expect(buildTelegramDeepLink('bot', 'a-b-c', undefined, '')).toBe('https://t.me/bot?start=bk_abc');
   });
+
+  it('drops the dates segment (never truncates raw text) when a long referral code would overflow the 64-char Telegram limit', () => {
+    const vehicleHex = '0'.repeat(32); // a real UUID hex is 32 chars
+    const longCode = 'A'.repeat(20); // ReferralCode.code allows up to max_length=20
+    const withDates = buildTelegramDeepLink(
+      'bot',
+      vehicleHex,
+      { from: '2026-06-19', to: '2026-06-20' },
+      longCode,
+    );
+    // bk_ + 32 + _YYYYMMDD_YYYYMMDD + _ + 20 = 74 chars would overflow — dates dropped, referral kept.
+    expect(withDates).toBe(`https://t.me/bot?start=bk_${vehicleHex}_${longCode}`);
+    expect(withDates.split('?start=')[1].length).toBeLessThanOrEqual(64);
+
+    // The everyday case (6-char auto-generated code) fits and keeps the dates.
+    const shortCode = 'AG1234';
+    const everyday = buildTelegramDeepLink(
+      'bot',
+      vehicleHex,
+      { from: '2026-06-19', to: '2026-06-20' },
+      shortCode,
+    );
+    expect(everyday).toBe(`https://t.me/bot?start=bk_${vehicleHex}_20260619_20260620_${shortCode}`);
+  });
 });
