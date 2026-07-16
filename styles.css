@@ -2190,7 +2190,7 @@ a.sb-map__line:hover {
 .sb-vd__addr-section {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.65rem;
 }
 .sb-vd__addr-row {
   display: flex;
@@ -2290,7 +2290,18 @@ a.sb-map__line:hover {
 .sb-modal__body--book {
   display: flex;
   flex-direction: column;
+  gap: 1.3rem; /* generous rhythm between sections so the screen reads as
+                  distinct blocks, not one dense wall */
+}
+/* The "how do you want to book?" action zone — set apart from the selection
+   above it (vehicle / accessories / dates / delivery) by a hairline + space,
+   so the two primary CTAs read as the decision point. */
+.sb-vd__book-actions {
+  display: flex;
+  flex-direction: column;
   gap: 0.9rem;
+  border-top: 1px solid var(--sb-border);
+  padding-top: 1.3rem;
 }
 .sb-vd__back {
   align-self: flex-start;

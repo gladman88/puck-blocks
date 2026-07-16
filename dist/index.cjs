@@ -812,7 +812,7 @@ function DeliveryAddressSection({
   const canMirrorPickup = pickupEnabled && pickupLocation != null;
   const mirroring = canMirrorPickup && dropoffSameAsPickup;
   return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__addr-section", children: [
-    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__field-label", children: strings.title }),
+    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__section-label", children: strings.title }),
     /* @__PURE__ */ jsxRuntime.jsx(
       ToggleRow,
       {
@@ -1659,42 +1659,44 @@ function VehicleBookingModal({
                   }
                 }
               ),
-              /* @__PURE__ */ jsxRuntime.jsxs(
-                "button",
-                {
-                  type: "button",
-                  className: "sb-vd__tg-card",
-                  disabled: !datesValid || tgSubmitting,
-                  onClick: handleTelegramBooking,
-                  children: [
-                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-icon", "aria-hidden": true, children: "\u2708" }),
-                    /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__tg-text", children: [
-                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-title", children: t.tgQuick }),
-                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-sub", children: tgSubmitting ? t.loading : t.tgQuickSub })
-                    ] }),
-                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
-                  ]
-                }
-              ),
-              tgErr ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-form__status sb-form__status--err", children: tgErr }) : null,
-              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__or", children: t.or }),
-              /* @__PURE__ */ jsxRuntime.jsxs(
-                "button",
-                {
-                  type: "button",
-                  className: "sb-vd__option-card",
-                  disabled: !datesValid,
-                  onClick: () => setStage("form"),
-                  children: [
-                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__option-icon", "aria-hidden": true, children: "\u270E" }),
-                    /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__tg-text", children: [
-                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-title", children: t.manual }),
-                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-sub", children: t.manualSub })
-                    ] }),
-                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
-                  ]
-                }
-              )
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__book-actions", children: [
+                /* @__PURE__ */ jsxRuntime.jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    className: "sb-vd__tg-card",
+                    disabled: !datesValid || tgSubmitting,
+                    onClick: handleTelegramBooking,
+                    children: [
+                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-icon", "aria-hidden": true, children: "\u2708" }),
+                      /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__tg-text", children: [
+                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-title", children: t.tgQuick }),
+                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-sub", children: tgSubmitting ? t.loading : t.tgQuickSub })
+                      ] }),
+                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
+                    ]
+                  }
+                ),
+                tgErr ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-form__status sb-form__status--err", children: tgErr }) : null,
+                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__or", children: t.or }),
+                /* @__PURE__ */ jsxRuntime.jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    className: "sb-vd__option-card",
+                    disabled: !datesValid,
+                    onClick: () => setStage("form"),
+                    children: [
+                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__option-icon", "aria-hidden": true, children: "\u270E" }),
+                      /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__tg-text", children: [
+                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-title", children: t.manual }),
+                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-sub", children: t.manualSub })
+                      ] }),
+                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
+                    ]
+                  }
+                )
+              ] })
             ] }) : /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-modal__body sb-modal__body--book", children: [
               /* @__PURE__ */ jsxRuntime.jsxs("button", { type: "button", className: "sb-vd__back", onClick: () => setStage("choice"), children: [
                 "\u2039 ",

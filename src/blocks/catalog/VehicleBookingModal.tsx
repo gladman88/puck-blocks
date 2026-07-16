@@ -1098,44 +1098,46 @@ export function VehicleBookingModal({
                 }}
               />
 
-              <button
-                type="button"
-                className="sb-vd__tg-card"
-                disabled={!datesValid || tgSubmitting}
-                onClick={handleTelegramBooking}
-              >
-                <span className="sb-vd__tg-icon" aria-hidden>
-                  ✈
-                </span>
-                <span className="sb-vd__tg-text">
-                  <span className="sb-vd__tg-title">{t.tgQuick}</span>
-                  <span className="sb-vd__tg-sub">{tgSubmitting ? t.loading : t.tgQuickSub}</span>
-                </span>
-                <span className="sb-vd__tg-arrow" aria-hidden>
-                  ›
-                </span>
-              </button>
-              {tgErr ? <p className="sb-form__status sb-form__status--err">{tgErr}</p> : null}
+              <div className="sb-vd__book-actions">
+                <button
+                  type="button"
+                  className="sb-vd__tg-card"
+                  disabled={!datesValid || tgSubmitting}
+                  onClick={handleTelegramBooking}
+                >
+                  <span className="sb-vd__tg-icon" aria-hidden>
+                    ✈
+                  </span>
+                  <span className="sb-vd__tg-text">
+                    <span className="sb-vd__tg-title">{t.tgQuick}</span>
+                    <span className="sb-vd__tg-sub">{tgSubmitting ? t.loading : t.tgQuickSub}</span>
+                  </span>
+                  <span className="sb-vd__tg-arrow" aria-hidden>
+                    ›
+                  </span>
+                </button>
+                {tgErr ? <p className="sb-form__status sb-form__status--err">{tgErr}</p> : null}
 
-              <div className="sb-vd__or">{t.or}</div>
+                <div className="sb-vd__or">{t.or}</div>
 
-              <button
-                type="button"
-                className="sb-vd__option-card"
-                disabled={!datesValid}
-                onClick={() => setStage('form')}
-              >
-                <span className="sb-vd__option-icon" aria-hidden>
-                  ✎
-                </span>
-                <span className="sb-vd__tg-text">
-                  <span className="sb-vd__tg-title">{t.manual}</span>
-                  <span className="sb-vd__tg-sub">{t.manualSub}</span>
-                </span>
-                <span className="sb-vd__tg-arrow" aria-hidden>
-                  ›
-                </span>
-              </button>
+                <button
+                  type="button"
+                  className="sb-vd__option-card"
+                  disabled={!datesValid}
+                  onClick={() => setStage('form')}
+                >
+                  <span className="sb-vd__option-icon" aria-hidden>
+                    ✎
+                  </span>
+                  <span className="sb-vd__tg-text">
+                    <span className="sb-vd__tg-title">{t.manual}</span>
+                    <span className="sb-vd__tg-sub">{t.manualSub}</span>
+                  </span>
+                  <span className="sb-vd__tg-arrow" aria-hidden>
+                    ›
+                  </span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="sb-modal__body sb-modal__body--book">

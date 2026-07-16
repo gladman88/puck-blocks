@@ -132,7 +132,7 @@ export function DeliveryAddressSection({
 
   return (
     <div className="sb-vd__addr-section">
-      <span className="sb-vd__field-label">{strings.title}</span>
+      <span className="sb-vd__section-label">{strings.title}</span>
       <ToggleRow
         label={strings.pickupToggle}
         enabled={pickupEnabled}
