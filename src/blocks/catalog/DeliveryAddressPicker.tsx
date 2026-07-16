@@ -159,11 +159,22 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
   const markerCtorRef = useRef<GoogleMarkerCtor | null>(null);
   const geocoderRef = useRef<GoogleGeocoder | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Monotonic id so a stale/out-of-order suggestions fetch (or one that resolves
+  // after the field was cleared/blurred) can't reopen the dropdown.
+  const reqSeqRef = useRef(0);
 
   const onSelectRef = useRef(onSelect);
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+
+  // Cancel any pending debounce on unmount (the picker unmounts on toggle-off /
+  // "same as delivery" / leaving the choice stage) — no wasted billed request.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   // Reflect an externally-changed value (a completed selection routed through
   // the parent, or a reset) into the input — WITHOUT re-triggering a fetch
@@ -218,6 +229,7 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
         place_id: place.id,
         name: place.displayName,
       });
+      newSessionToken(); // resolving via the map also ends the typing session
     } catch {
       if (fallbackLat != null && fallbackLng != null) pickFromMap(fallbackLat, fallbackLng);
     }
@@ -226,6 +238,7 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
   // Empty-map tap → drop a pin + reverse-geocode to a human-readable address.
   const pickFromMap = (lat: number, lng: number) => {
     syncMarker(lat, lng, true);
+    newSessionToken();
     if (!geocoderRef.current) {
       onSelectRef.current({ address: `${lat.toFixed(6)}, ${lng.toFixed(6)}`, lat, lng });
       return;
@@ -253,13 +266,18 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
       if (!place.location) return;
       const lat = place.location.lat();
       const lng = place.location.lng();
-      onSelectRef.current({
+      const picked = {
         address: place.formattedAddress || place.displayName || '',
         lat,
         lng,
         place_id: place.id,
         name: place.displayName,
-      });
+      };
+      onSelectRef.current(picked);
+      // Reflect the choice in the input immediately — don't rely solely on the
+      // coords-keyed sync effect (which no-ops if the re-picked place resolves
+      // to the exact same coordinates already in `value`).
+      setQuery(displayValue(picked));
       syncMarker(lat, lng, true);
       newSessionToken(); // a completed selection ends the billing session
     } catch {
@@ -307,24 +325,29 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const api = suggestApiRef.current;
     if (!q.trim() || !api) {
+      reqSeqRef.current++; // invalidate any in-flight fetch (cleared input)
       setSuggestions([]);
       setOpen(false);
       return;
     }
     debounceRef.current = setTimeout(async () => {
+      const seq = ++reqSeqRef.current;
       try {
         const { suggestions: raw } = await api.fetchAutocompleteSuggestions({
           input: q,
           ...(sessionTokenRef.current ? { sessionToken: sessionTokenRef.current } : {}),
         });
+        if (seq !== reqSeqRef.current) return; // superseded (newer query / cleared / blurred)
         const preds = (raw ?? [])
           .map((s) => s.placePrediction)
           .filter((p): p is GooglePlacePrediction => p != null);
         setSuggestions(preds);
         setOpen(preds.length > 0);
       } catch {
-        setSuggestions([]);
-        setOpen(false);
+        if (seq === reqSeqRef.current) {
+          setSuggestions([]);
+          setOpen(false);
+        }
       }
     }, DEBOUNCE_MS);
   };
@@ -411,8 +434,12 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
           placeholder={strings.searchPlaceholder}
           onChange={onInputChange}
           onFocus={() => suggestions.length > 0 && setOpen(true)}
-          // Delay so a suggestion's onClick lands before the list closes.
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          // Delay so a suggestion's onClick lands before the list closes; bump
+          // the seq so a late fetch can't reopen the dropdown after blur.
+          onBlur={() => {
+            reqSeqRef.current++;
+            setTimeout(() => setOpen(false), 150);
+          }}
           aria-label={strings.searchPlaceholder}
           data-testid="delivery-address-input"
         />

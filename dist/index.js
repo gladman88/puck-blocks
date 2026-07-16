@@ -572,10 +572,16 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
   const markerCtorRef = useRef(null);
   const geocoderRef = useRef(null);
   const debounceRef = useRef(null);
+  const reqSeqRef = useRef(0);
   const onSelectRef = useRef(onSelect);
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
   useEffect(() => {
     setQuery(displayValue(value));
   }, [value?.lat, value?.lng]);
@@ -617,12 +623,14 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
         place_id: place.id,
         name: place.displayName
       });
+      newSessionToken();
     } catch {
       if (fallbackLat != null && fallbackLng != null) pickFromMap(fallbackLat, fallbackLng);
     }
   };
   const pickFromMap = (lat, lng) => {
     syncMarker(lat, lng, true);
+    newSessionToken();
     if (!geocoderRef.current) {
       onSelectRef.current({ address: `${lat.toFixed(6)}, ${lng.toFixed(6)}`, lat, lng });
       return;
@@ -648,13 +656,15 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
       if (!place.location) return;
       const lat = place.location.lat();
       const lng = place.location.lng();
-      onSelectRef.current({
+      const picked = {
         address: place.formattedAddress || place.displayName || "",
         lat,
         lng,
         place_id: place.id,
         name: place.displayName
-      });
+      };
+      onSelectRef.current(picked);
+      setQuery(displayValue(picked));
       syncMarker(lat, lng, true);
       newSessionToken();
     } catch {
@@ -693,22 +703,27 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const api = suggestApiRef.current;
     if (!q.trim() || !api) {
+      reqSeqRef.current++;
       setSuggestions([]);
       setOpen(false);
       return;
     }
     debounceRef.current = setTimeout(async () => {
+      const seq = ++reqSeqRef.current;
       try {
         const { suggestions: raw } = await api.fetchAutocompleteSuggestions({
           input: q,
           ...sessionTokenRef.current ? { sessionToken: sessionTokenRef.current } : {}
         });
+        if (seq !== reqSeqRef.current) return;
         const preds = (raw ?? []).map((s) => s.placePrediction).filter((p) => p != null);
         setSuggestions(preds);
         setOpen(preds.length > 0);
       } catch {
-        setSuggestions([]);
-        setOpen(false);
+        if (seq === reqSeqRef.current) {
+          setSuggestions([]);
+          setOpen(false);
+        }
       }
     }, DEBOUNCE_MS);
   };
@@ -780,7 +795,10 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
           placeholder: strings.searchPlaceholder,
           onChange: onInputChange,
           onFocus: () => suggestions.length > 0 && setOpen(true),
-          onBlur: () => setTimeout(() => setOpen(false), 150),
+          onBlur: () => {
+            reqSeqRef.current++;
+            setTimeout(() => setOpen(false), 150);
+          },
           "aria-label": strings.searchPlaceholder,
           "data-testid": "delivery-address-input"
         }
@@ -1434,8 +1452,9 @@ function VehicleBookingModal({
                   className: "sb-acc__item-photo sb-acc__item-photo--clickable",
                   onClick: () => setAccessoryLightbox({
                     // Prefer the large display variant for a crisp
-                    // fullscreen; fall back to the thumb.
-                    photoUrl: safeImageUrl(item.photo_full_url ?? item.photo_url ?? void 0) ?? "",
+                    // fullscreen; fall back to the thumb (sanitize each
+                    // independently so a bad full URL still falls back).
+                    photoUrl: safeImageUrl(item.photo_full_url ?? void 0) ?? safeImageUrl(item.photo_url ?? void 0) ?? "",
                     description: item.description,
                     name: itemName
                   }),

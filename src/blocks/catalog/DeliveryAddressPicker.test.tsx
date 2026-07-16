@@ -119,6 +119,40 @@ describe('DeliveryAddressPicker (puck-blocks)', () => {
         name: 'Patong Beach',
       }),
     );
+    // The chosen place is reflected in the input immediately (M3).
+    await waitFor(() => expect(input.value).toBe('Patong Beach'));
+  });
+
+  it('a suggestions fetch that resolves AFTER the input is cleared does not reopen the dropdown (M1)', async () => {
+    let resolveFetch: (v: unknown) => void = () => {};
+    const fetchPromise = new Promise((r) => {
+      resolveFetch = r;
+    });
+    const AutocompleteSuggestion = { fetchAutocompleteSuggestions: vi.fn(() => fetchPromise) };
+    class FakeSessionToken {}
+    window.google = {
+      maps: {
+        importLibrary: vi.fn((name: string) =>
+          name === 'places'
+            ? Promise.resolve({ AutocompleteSuggestion, AutocompleteSessionToken: FakeSessionToken })
+            : Promise.resolve({}),
+        ),
+      },
+    } as unknown as typeof window.google;
+
+    render(<DeliveryAddressPicker apiKey="test-key" value={null} onSelect={vi.fn()} strings={strings} />);
+    const input = screen.getByTestId('delivery-address-input') as HTMLInputElement;
+    await waitFor(() => expect(input.disabled).toBe(false));
+
+    fireEvent.change(input, { target: { value: 'Pat' } });
+    await waitFor(() => expect(AutocompleteSuggestion.fetchAutocompleteSuggestions).toHaveBeenCalled());
+    // Clear the field before the (now in-flight) fetch resolves.
+    fireEvent.change(input, { target: { value: '' } });
+    // The stale fetch resolves with results — must be discarded, not shown.
+    resolveFetch({ suggestions: [{ placePrediction: { text: { text: 'Patong', toString: () => 'Patong' }, mainText: { text: 'Patong' } } }] });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(screen.queryByTestId('delivery-address-suggestions')).toBeNull();
   });
 
   it('tapping a POI on the map captures the place itself (name + canonical location), not a nearby street', async () => {

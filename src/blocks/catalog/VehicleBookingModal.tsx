@@ -682,9 +682,12 @@ export function VehicleBookingModal({
                       onClick={() =>
                         setAccessoryLightbox({
                           // Prefer the large display variant for a crisp
-                          // fullscreen; fall back to the thumb.
+                          // fullscreen; fall back to the thumb (sanitize each
+                          // independently so a bad full URL still falls back).
                           photoUrl:
-                            safeImageUrl(item.photo_full_url ?? item.photo_url ?? undefined) ?? '',
+                            safeImageUrl(item.photo_full_url ?? undefined) ??
+                            safeImageUrl(item.photo_url ?? undefined) ??
+                            '',
                           description: item.description,
                           name: itemName,
                         })
