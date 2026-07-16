@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { categoryLabel, type CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
 import { formatShortDate, money, nextDay, todayISO } from './dates';
-import { DeliveryAddressSection, type PickedLocation } from './DeliveryAddressSection';
+import { DeliveryAddressSection, type PickedLocation, type DeliveryCost } from './DeliveryAddressSection';
 
 interface GalleryImage {
   image_url: string;
@@ -159,6 +159,10 @@ const S = {
     deliveryMapHint: 'Нажмите на место или точку на карте',
     deliverySearchPlaceholder: 'Введите адрес или название места',
     deliverySameAsPickup: 'Такой же адрес, как для доставки',
+    deliveryCostPrefix: 'Стоимость',
+    deliveryCostLoading: 'Считаем стоимость…',
+    deliveryCostByRequest: 'по запросу',
+    deliveryCostTotal: 'Доставка и приёмка',
     labels: {
       fuel_type: 'Топливо',
       transmission: 'КПП',
@@ -229,6 +233,10 @@ const S = {
     deliveryMapHint: 'Tap a place or a point on the map',
     deliverySearchPlaceholder: 'Enter an address or place name',
     deliverySameAsPickup: 'Same address as delivery',
+    deliveryCostPrefix: 'Price',
+    deliveryCostLoading: 'Calculating price…',
+    deliveryCostByRequest: 'on request',
+    deliveryCostTotal: 'Delivery & collection',
     labels: {
       fuel_type: 'Fuel',
       transmission: 'Transmission',
@@ -246,6 +254,27 @@ const S = {
 } as const;
 
 const HEADERS = { 'ngrok-skip-browser-warning': 'true' };
+
+/** Fetch the delivery/collection price for a picked address — the SAME zone
+ *  matcher the backend charges with, so the quote equals the eventual charge.
+ *  Returns null on any failure (the UI just shows nothing rather than a wrong
+ *  number). */
+async function fetchDeliveryQuote(apiBase: string, location: PickedLocation): Promise<DeliveryCost> {
+  try {
+    const res = await fetch(`${apiBase}/api/v1/catalog/delivery-quote/`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...HEADERS },
+      body: JSON.stringify({ location }),
+    });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { price?: string; matched?: boolean };
+    const price = parseFloat(j.price ?? '');
+    if (!Number.isFinite(price)) return null;
+    return { price, matched: Boolean(j.matched) };
+  } catch {
+    return null;
+  }
+}
 
 /** Telegram Mini App user, forwarded by the HOST app from its own
  *  `window.Telegram.WebApp.initData` — this component never reads
@@ -474,6 +503,44 @@ export function VehicleBookingModal({
       ? pickupLocation
       : dropoffLocation
     : null;
+
+  // Delivery/collection price quote for the picked address — the SAME zone
+  // matcher the backend charges the booking with, so what the customer sees
+  // here equals the eventual charge. 'loading' | null (no location) | resolved.
+  const [pickupCost, setPickupCost] = useState<DeliveryCost>(null);
+  const [dropoffCost, setDropoffCost] = useState<DeliveryCost>(null);
+
+  useEffect(() => {
+    if (!effectivePickupLocation) {
+      setPickupCost(null);
+      return;
+    }
+    let cancelled = false;
+    setPickupCost('loading');
+    fetchDeliveryQuote(apiBase, effectivePickupLocation).then((c) => {
+      if (!cancelled) setPickupCost(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiBase, effectivePickupLocation?.lat, effectivePickupLocation?.lng]);
+
+  useEffect(() => {
+    if (!effectiveDropoffLocation) {
+      setDropoffCost(null);
+      return;
+    }
+    let cancelled = false;
+    setDropoffCost('loading');
+    fetchDeliveryQuote(apiBase, effectiveDropoffLocation).then((c) => {
+      if (!cancelled) setDropoffCost(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiBase, effectiveDropoffLocation?.lat, effectiveDropoffLocation?.lng]);
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -1068,6 +1135,8 @@ export function VehicleBookingModal({
                 dropoffEnabled={dropoffEnabled}
                 pickupLocation={pickupLocation}
                 dropoffLocation={dropoffLocation}
+                pickupCost={pickupCost}
+                dropoffCost={dropoffCost}
                 dropoffSameAsPickup={dropoffSameAsPickup}
                 onPickupToggle={(enabled) => {
                   setPickupEnabled(enabled);
@@ -1098,6 +1167,11 @@ export function VehicleBookingModal({
                   hideMap: t.deliveryHideMap,
                   mapHint: t.deliveryMapHint,
                   sameAsPickup: t.deliverySameAsPickup,
+                  costPrefix: t.deliveryCostPrefix,
+                  costLoading: t.deliveryCostLoading,
+                  costByRequest: t.deliveryCostByRequest,
+                  costTotal: t.deliveryCostTotal,
+                  currency: t.priceUnit,
                 }}
               />
 

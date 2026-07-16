@@ -630,6 +630,35 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     delete window.google;
     errSpy.mockRestore();
   });
+
+  it('shows the delivery price once an address is picked (quote endpoint)', async () => {
+    stubGoogleSearch();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const u = String(url);
+        if (u.includes('/delivery-quote/')) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ price: '600.00', matched: true, zone_name: 'Patong' }), { status: 200 }),
+          );
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" googleMapsApiKey="test-key" onClose={vi.fn()} />);
+    await screen.findByText('BMW Z4');
+    await goToChoice();
+    fireEvent.click(screen.getAllByRole('switch')[0]);
+    const input = await screen.findByTestId('delivery-address-input');
+    await waitFor(() => expect((input as HTMLInputElement).disabled).toBe(false));
+    await pickAddress(input, 'Patong Beach Road');
+
+    // The quote endpoint's price is surfaced under the address field.
+    expect(await screen.findByText('600 THB')).toBeTruthy();
+    delete window.google;
+  });
 });
 
 describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-blocks §4.1b)', () => {

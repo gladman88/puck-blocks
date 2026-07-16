@@ -2,6 +2,24 @@ import { DeliveryAddressPicker, type PickedLocation } from './DeliveryAddressPic
 
 export type { PickedLocation };
 
+/** A resolved delivery/collection price quote (from /catalog/delivery-quote/).
+ *  `matched=false` means no zone matched → the manager sets the price ("on
+ *  request"), NOT free. */
+export interface DeliveryQuote {
+  price: number;
+  matched: boolean;
+}
+/** `'loading'` while the quote is in flight, `null` when there's no picked
+ *  location to price. */
+export type DeliveryCost = DeliveryQuote | 'loading' | null;
+
+function isQuote(c: DeliveryCost): c is DeliveryQuote {
+  return c != null && c !== 'loading';
+}
+function money(n: number): string {
+  return Math.round(n).toLocaleString('en-US');
+}
+
 export interface DeliveryAddressStrings {
   title: string;
   pickupToggle: string;
@@ -14,6 +32,38 @@ export interface DeliveryAddressStrings {
   mapHint: string;
   /** "Такой же адрес, как для доставки" — collection reuses the delivery address. */
   sameAsPickup: string;
+  /** "Стоимость" — prefix for a picked address's delivery/collection price. */
+  costPrefix: string;
+  /** "Считаем стоимость…" — while the quote is loading. */
+  costLoading: string;
+  /** "по запросу" — no zone matched, manager will set the price. */
+  costByRequest: string;
+  /** "Доставка и приёмка" — label for the combined total. */
+  costTotal: string;
+  /** Currency suffix, e.g. "THB". */
+  currency: string;
+}
+
+function CostLine({ cost, strings }: { cost: DeliveryCost; strings: DeliveryAddressStrings }) {
+  if (cost == null) return null;
+  if (cost === 'loading') {
+    return <p className="sb-vd__addr-cost sb-vd__addr-cost--muted">{strings.costLoading}</p>;
+  }
+  if (!cost.matched) {
+    return (
+      <p className="sb-vd__addr-cost sb-vd__addr-cost--muted">
+        {strings.costPrefix}: {strings.costByRequest}
+      </p>
+    );
+  }
+  return (
+    <p className="sb-vd__addr-cost">
+      {strings.costPrefix}:{' '}
+      <b>
+        {money(cost.price)} {strings.currency}
+      </b>
+    </p>
+  );
 }
 
 interface ToggleRowProps {
@@ -24,6 +74,8 @@ interface ToggleRowProps {
   strings: DeliveryAddressStrings;
   onToggle: (enabled: boolean) => void;
   onSelect: (location: PickedLocation) => void;
+  /** The delivery/collection price for this row's picked address. */
+  cost: DeliveryCost;
   /** Optional slot rendered between the toggle and the picker (the collection
    *  row uses it for the "same as delivery" checkbox). */
   children?: React.ReactNode;
@@ -40,6 +92,7 @@ function ToggleRow({
   strings,
   onToggle,
   onSelect,
+  cost,
   children,
   hidePicker,
 }: ToggleRowProps) {
@@ -61,22 +114,21 @@ function ToggleRow({
         <div className="sb-vd__addr-picker">
           {children}
           {!hidePicker ? (
-            <>
-              <DeliveryAddressPicker
-                apiKey={apiKey}
-                value={location}
-                onSelect={onSelect}
-                strings={{
-                  unavailable: strings.unavailable,
-                  loading: strings.loading,
-                  searchPlaceholder: strings.searchPlaceholder,
-                  showMap: strings.showMap,
-                  hideMap: strings.hideMap,
-                  mapHint: strings.mapHint,
-                }}
-              />
-            </>
+            <DeliveryAddressPicker
+              apiKey={apiKey}
+              value={location}
+              onSelect={onSelect}
+              strings={{
+                unavailable: strings.unavailable,
+                loading: strings.loading,
+                searchPlaceholder: strings.searchPlaceholder,
+                showMap: strings.showMap,
+                hideMap: strings.hideMap,
+                mapHint: strings.mapHint,
+              }}
+            />
           ) : null}
+          <CostLine cost={cost} strings={strings} />
         </div>
       ) : null}
     </div>
@@ -89,6 +141,9 @@ interface DeliveryAddressSectionProps {
   dropoffEnabled: boolean;
   pickupLocation: PickedLocation | null;
   dropoffLocation: PickedLocation | null;
+  /** Delivery / collection price quotes for the picked addresses. */
+  pickupCost: DeliveryCost;
+  dropoffCost: DeliveryCost;
   /** Collection reuses the delivery address (no second entry). */
   dropoffSameAsPickup: boolean;
   onPickupToggle: (enabled: boolean) => void;
@@ -118,6 +173,8 @@ export function DeliveryAddressSection({
   dropoffEnabled,
   pickupLocation,
   dropoffLocation,
+  pickupCost,
+  dropoffCost,
   dropoffSameAsPickup,
   onPickupToggle,
   onDropoffToggle,
@@ -131,6 +188,11 @@ export function DeliveryAddressSection({
   const canMirrorPickup = pickupEnabled && pickupLocation != null;
   const mirroring = canMirrorPickup && dropoffSameAsPickup;
 
+  // A combined total, but only when BOTH ends are priced with a real zone match
+  // (an "on request" leg has no number to add).
+  const showTotal =
+    pickupEnabled && dropoffEnabled && isQuote(pickupCost) && pickupCost.matched && isQuote(dropoffCost) && dropoffCost.matched;
+
   return (
     <div className="sb-vd__addr-section">
       <span className="sb-vd__section-label">{strings.title}</span>
@@ -142,6 +204,7 @@ export function DeliveryAddressSection({
         strings={strings}
         onToggle={onPickupToggle}
         onSelect={onPickupSelect}
+        cost={pickupEnabled ? pickupCost : null}
       />
       <ToggleRow
         label={strings.dropoffToggle}
@@ -151,6 +214,7 @@ export function DeliveryAddressSection({
         strings={strings}
         onToggle={onDropoffToggle}
         onSelect={onDropoffSelect}
+        cost={dropoffEnabled ? dropoffCost : null}
         hidePicker={mirroring}
       >
         {canMirrorPickup ? (
@@ -164,6 +228,14 @@ export function DeliveryAddressSection({
           </label>
         ) : null}
       </ToggleRow>
+      {showTotal ? (
+        <p className="sb-vd__addr-total">
+          {strings.costTotal}:{' '}
+          <b>
+            {money((pickupCost as DeliveryQuote).price + (dropoffCost as DeliveryQuote).price)} {strings.currency}
+          </b>
+        </p>
+      ) : null}
     </div>
   );
 }

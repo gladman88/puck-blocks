@@ -814,6 +814,35 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
     ] }) : null
   ] });
 }
+function isQuote(c) {
+  return c != null && c !== "loading";
+}
+function money2(n) {
+  return Math.round(n).toLocaleString("en-US");
+}
+function CostLine({ cost, strings }) {
+  if (cost == null) return null;
+  if (cost === "loading") {
+    return /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vd__addr-cost sb-vd__addr-cost--muted", children: strings.costLoading });
+  }
+  if (!cost.matched) {
+    return /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-vd__addr-cost sb-vd__addr-cost--muted", children: [
+      strings.costPrefix,
+      ": ",
+      strings.costByRequest
+    ] });
+  }
+  return /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-vd__addr-cost", children: [
+    strings.costPrefix,
+    ":",
+    " ",
+    /* @__PURE__ */ jsxRuntime.jsxs("b", { children: [
+      money2(cost.price),
+      " ",
+      strings.currency
+    ] })
+  ] });
+}
 function ToggleRow({
   label,
   enabled,
@@ -822,6 +851,7 @@ function ToggleRow({
   strings,
   onToggle,
   onSelect,
+  cost,
   children,
   hidePicker
 }) {
@@ -842,7 +872,7 @@ function ToggleRow({
     ),
     enabled ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__addr-picker", children: [
       children,
-      !hidePicker ? /* @__PURE__ */ jsxRuntime.jsx(jsxRuntime.Fragment, { children: /* @__PURE__ */ jsxRuntime.jsx(
+      !hidePicker ? /* @__PURE__ */ jsxRuntime.jsx(
         DeliveryAddressPicker,
         {
           apiKey,
@@ -857,7 +887,8 @@ function ToggleRow({
             mapHint: strings.mapHint
           }
         }
-      ) }) : null
+      ) : null,
+      /* @__PURE__ */ jsxRuntime.jsx(CostLine, { cost, strings })
     ] }) : null
   ] });
 }
@@ -867,6 +898,8 @@ function DeliveryAddressSection({
   dropoffEnabled,
   pickupLocation,
   dropoffLocation,
+  pickupCost,
+  dropoffCost,
   dropoffSameAsPickup,
   onPickupToggle,
   onDropoffToggle,
@@ -877,6 +910,7 @@ function DeliveryAddressSection({
 }) {
   const canMirrorPickup = pickupEnabled && pickupLocation != null;
   const mirroring = canMirrorPickup && dropoffSameAsPickup;
+  const showTotal = pickupEnabled && dropoffEnabled && isQuote(pickupCost) && pickupCost.matched && isQuote(dropoffCost) && dropoffCost.matched;
   return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__addr-section", children: [
     /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__section-label", children: strings.title }),
     /* @__PURE__ */ jsxRuntime.jsx(
@@ -888,7 +922,8 @@ function DeliveryAddressSection({
         apiKey,
         strings,
         onToggle: onPickupToggle,
-        onSelect: onPickupSelect
+        onSelect: onPickupSelect,
+        cost: pickupEnabled ? pickupCost : null
       }
     ),
     /* @__PURE__ */ jsxRuntime.jsx(
@@ -901,6 +936,7 @@ function DeliveryAddressSection({
         strings,
         onToggle: onDropoffToggle,
         onSelect: onDropoffSelect,
+        cost: dropoffEnabled ? dropoffCost : null,
         hidePicker: mirroring,
         children: canMirrorPickup ? /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "sb-vd__addr-same", children: [
           /* @__PURE__ */ jsxRuntime.jsx(
@@ -914,7 +950,17 @@ function DeliveryAddressSection({
           /* @__PURE__ */ jsxRuntime.jsx("span", { children: strings.sameAsPickup })
         ] }) : null
       }
-    )
+    ),
+    showTotal ? /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-vd__addr-total", children: [
+      strings.costTotal,
+      ":",
+      " ",
+      /* @__PURE__ */ jsxRuntime.jsxs("b", { children: [
+        money2(pickupCost.price + dropoffCost.price),
+        " ",
+        strings.currency
+      ] })
+    ] }) : null
   ] });
 }
 var SPEC_KEYS = [
@@ -1016,6 +1062,10 @@ var S = {
     deliveryMapHint: "\u041D\u0430\u0436\u043C\u0438\u0442\u0435 \u043D\u0430 \u043C\u0435\u0441\u0442\u043E \u0438\u043B\u0438 \u0442\u043E\u0447\u043A\u0443 \u043D\u0430 \u043A\u0430\u0440\u0442\u0435",
     deliverySearchPlaceholder: "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0430\u0434\u0440\u0435\u0441 \u0438\u043B\u0438 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043C\u0435\u0441\u0442\u0430",
     deliverySameAsPickup: "\u0422\u0430\u043A\u043E\u0439 \u0436\u0435 \u0430\u0434\u0440\u0435\u0441, \u043A\u0430\u043A \u0434\u043B\u044F \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438",
+    deliveryCostPrefix: "\u0421\u0442\u043E\u0438\u043C\u043E\u0441\u0442\u044C",
+    deliveryCostLoading: "\u0421\u0447\u0438\u0442\u0430\u0435\u043C \u0441\u0442\u043E\u0438\u043C\u043E\u0441\u0442\u044C\u2026",
+    deliveryCostByRequest: "\u043F\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0443",
+    deliveryCostTotal: "\u0414\u043E\u0441\u0442\u0430\u0432\u043A\u0430 \u0438 \u043F\u0440\u0438\u0451\u043C\u043A\u0430",
     labels: {
       fuel_type: "\u0422\u043E\u043F\u043B\u0438\u0432\u043E",
       transmission: "\u041A\u041F\u041F",
@@ -1086,6 +1136,10 @@ var S = {
     deliveryMapHint: "Tap a place or a point on the map",
     deliverySearchPlaceholder: "Enter an address or place name",
     deliverySameAsPickup: "Same address as delivery",
+    deliveryCostPrefix: "Price",
+    deliveryCostLoading: "Calculating price\u2026",
+    deliveryCostByRequest: "on request",
+    deliveryCostTotal: "Delivery & collection",
     labels: {
       fuel_type: "Fuel",
       transmission: "Transmission",
@@ -1102,6 +1156,22 @@ var S = {
   }
 };
 var HEADERS = { "ngrok-skip-browser-warning": "true" };
+async function fetchDeliveryQuote(apiBase, location) {
+  try {
+    const res = await fetch(`${apiBase}/api/v1/catalog/delivery-quote/`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...HEADERS },
+      body: JSON.stringify({ location })
+    });
+    if (!res.ok) return null;
+    const j = await res.json();
+    const price = parseFloat(j.price ?? "");
+    if (!Number.isFinite(price)) return null;
+    return { price, matched: Boolean(j.matched) };
+  } catch {
+    return null;
+  }
+}
 function VehicleBookingModal({
   vehicle,
   apiBase,
@@ -1227,6 +1297,36 @@ function VehicleBookingModal({
   const selectedAccessories = Object.entries(accessories).filter(([, qty]) => qty > 0).map(([accessory_id, quantity]) => ({ accessory_id, quantity }));
   const effectivePickupLocation = pickupEnabled ? pickupLocation : null;
   const effectiveDropoffLocation = dropoffEnabled ? dropoffSameAsPickup && pickupEnabled && pickupLocation ? pickupLocation : dropoffLocation : null;
+  const [pickupCost, setPickupCost] = react.useState(null);
+  const [dropoffCost, setDropoffCost] = react.useState(null);
+  react.useEffect(() => {
+    if (!effectivePickupLocation) {
+      setPickupCost(null);
+      return;
+    }
+    let cancelled = false;
+    setPickupCost("loading");
+    fetchDeliveryQuote(apiBase, effectivePickupLocation).then((c) => {
+      if (!cancelled) setPickupCost(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, effectivePickupLocation?.lat, effectivePickupLocation?.lng]);
+  react.useEffect(() => {
+    if (!effectiveDropoffLocation) {
+      setDropoffCost(null);
+      return;
+    }
+    let cancelled = false;
+    setDropoffCost("loading");
+    fetchDeliveryQuote(apiBase, effectiveDropoffLocation).then((c) => {
+      if (!cancelled) setDropoffCost(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, effectiveDropoffLocation?.lat, effectiveDropoffLocation?.lng]);
   const submit = async (e) => {
     e.preventDefault();
     if (submitting || !datesValid || !name.trim() || !contact.trim()) return;
@@ -1699,6 +1799,8 @@ function VehicleBookingModal({
                   dropoffEnabled,
                   pickupLocation,
                   dropoffLocation,
+                  pickupCost,
+                  dropoffCost,
                   dropoffSameAsPickup,
                   onPickupToggle: (enabled) => {
                     setPickupEnabled(enabled);
@@ -1724,7 +1826,12 @@ function VehicleBookingModal({
                     showMap: t.deliveryShowMap,
                     hideMap: t.deliveryHideMap,
                     mapHint: t.deliveryMapHint,
-                    sameAsPickup: t.deliverySameAsPickup
+                    sameAsPickup: t.deliverySameAsPickup,
+                    costPrefix: t.deliveryCostPrefix,
+                    costLoading: t.deliveryCostLoading,
+                    costByRequest: t.deliveryCostByRequest,
+                    costTotal: t.deliveryCostTotal,
+                    currency: t.priceUnit
                   }
                 }
               ),

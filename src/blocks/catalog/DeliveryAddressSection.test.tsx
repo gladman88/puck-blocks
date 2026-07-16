@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { DeliveryAddressSection, type DeliveryAddressStrings } from './DeliveryAddressSection';
+import {
+  DeliveryAddressSection,
+  type DeliveryAddressStrings,
+  type DeliveryCost,
+} from './DeliveryAddressSection';
 import type { PickedLocation } from './DeliveryAddressPicker';
 
 afterEach(() => cleanup());
@@ -16,6 +20,11 @@ const strings: DeliveryAddressStrings = {
   hideMap: 'Hide map',
   mapHint: 'Tap the map to choose a point',
   sameAsPickup: 'Same address as delivery',
+  costPrefix: 'Price',
+  costLoading: 'Calculating price…',
+  costByRequest: 'on request',
+  costTotal: 'Delivery & collection',
+  currency: 'THB',
 };
 
 interface SectionProps {
@@ -24,6 +33,8 @@ interface SectionProps {
   dropoffEnabled: boolean;
   pickupLocation: PickedLocation | null;
   dropoffLocation: PickedLocation | null;
+  pickupCost: DeliveryCost;
+  dropoffCost: DeliveryCost;
   dropoffSameAsPickup: boolean;
   onPickupToggle: (enabled: boolean) => void;
   onDropoffToggle: (enabled: boolean) => void;
@@ -40,6 +51,8 @@ function renderSection(overrides: Partial<SectionProps> = {}) {
       dropoffEnabled={false}
       pickupLocation={null}
       dropoffLocation={null}
+      pickupCost={null}
+      dropoffCost={null}
       dropoffSameAsPickup={false}
       onPickupToggle={vi.fn()}
       onDropoffToggle={vi.fn()}
@@ -104,6 +117,8 @@ describe('DeliveryAddressSection (puck-blocks)', () => {
         dropoffEnabled
         pickupLocation={{ address: 'Patong Beach Road', lat: 7.9, lng: 98.29 }}
         dropoffLocation={null}
+        pickupCost={null}
+        dropoffCost={null}
         dropoffSameAsPickup={false}
         onPickupToggle={vi.fn()}
         onDropoffToggle={vi.fn()}
@@ -142,6 +157,8 @@ describe('DeliveryAddressSection (puck-blocks)', () => {
         dropoffEnabled
         pickupLocation={{ address: 'Patong Beach Road', lat: 7.9, lng: 98.29 }}
         dropoffLocation={null}
+        pickupCost={null}
+        dropoffCost={null}
         dropoffSameAsPickup
         onPickupToggle={vi.fn()}
         onDropoffToggle={vi.fn()}
@@ -153,5 +170,88 @@ describe('DeliveryAddressSection (puck-blocks)', () => {
     );
     expect(screen.queryByText('Address search is temporarily unavailable')).toBeNull();
     expect(screen.getByDisplayValue('Patong Beach Road')).toBeTruthy();  // pickup field still shown
+  });
+
+  it('shows the matched delivery price, the "on request" fallback, and a loading state', () => {
+    const { rerender } = renderSection({
+      pickupEnabled: true,
+      pickupLocation: { address: 'Patong', lat: 7.9, lng: 98.29 },
+      pickupCost: 'loading',
+    });
+    expect(screen.getByText('Calculating price…')).toBeTruthy();
+
+    rerender(
+      <DeliveryAddressSection
+        apiKey={undefined}
+        pickupEnabled
+        dropoffEnabled={false}
+        pickupLocation={{ address: 'Patong', lat: 7.9, lng: 98.29 }}
+        dropoffLocation={null}
+        pickupCost={{ price: 600, matched: true }}
+        dropoffCost={null}
+        dropoffSameAsPickup={false}
+        onPickupToggle={vi.fn()}
+        onDropoffToggle={vi.fn()}
+        onPickupSelect={vi.fn()}
+        onDropoffSelect={vi.fn()}
+        onDropoffSameToggle={vi.fn()}
+        strings={strings}
+      />,
+    );
+    expect(screen.getByText('600 THB')).toBeTruthy();
+
+    rerender(
+      <DeliveryAddressSection
+        apiKey={undefined}
+        pickupEnabled
+        dropoffEnabled={false}
+        pickupLocation={{ address: 'Nowhere', lat: 1, lng: 1 }}
+        dropoffLocation={null}
+        pickupCost={{ price: 0, matched: false }}
+        dropoffCost={null}
+        dropoffSameAsPickup={false}
+        onPickupToggle={vi.fn()}
+        onDropoffToggle={vi.fn()}
+        onPickupSelect={vi.fn()}
+        onDropoffSelect={vi.fn()}
+        onDropoffSameToggle={vi.fn()}
+        strings={strings}
+      />,
+    );
+    expect(screen.getByText(/on request/)).toBeTruthy();
+  });
+
+  it('shows a combined total only when BOTH ends have a matched price', () => {
+    // One leg "on request" → no total.
+    const { rerender } = renderSection({
+      pickupEnabled: true,
+      dropoffEnabled: true,
+      pickupLocation: { address: 'A', lat: 7.9, lng: 98.29 },
+      dropoffLocation: { address: 'B', lat: 8.0, lng: 98.3 },
+      pickupCost: { price: 600, matched: true },
+      dropoffCost: { price: 0, matched: false },
+    });
+    expect(screen.queryByText(/Delivery & collection/)).toBeNull();
+
+    // Both matched → total = sum.
+    rerender(
+      <DeliveryAddressSection
+        apiKey={undefined}
+        pickupEnabled
+        dropoffEnabled
+        pickupLocation={{ address: 'A', lat: 7.9, lng: 98.29 }}
+        dropoffLocation={{ address: 'B', lat: 8.0, lng: 98.3 }}
+        pickupCost={{ price: 600, matched: true }}
+        dropoffCost={{ price: 400, matched: true }}
+        dropoffSameAsPickup={false}
+        onPickupToggle={vi.fn()}
+        onDropoffToggle={vi.fn()}
+        onPickupSelect={vi.fn()}
+        onDropoffSelect={vi.fn()}
+        onDropoffSameToggle={vi.fn()}
+        strings={strings}
+      />,
+    );
+    expect(screen.getByText('1,000 THB')).toBeTruthy();
   });
 });

@@ -2454,6 +2454,31 @@ a.sb-map__line:hover {
   cursor: pointer;
   padding: 0.15rem 0;
 }
+/* Delivery/collection price for a picked address (matches the zone the booking
+   is actually charged) + the combined total. */
+.sb-vd__addr-cost {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: var(--sb-text);
+}
+.sb-vd__addr-cost b {
+  color: var(--sb-accent);
+  font-weight: 700;
+}
+.sb-vd__addr-cost--muted {
+  color: var(--sb-text-muted);
+}
+.sb-vd__addr-total {
+  margin: 0.1rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--sb-border);
+  font-size: 0.9rem;
+  color: var(--sb-text-strong);
+}
+.sb-vd__addr-total b {
+  color: var(--sb-accent);
+  font-weight: 800;
+}
 .sb-vd__addr-same input {
   width: 1.05rem;
   height: 1.05rem;
