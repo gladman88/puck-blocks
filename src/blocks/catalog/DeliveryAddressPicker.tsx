@@ -201,19 +201,25 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
         acContainerRef.current.appendChild(element as unknown as Node);
 
         listener = async ({ placePrediction }) => {
-          const place = placePrediction.toPlace();
-          await place.fetchFields({ fields: ['formattedAddress', 'location', 'id', 'displayName'] });
-          if (!place.location) return; // no coordinates — nothing we can submit
-          const lat = place.location.lat();
-          const lng = place.location.lng();
-          onSelectRef.current({
-            address: place.formattedAddress || place.displayName || '',
-            lat,
-            lng,
-            place_id: place.id,
-            name: place.displayName,
-          });
-          syncMarker(lat, lng, true); // reflect the choice on the map if it's open
+          try {
+            const place = placePrediction.toPlace();
+            await place.fetchFields({ fields: ['formattedAddress', 'location', 'id', 'displayName'] });
+            if (!place.location) return; // no coordinates — nothing we can submit
+            const lat = place.location.lat();
+            const lng = place.location.lng();
+            onSelectRef.current({
+              address: place.formattedAddress || place.displayName || '',
+              lat,
+              lng,
+              place_id: place.id,
+              name: place.displayName,
+            });
+            syncMarker(lat, lng, true); // reflect the choice on the map if it's open
+          } catch {
+            // fetchFields rejected (network blip / quota / revoked field
+            // access) — swallow rather than leak an unhandled rejection; the
+            // user can pick the suggestion again or fall back to the map.
+          }
         };
         element.addEventListener('gmp-select', listener);
         setStatus('ready');

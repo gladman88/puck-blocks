@@ -588,6 +588,93 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     delete window.google;
     errSpy.mockRestore();
   });
+
+  it('a distinct collection address picked first is NOT overwritten when delivery is enabled afterwards (code review 2026-07-16)', async () => {
+    // Regression: dropoffSameAsPickup defaults true, so enabling delivery AFTER
+    // picking a distinct collection address used to silently mirror the
+    // delivery address over it. Picking a collection address must turn "same"
+    // off so the two stay independent.
+    let capturedBody: string | undefined;
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    class FakeAutocompleteElement {
+      constructor() {
+        return document.createElement('div');
+      }
+    }
+    window.google = {
+      maps: {
+        importLibrary: vi.fn().mockResolvedValue({ PlaceAutocompleteElement: FakeAutocompleteElement }),
+      },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        const u = String(url);
+        if (u.includes('/booking-intents/')) {
+          capturedBody = init?.body as string;
+          return Promise.resolve(new Response(JSON.stringify({ token: 'tok123' }), { status: 201 }));
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
+
+    render(
+      <VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" googleMapsApiKey="test-key" onClose={vi.fn()} />,
+    );
+    await screen.findByText('BMW Z4');
+    await goToChoice();
+
+    const dispatchPick = (el: HTMLElement, addr: string, id: string, lat: number, lng: number) => {
+      const event = new Event('gmp-select') as Event & { placePrediction: unknown };
+      event.placePrediction = {
+        toPlace: () => ({
+          formattedAddress: addr,
+          id,
+          location: { lat: () => lat, lng: () => lng },
+          fetchFields: vi.fn().mockResolvedValue(undefined),
+        }),
+      };
+      el.dispatchEvent(event);
+    };
+
+    // 1. Enable COLLECTION first (switch #1) and pick a distinct return address.
+    fireEvent.click(screen.getAllByRole('switch')[1]);
+    const dropoffEl = await waitFor(() => {
+      const el = screen.getByTestId('delivery-address-picker-container').firstElementChild;
+      expect(el).not.toBeNull();
+      return el as HTMLDivElement;
+    });
+    dispatchPick(dropoffEl, 'Return Point Rd', 'place-drop', 8.1, 98.4);
+    await screen.findByText('Return Point Rd');
+
+    // 2. Now enable DELIVERY (switch #0) and pick a different address.
+    fireEvent.click(screen.getAllByRole('switch')[0]);
+    const pickupEl = await waitFor(() => {
+      // Two pickers now; pickup row is first in the DOM.
+      const el = screen.getAllByTestId('delivery-address-picker-container')[0].firstElementChild;
+      expect(el).not.toBeNull();
+      return el as HTMLDivElement;
+    });
+    dispatchPick(pickupEl, 'Patong Beach Road', 'place-pick', 7.9, 98.29);
+    await screen.findByText('Patong Beach Road');
+
+    // "Same address as delivery" is offered but must be UNCHECKED, and the
+    // collection address must still be shown (not mirrored away).
+    expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByText('Return Point Rd')).toBeTruthy();
+
+    // 3. Submit — collection must remain the distinct return address.
+    fireEvent.click(screen.getByText('1-click booking via Telegram'));
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    const payload = JSON.parse(capturedBody!);
+    expect(payload.pickup_location.address).toBe('Patong Beach Road');
+    expect(payload.dropoff_location.address).toBe('Return Point Rd');
+
+    delete window.google;
+    errSpy.mockRestore();
+  });
 });
 
 describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-blocks §4.1b)', () => {

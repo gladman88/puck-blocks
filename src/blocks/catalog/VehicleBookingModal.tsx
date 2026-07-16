@@ -1076,7 +1076,14 @@ export function VehicleBookingModal({
                   if (!enabled) setDropoffLocation(null);
                 }}
                 onPickupSelect={setPickupLocation}
-                onDropoffSelect={setDropoffLocation}
+                onDropoffSelect={(loc) => {
+                  // The user explicitly picked a distinct collection address —
+                  // turn "same as delivery" OFF so a later-enabled delivery
+                  // can't silently overwrite it (the picker is only reachable
+                  // when not mirroring, so this only fires on a deliberate pick).
+                  setDropoffLocation(loc);
+                  setDropoffSameAsPickup(false);
+                }}
                 onDropoffSameToggle={setDropoffSameAsPickup}
                 strings={{
                   title: t.deliveryTitle,

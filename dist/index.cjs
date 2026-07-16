@@ -614,19 +614,22 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
         element = new PlaceAutocompleteElement();
         acContainerRef.current.appendChild(element);
         listener = async ({ placePrediction }) => {
-          const place = placePrediction.toPlace();
-          await place.fetchFields({ fields: ["formattedAddress", "location", "id", "displayName"] });
-          if (!place.location) return;
-          const lat = place.location.lat();
-          const lng = place.location.lng();
-          onSelectRef.current({
-            address: place.formattedAddress || place.displayName || "",
-            lat,
-            lng,
-            place_id: place.id,
-            name: place.displayName
-          });
-          syncMarker(lat, lng, true);
+          try {
+            const place = placePrediction.toPlace();
+            await place.fetchFields({ fields: ["formattedAddress", "location", "id", "displayName"] });
+            if (!place.location) return;
+            const lat = place.location.lat();
+            const lng = place.location.lng();
+            onSelectRef.current({
+              address: place.formattedAddress || place.displayName || "",
+              lat,
+              lng,
+              place_id: place.id,
+              name: place.displayName
+            });
+            syncMarker(lat, lng, true);
+          } catch {
+          }
         };
         element.addEventListener("gmp-select", listener);
         setStatus("ready");
@@ -1602,7 +1605,10 @@ function VehicleBookingModal({
                     if (!enabled) setDropoffLocation(null);
                   },
                   onPickupSelect: setPickupLocation,
-                  onDropoffSelect: setDropoffLocation,
+                  onDropoffSelect: (loc) => {
+                    setDropoffLocation(loc);
+                    setDropoffSameAsPickup(false);
+                  },
                   onDropoffSameToggle: setDropoffSameAsPickup,
                   strings: {
                     title: t.deliveryTitle,
