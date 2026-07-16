@@ -118,7 +118,6 @@ const S = {
     allSpecs: 'Все характеристики',
     equipment: 'Комплектация',
     accessories: 'Дополнительные опции',
-    accessoryFallback: 'Доп. опция',
     perBooking: 'за бронь',
     accUnavailable: 'Недоступно на эти даты',
     deposit: 'Депозит',
@@ -155,6 +154,10 @@ const S = {
     deliveryPickup: 'Доставить машину по адресу',
     deliveryDropoff: 'Заберём машину по адресу',
     deliveryUnavailable: 'Поиск адреса временно недоступен',
+    deliveryShowMap: 'Выбрать на карте',
+    deliveryHideMap: 'Скрыть карту',
+    deliveryMapHint: 'Нажмите на карту, чтобы выбрать точку',
+    deliverySameAsPickup: 'Такой же адрес, как для доставки',
     labels: {
       fuel_type: 'Топливо',
       transmission: 'КПП',
@@ -184,7 +187,6 @@ const S = {
     allSpecs: 'All specs',
     equipment: 'Equipment',
     accessories: 'Additional Options',
-    accessoryFallback: 'Add-on',
     perBooking: 'per booking',
     accUnavailable: 'Not available for these dates',
     deposit: 'Deposit',
@@ -221,6 +223,10 @@ const S = {
     deliveryPickup: 'Deliver the vehicle to my address',
     deliveryDropoff: "We'll pick it up from my address",
     deliveryUnavailable: 'Address search is temporarily unavailable',
+    deliveryShowMap: 'Pick on the map',
+    deliveryHideMap: 'Hide map',
+    deliveryMapHint: 'Tap the map to choose a point',
+    deliverySameAsPickup: 'Same address as delivery',
     labels: {
       fuel_type: 'Fuel',
       transmission: 'Transmission',
@@ -319,6 +325,10 @@ export function VehicleBookingModal({
   const [dropoffEnabled, setDropoffEnabled] = useState(false);
   const [pickupLocation, setPickupLocation] = useState<PickedLocation | null>(null);
   const [dropoffLocation, setDropoffLocation] = useState<PickedLocation | null>(null);
+  // Collection reuses the delivery address ("Такой же адрес") — default ON so a
+  // round-trip rental isn't entered twice; only takes effect when delivery is
+  // on with a picked address (see effectiveDropoffLocation below).
+  const [dropoffSameAsPickup, setDropoffSameAsPickup] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [stage, setStage] = useState<'detail' | 'choice' | 'form' | 'success'>('detail');
   const [err, setErr] = useState('');
@@ -452,6 +462,17 @@ export function VehicleBookingModal({
     .filter(([, qty]) => qty > 0)
     .map(([accessory_id, quantity]) => ({ accessory_id, quantity }));
 
+  // Effective delivery/collection locations shared by both booking paths.
+  // Collection mirrors delivery when "same address" is on (and delivery has a
+  // picked address) — so the round-trip case is submitted without entering the
+  // address twice.
+  const effectivePickupLocation = pickupEnabled ? pickupLocation : null;
+  const effectiveDropoffLocation = dropoffEnabled
+    ? dropoffSameAsPickup && pickupEnabled && pickupLocation
+      ? pickupLocation
+      : dropoffLocation
+    : null;
+
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (submitting || !datesValid || !name.trim() || !contact.trim()) return;
@@ -479,8 +500,8 @@ export function VehicleBookingModal({
               }
             : {}),
           ...(selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {}),
-          ...(pickupEnabled && pickupLocation ? { pickup_location: pickupLocation } : {}),
-          ...(dropoffEnabled && dropoffLocation ? { dropoff_location: dropoffLocation } : {}),
+          ...(effectivePickupLocation ? { pickup_location: effectivePickupLocation } : {}),
+          ...(effectiveDropoffLocation ? { dropoff_location: effectiveDropoffLocation } : {}),
         }),
       });
       if (res.ok) {
@@ -514,8 +535,8 @@ export function VehicleBookingModal({
           end_date: end,
           ...(referralCode ? { referral_code: referralCode } : {}),
           ...(selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {}),
-          ...(pickupEnabled && pickupLocation ? { pickup_location: pickupLocation } : {}),
-          ...(dropoffEnabled && dropoffLocation ? { dropoff_location: dropoffLocation } : {}),
+          ...(effectivePickupLocation ? { pickup_location: effectivePickupLocation } : {}),
+          ...(effectiveDropoffLocation ? { dropoff_location: effectiveDropoffLocation } : {}),
         }),
       });
       if (!res.ok) {
@@ -551,6 +572,110 @@ export function VehicleBookingModal({
   const gallery = galleryUrls.length ? galleryUrls : fallbackImg ? [fallbackImg] : [];
   const mainImg = gallery[gi] || fallbackImg || '';
   const price = d?.min_price_per_day ?? vehicle.min_price_per_day;
+
+  // Additional paid accessories (Stage 5) — a SINGLE horizontal scroll-snap
+  // row, not a grid: with many categories/items a grid would grow the modal's
+  // height indefinitely. Categories are flattened into one ordered list (never
+  // interleaved — all of one category's items before the next); each tile
+  // carries its own small category caption, since there's no room for a sticky
+  // group header in a horizontal strip. Items are never hidden for being
+  // unavailable, only dimmed; a category with nothing available at all is
+  // already omitted server-side (EC9). Lives on the "how to book?" screen,
+  // right under the vehicle (owner feedback 2026-07-16) — the customer picks
+  // add-ons in the same place they choose how to book, so there's no separate
+  // read-only summary anymore.
+  const renderAccessories = () => {
+    if (!d || (d.accessories ?? []).length === 0) return null;
+    return (
+      <div className="sb-vd__accessories">
+        <span className="sb-vd__section-label">{t.accessories}</span>
+        <div className="sb-acc__row">
+          {d.accessories!.flatMap((group) =>
+            group.items.map((item) => {
+              const qty = accessories[item.id] || 0;
+              const unavailable = item.available_stock !== null && item.available_stock <= 0;
+              const atMax = !unavailable && item.available_stock !== null && qty >= item.available_stock;
+              const itemName = locale === 'ru' ? item.name_ru : item.name_en;
+              const categoryName = locale === 'ru' ? group.name_ru : group.name_en;
+              return (
+                <div className={`sb-acc__item ${unavailable ? 'is-unavailable' : ''}`} key={item.id}>
+                  <span className="sb-acc__item-category">{categoryName}</span>
+                  {item.photo_url ? (
+                    // Tapping the photo OR the expand badge opens the same
+                    // fullscreen preview — the badge is purely a visual
+                    // "you can tap this" affordance, no separate handler.
+                    <button
+                      type="button"
+                      className="sb-acc__item-photo sb-acc__item-photo--clickable"
+                      onClick={() =>
+                        setAccessoryLightbox({
+                          photoUrl: safeImageUrl(item.photo_url ?? undefined) ?? '',
+                          description: item.description,
+                          name: itemName,
+                        })
+                      }
+                      aria-label={itemName}
+                    >
+                      <img src={safeImageUrl(item.photo_url ?? undefined)} alt={itemName} />
+                      <span className="sb-acc__item-expand" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="m21 21-6-6m6 6v-4.8m0 4.8h-4.8" />
+                          <path d="M3 16.2V21m0 0h4.8M3 21l6-6" />
+                          <path d="M21 7.8V3m0 0h-4.8M21 3l-6 6" />
+                          <path d="M3 7.8V3m0 0h4.8M3 3l6 6" />
+                        </svg>
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="sb-acc__item-photo" />
+                  )}
+                  <div className="sb-acc__item-info">
+                    <span className="sb-acc__item-name">{itemName}</span>
+                    {item.price != null ? (
+                      <span className="sb-acc__item-price">
+                        {Math.round(item.price).toLocaleString('en-US')} {t.priceUnit}{' '}
+                        {item.price_unit === 'per_day' ? t.perDay : t.perBooking}
+                      </span>
+                    ) : null}
+                    {unavailable ? (
+                      <span className="sb-acc__item-unavailable">{t.accUnavailable}</span>
+                    ) : null}
+                  </div>
+                  {/* 44x44 touch targets (Apple HIG / Material minimum). */}
+                  <div className="sb-acc__stepper">
+                    <button
+                      type="button"
+                      aria-label="-"
+                      disabled={qty === 0}
+                      onClick={() =>
+                        setAccessories((prev) => {
+                          const next = { ...prev };
+                          if (qty - 1 <= 0) delete next[item.id];
+                          else next[item.id] = qty - 1;
+                          return next;
+                        })
+                      }
+                    >
+                      −
+                    </button>
+                    <span className="sb-acc__stepper-value">{qty}</span>
+                    <button
+                      type="button"
+                      aria-label="+"
+                      disabled={unavailable || atMax}
+                      onClick={() => setAccessories((prev) => ({ ...prev, [item.id]: qty + 1 }))}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              );
+            }),
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return createPortal(
     // Wrap in .sb-root so the design tokens (--sb-*) cascade into the portal,
@@ -804,115 +929,6 @@ export function VehicleBookingModal({
                   </div>
                 ) : null}
 
-                {/* Additional paid accessories (Stage 5) — a SINGLE horizontal
-                    scroll-snap row, not a grid (design review 2026-07-16):
-                    with many categories/items a grid would otherwise grow
-                    the modal's height indefinitely. Categories are
-                    flattened into one ordered list (never interleaved —
-                    all of one category's items before the next); each tile
-                    carries its OWN small category caption above it, since
-                    there's no room for a sticky group header in a
-                    horizontal strip. Items are never hidden for being
-                    unavailable, only dimmed; a category with nothing
-                    available at all is already omitted server-side (EC9). */}
-                {(d.accessories ?? []).length > 0 ? (
-                  <div className="sb-vd__accessories">
-                    <span className="sb-vd__section-label">{t.accessories}</span>
-                    <div className="sb-acc__row">
-                      {d.accessories!.flatMap((group) =>
-                        group.items.map((item) => {
-                          const qty = accessories[item.id] || 0;
-                          const unavailable = item.available_stock !== null && item.available_stock <= 0;
-                          const atMax = !unavailable && item.available_stock !== null && qty >= item.available_stock;
-                          const itemName = locale === 'ru' ? item.name_ru : item.name_en;
-                          const categoryName = locale === 'ru' ? group.name_ru : group.name_en;
-                          return (
-                            <div
-                              className={`sb-acc__item ${unavailable ? 'is-unavailable' : ''}`}
-                              key={item.id}
-                            >
-                              <span className="sb-acc__item-category">{categoryName}</span>
-                              {item.photo_url ? (
-                                // Tapping the photo OR the expand badge opens the
-                                // same fullscreen preview — the badge is purely a
-                                // visual "you can tap this" affordance (design
-                                // review 2026-07-16), no separate handler needed
-                                // since it's inside the same clickable wrapper.
-                                <button
-                                  type="button"
-                                  className="sb-acc__item-photo sb-acc__item-photo--clickable"
-                                  onClick={() =>
-                                    setAccessoryLightbox({
-                                      photoUrl: safeImageUrl(item.photo_url ?? undefined) ?? '',
-                                      description: item.description,
-                                      name: itemName,
-                                    })
-                                  }
-                                  aria-label={itemName}
-                                >
-                                  <img src={safeImageUrl(item.photo_url ?? undefined)} alt={itemName} />
-                                  <span className="sb-acc__item-expand" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="m21 21-6-6m6 6v-4.8m0 4.8h-4.8" />
-                                      <path d="M3 16.2V21m0 0h4.8M3 21l6-6" />
-                                      <path d="M21 7.8V3m0 0h-4.8M21 3l-6 6" />
-                                      <path d="M3 7.8V3m0 0h4.8M3 3l6 6" />
-                                    </svg>
-                                  </span>
-                                </button>
-                              ) : (
-                                <div className="sb-acc__item-photo" />
-                              )}
-                              <div className="sb-acc__item-info">
-                                <span className="sb-acc__item-name">{itemName}</span>
-                                {item.price != null ? (
-                                  <span className="sb-acc__item-price">
-                                    {Math.round(item.price).toLocaleString('en-US')} {t.priceUnit}{' '}
-                                    {item.price_unit === 'per_day' ? t.perDay : t.perBooking}
-                                  </span>
-                                ) : null}
-                                {unavailable ? (
-                                  <span className="sb-acc__item-unavailable">{t.accUnavailable}</span>
-                                ) : null}
-                              </div>
-                              {/* 44x44 touch targets (Apple HIG / Material minimum) —
-                                  was a compact inline row, too small to tap comfortably. */}
-                              <div className="sb-acc__stepper">
-                                <button
-                                  type="button"
-                                  aria-label="-"
-                                  disabled={qty === 0}
-                                  onClick={() =>
-                                    setAccessories((prev) => {
-                                      const next = { ...prev };
-                                      if (qty - 1 <= 0) delete next[item.id];
-                                      else next[item.id] = qty - 1;
-                                      return next;
-                                    })
-                                  }
-                                >
-                                  −
-                                </button>
-                                <span className="sb-acc__stepper-value">{qty}</span>
-                                <button
-                                  type="button"
-                                  aria-label="+"
-                                  disabled={unavailable || atMax}
-                                  onClick={() =>
-                                    setAccessories((prev) => ({ ...prev, [item.id]: qty + 1 }))
-                                  }
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        }),
-                      )}
-                    </div>
-                  </div>
-                ) : null}
-
                 {/* Equipment (vehicle.options — concrete features like CarPlay/
                     sunroof) — more decision-relevant to a renter than raw
                     technical Specs, so it comes first (conversion-order
@@ -1005,50 +1021,12 @@ export function VehicleBookingModal({
                 </div>
               </div>
 
-              {/* Selected paid accessories — order-list style, directly under
-                  the vehicle (owner feedback 2026-07-16: was buried below the
-                  dates, and showed only a bare name — no category/price, so
-                  it read as an unstyled afterthought rather than part of the
-                  order). Category + price/unit are resolved from the same
-                  detail payload used by the picker above, so this list reads
-                  exactly like a normal order line. */}
-              {selectedAccessories.length > 0 ? (
-                <div className="sb-bk__accessories">
-                  <span className="sb-vd__section-label">{t.accessories}</span>
-                  <ul className="sb-bk__accessories-list">
-                    {selectedAccessories.map(({ accessory_id, quantity }) => {
-                      const group = (d.accessories ?? []).find((g) =>
-                        g.items.some((it) => it.id === accessory_id),
-                      );
-                      const item = group?.items.find((it) => it.id === accessory_id);
-                      // A selected id not found in the current detail payload
-                      // still went into the request — show a generic label
-                      // instead of silently under-reporting what was picked.
-                      const itemName = item ? (locale === 'ru' ? item.name_ru : item.name_en) : t.accessoryFallback;
-                      const categoryName = group ? (locale === 'ru' ? group.name_ru : group.name_en) : null;
-                      return (
-                        <li key={accessory_id} className="sb-bk__accessory-row">
-                          <div className="sb-bk__accessory-info">
-                            {categoryName ? (
-                              <span className="sb-bk__accessory-category">{categoryName}</span>
-                            ) : null}
-                            <span className="sb-bk__accessory-name">
-                              {itemName}
-                              {quantity > 1 ? ` × ${quantity}` : ''}
-                            </span>
-                          </div>
-                          {item?.price != null ? (
-                            <span className="sb-bk__accessory-price">
-                              {Math.round(item.price).toLocaleString('en-US')} {t.priceUnit}{' '}
-                              {item.price_unit === 'per_day' ? t.perDay : t.perBooking}
-                            </span>
-                          ) : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ) : null}
+              {/* Paid-accessory picker — moved here from the vehicle-detail
+                  screen (owner feedback 2026-07-16): the customer picks add-ons
+                  in the very place they choose how to book, right under the
+                  vehicle, so there's no separate detail-screen block and no
+                  read-only summary anymore. Same interactive carousel. */}
+              {renderAccessories()}
 
               <div className="sb-vd__dates">
                 <label>
@@ -1088,6 +1066,7 @@ export function VehicleBookingModal({
                 dropoffEnabled={dropoffEnabled}
                 pickupLocation={pickupLocation}
                 dropoffLocation={dropoffLocation}
+                dropoffSameAsPickup={dropoffSameAsPickup}
                 onPickupToggle={(enabled) => {
                   setPickupEnabled(enabled);
                   if (!enabled) setPickupLocation(null);
@@ -1098,12 +1077,17 @@ export function VehicleBookingModal({
                 }}
                 onPickupSelect={setPickupLocation}
                 onDropoffSelect={setDropoffLocation}
+                onDropoffSameToggle={setDropoffSameAsPickup}
                 strings={{
                   title: t.deliveryTitle,
                   pickupToggle: t.deliveryPickup,
                   dropoffToggle: t.deliveryDropoff,
                   unavailable: t.deliveryUnavailable,
                   loading: t.loading,
+                  showMap: t.deliveryShowMap,
+                  hideMap: t.deliveryHideMap,
+                  mapHint: t.deliveryMapHint,
+                  sameAsPickup: t.deliverySameAsPickup,
                 }}
               />
 
@@ -1225,14 +1209,14 @@ export function VehicleBookingModal({
                     apply to both the Telegram and manual paths, and this form
                     only handles name/contact. Read-only echo here mirrors the
                     dates-summary line above it, same reasoning. */}
-                {pickupEnabled && pickupLocation ? (
+                {effectivePickupLocation ? (
                   <p className="sb-vd__dates-summary">
-                    {t.deliveryPickup}: <b>{pickupLocation.address}</b>
+                    {t.deliveryPickup}: <b>{effectivePickupLocation.address}</b>
                   </p>
                 ) : null}
-                {dropoffEnabled && dropoffLocation ? (
+                {effectiveDropoffLocation ? (
                   <p className="sb-vd__dates-summary">
-                    {t.deliveryDropoff}: <b>{dropoffLocation.address}</b>
+                    {t.deliveryDropoff}: <b>{effectiveDropoffLocation.address}</b>
                   </p>
                 ) : null}
 

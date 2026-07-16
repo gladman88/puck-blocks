@@ -1,16 +1,20 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { DeliveryAddressSection } from './DeliveryAddressSection';
+import { DeliveryAddressSection, type DeliveryAddressStrings } from './DeliveryAddressSection';
 import type { PickedLocation } from './DeliveryAddressPicker';
 
 afterEach(() => cleanup());
 
-const strings = {
+const strings: DeliveryAddressStrings = {
   title: 'Delivery',
   pickupToggle: 'Deliver the vehicle to my address',
   dropoffToggle: "We'll pick it up from my address",
   unavailable: 'Address search is temporarily unavailable',
   loading: 'Loading…',
+  showMap: 'Pick on the map',
+  hideMap: 'Hide map',
+  mapHint: 'Tap the map to choose a point',
+  sameAsPickup: 'Same address as delivery',
 };
 
 interface SectionProps {
@@ -19,10 +23,12 @@ interface SectionProps {
   dropoffEnabled: boolean;
   pickupLocation: PickedLocation | null;
   dropoffLocation: PickedLocation | null;
+  dropoffSameAsPickup: boolean;
   onPickupToggle: (enabled: boolean) => void;
   onDropoffToggle: (enabled: boolean) => void;
   onPickupSelect: (location: PickedLocation) => void;
   onDropoffSelect: (location: PickedLocation) => void;
+  onDropoffSameToggle: (same: boolean) => void;
 }
 
 function renderSection(overrides: Partial<SectionProps> = {}) {
@@ -33,10 +39,12 @@ function renderSection(overrides: Partial<SectionProps> = {}) {
       dropoffEnabled={false}
       pickupLocation={null}
       dropoffLocation={null}
+      dropoffSameAsPickup={false}
       onPickupToggle={vi.fn()}
       onDropoffToggle={vi.fn()}
       onPickupSelect={vi.fn()}
       onDropoffSelect={vi.fn()}
+      onDropoffSameToggle={vi.fn()}
       strings={strings}
       {...overrides}
     />,
@@ -80,5 +88,66 @@ describe('DeliveryAddressSection (puck-blocks)', () => {
     expect(switches[1].getAttribute('aria-checked')).toBe('false');
     fireEvent.click(switches[1]);
     expect(onDropoffToggle).toHaveBeenCalledWith(true);
+  });
+
+  it('offers "same as delivery" on the collection row only once delivery has a picked address', () => {
+    // Delivery on but no address yet → no "same" checkbox.
+    const { rerender } = renderSection({ pickupEnabled: true, dropoffEnabled: true });
+    expect(screen.queryByText('Same address as delivery')).toBeNull();
+
+    // Delivery address picked → the checkbox appears on the collection row.
+    rerender(
+      <DeliveryAddressSection
+        apiKey={undefined}
+        pickupEnabled
+        dropoffEnabled
+        pickupLocation={{ address: 'Patong Beach Road', lat: 7.9, lng: 98.29 }}
+        dropoffLocation={null}
+        dropoffSameAsPickup={false}
+        onPickupToggle={vi.fn()}
+        onDropoffToggle={vi.fn()}
+        onPickupSelect={vi.fn()}
+        onDropoffSelect={vi.fn()}
+        onDropoffSameToggle={vi.fn()}
+        strings={strings}
+      />,
+    );
+    expect(screen.getByText('Same address as delivery')).toBeTruthy();
+  });
+
+  it('checking "same as delivery" hides the collection picker and fires onDropoffSameToggle', () => {
+    const onDropoffSameToggle = vi.fn();
+    // same=false → the collection picker (unavailable msg) is visible alongside the checkbox.
+    const { rerender } = renderSection({
+      pickupEnabled: true,
+      dropoffEnabled: true,
+      pickupLocation: { address: 'Patong Beach Road', lat: 7.9, lng: 98.29 },
+      dropoffSameAsPickup: false,
+      onDropoffSameToggle,
+    });
+    // Two pickers visible (pickup + dropoff) → two unavailable messages.
+    expect(screen.getAllByText('Address search is temporarily unavailable')).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    expect(onDropoffSameToggle).toHaveBeenCalledWith(true);
+
+    // With same=true the collection picker is hidden → only the pickup picker's message remains.
+    rerender(
+      <DeliveryAddressSection
+        apiKey={undefined}
+        pickupEnabled
+        dropoffEnabled
+        pickupLocation={{ address: 'Patong Beach Road', lat: 7.9, lng: 98.29 }}
+        dropoffLocation={null}
+        dropoffSameAsPickup
+        onPickupToggle={vi.fn()}
+        onDropoffToggle={vi.fn()}
+        onPickupSelect={vi.fn()}
+        onDropoffSelect={vi.fn()}
+        onDropoffSameToggle={onDropoffSameToggle}
+        strings={strings}
+      />,
+    );
+    expect(screen.getAllByText('Address search is temporarily unavailable')).toHaveLength(1);
   });
 });

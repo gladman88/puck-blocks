@@ -58,13 +58,20 @@ function renderModal(detail: unknown, locale: 'ru' | 'en' = 'en') {
 }
 
 describe('VehicleBookingModal — accessories (Stage 5)', () => {
+  // The accessory picker carousel lives on the "how to book?" choice screen now
+  // (owner feedback 2026-07-16), reached by clicking the detail-screen CTA.
+  async function goToAccessories(cta = 'Book') {
+    fireEvent.click(await screen.findByText(cta));
+    await screen.findByText('How to book?');
+  }
+
   it('renders nothing extra when accessories is empty/absent', async () => {
     renderModal(baseDetail);
-    await screen.findByText('BMW Z4');
+    await goToAccessories();
     expect(screen.queryByText('Additional Options')).toBeNull();
   });
 
-  it('groups items by category and shows name/price', async () => {
+  it('groups items by category and shows name/price on the choice screen', async () => {
     const detail = {
       ...baseDetail,
       accessories: [
@@ -80,7 +87,8 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
       ],
     };
     renderModal(detail);
-    await screen.findByText('Additional Options');
+    await goToAccessories();
+    expect(screen.getByText('Additional Options')).toBeTruthy();
     expect(screen.getByText('Seats')).toBeTruthy();
     expect(screen.getByText('Child seat')).toBeTruthy();
     expect(screen.getByText(/500.*per booking/)).toBeTruthy();
@@ -102,9 +110,38 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
       ],
     };
     renderModal(detail, 'ru');
-    await screen.findByText('Дополнительные опции');
+    fireEvent.click(await screen.findByText('Забронировать'));
+    await screen.findByText('Как забронировать?');
+    expect(screen.getByText('Дополнительные опции')).toBeTruthy();
     expect(screen.getByText('Без категории')).toBeTruthy();
     expect(screen.getByText('Кресло')).toBeTruthy();
+  });
+
+  it('the carousel sits directly under the vehicle, before the dates', async () => {
+    const detail = {
+      ...baseDetail,
+      accessories: [
+        {
+          id: 'cat-1', name_ru: 'Кресла', name_en: 'Seats', photo_url: null,
+          items: [
+            {
+              id: 'acc-1', name_ru: 'Детское кресло', name_en: 'Child seat', photo_url: null,
+              price: 500, price_unit: 'per_booking', stock: null, available_stock: null,
+            },
+          ],
+        },
+      ],
+    };
+    renderModal(detail);
+    await goToAccessories();
+    const body = document.querySelector('.sb-modal__body--book') as HTMLElement;
+    const children = Array.from(body.children).map((el) => el.className);
+    const vehicleIdx = children.indexOf('sb-bk__vehicle');
+    const accessoriesIdx = children.indexOf('sb-vd__accessories');
+    const datesIdx = children.indexOf('sb-vd__dates');
+    expect(vehicleIdx).toBeGreaterThanOrEqual(0);
+    expect(accessoriesIdx).toBeGreaterThan(vehicleIdx);
+    expect(datesIdx).toBeGreaterThan(accessoriesIdx);
   });
 
   it('+ increases the quantity, sold-out items are marked and cannot be incremented', async () => {
@@ -127,7 +164,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
       ],
     };
     renderModal(detail);
-    await screen.findByText('Additional Options');
+    await goToAccessories();
 
     const plusButtons = screen.getAllByRole('button', { name: '+' });
     // First item (free) — clicking + increments its own counter to 1.
@@ -175,10 +212,9 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     render(
       <VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />,
     );
-    await screen.findByText('Additional Options');
+    await goToAccessories();
 
     fireEvent.click(screen.getByRole('button', { name: '+' }));
-    fireEvent.click(screen.getByText('Book'));
     fireEvent.click(await screen.findByText('Fill in manually'));
 
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
@@ -190,7 +226,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     expect(payload.accessories).toEqual([{ accessory_id: 'acc-1', quantity: 1 }]);
   });
 
-  it('shows a summary of selected accessories on the "how to book" choice screen, with category/price, directly after the vehicle and before the dates (owner feedback 2026-07-16: was a bare name-only list buried below the dates)', async () => {
+  it('a picked accessory carries into the Telegram 1-click intent payload', async () => {
     const detail = {
       ...baseDetail,
       accessories: [
@@ -198,59 +234,36 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
           id: 'cat-1', name_ru: 'Кресла', name_en: 'Seats', photo_url: null,
           items: [
             {
-              id: 'acc-1', name_ru: 'Детское кресло', name_en: 'Child seat', photo_url: null,
+              id: 'acc-1', name_ru: 'Кресло', name_en: 'Seat', photo_url: null,
               price: 500, price_unit: 'per_booking', stock: null, available_stock: null,
             },
           ],
         },
       ],
     };
-    renderModal(detail);
-    await screen.findByText('Additional Options');
+    let capturedBody: string | undefined;
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        const u = String(url);
+        if (u.includes('/booking-intents/')) {
+          capturedBody = init?.body as string;
+          return Promise.resolve(new Response(JSON.stringify({ token: 'tok123' }), { status: 201 }));
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(detail), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+    await goToAccessories();
+    fireEvent.click(screen.getByRole('button', { name: '+' }));
+    fireEvent.click(screen.getByText('1-click booking via Telegram'));
 
-    const plusButton = screen.getByRole('button', { name: '+' });
-    fireEvent.click(plusButton);
-    fireEvent.click(plusButton); // quantity 2 → summary should show "× 2"
-    fireEvent.click(screen.getByText('Book'));
-
-    await screen.findByText('How to book?');
-    expect(screen.getByText('Additional Options')).toBeTruthy(); // section label, reused
-    expect(screen.getByText('Seats')).toBeTruthy(); // category, resolved from the same detail payload
-    expect(screen.getByText('Child seat × 2')).toBeTruthy();
-    expect(screen.getByText('500 THB per booking')).toBeTruthy();
-
-    // Order: vehicle → accessories summary → dates (not dates in between).
-    const body = document.querySelector('.sb-modal__body--book') as HTMLElement;
-    const children = Array.from(body.children).map((el) => el.className);
-    const vehicleIdx = children.indexOf('sb-bk__vehicle');
-    const accessoriesIdx = children.indexOf('sb-bk__accessories');
-    const datesIdx = children.indexOf('sb-vd__dates');
-    expect(vehicleIdx).toBeGreaterThanOrEqual(0);
-    expect(accessoriesIdx).toBeGreaterThan(vehicleIdx);
-    expect(datesIdx).toBeGreaterThan(accessoriesIdx);
-  });
-
-  it('omits the accessories summary on the choice screen when nothing is selected', async () => {
-    const detail = {
-      ...baseDetail,
-      accessories: [
-        {
-          id: 'cat-1', name_ru: 'Кресла', name_en: 'Seats', photo_url: null,
-          items: [
-            {
-              id: 'acc-1', name_ru: 'Детское кресло', name_en: 'Child seat', photo_url: null,
-              price: 500, price_unit: 'per_booking', stock: null, available_stock: null,
-            },
-          ],
-        },
-      ],
-    };
-    renderModal(detail);
-    await screen.findByText('Additional Options');
-    fireEvent.click(screen.getByText('Book'));
-
-    await screen.findByText('How to book?');
-    expect(screen.queryByText('Child seat')).toBeNull();
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    expect(JSON.parse(capturedBody!).accessories).toEqual([{ accessory_id: 'acc-1', quantity: 1 }]);
+    errSpy.mockRestore();
   });
 
   it('an item with no photo renders no expand button, just the placeholder tile', async () => {
@@ -269,7 +282,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
       ],
     };
     renderModal(detail);
-    await screen.findByText('Additional Options');
+    await goToAccessories();
     expect(screen.queryByRole('button', { name: 'Seat' })).toBeNull();
   });
 
@@ -290,7 +303,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
       ],
     };
     renderModal(detail);
-    await screen.findByText('Additional Options');
+    await goToAccessories();
 
     fireEvent.click(screen.getByRole('button', { name: 'Seat' }));
     expect(await screen.findByText('Компактное кресло для детей 9-18 кг.')).toBeTruthy();
@@ -319,7 +332,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
       ],
     };
     renderModal(detail);
-    await screen.findByText('Additional Options');
+    await goToAccessories();
 
     fireEvent.click(screen.getByRole('button', { name: 'Seat' }));
     await screen.findAllByAltText('Seat');
@@ -346,7 +359,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     const { rerender } = render(
       <VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />,
     );
-    await screen.findByText('Additional Options');
+    await goToAccessories();
     fireEvent.click(screen.getByRole('button', { name: 'Seat' }));
     expect(await screen.findByText('Компактное кресло для детей 9-18 кг.')).toBeTruthy();
 

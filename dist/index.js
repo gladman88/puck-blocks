@@ -546,13 +546,60 @@ function formatShortDate(isoDate, lang) {
     timeZone: "UTC"
   });
 }
-function DeliveryAddressPicker({ apiKey, onSelect, unavailableText, loadingText }) {
-  const containerRef = useRef(null);
+var DEFAULT_CENTER = { lat: 7.8804, lng: 98.3923 };
+var DEFAULT_ZOOM = 11;
+var SELECTED_ZOOM = 16;
+function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
+  const acContainerRef = useRef(null);
+  const mapDivRef = useRef(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+  const markerCtorRef = useRef(null);
+  const geocoderRef = useRef(null);
   const [status, setStatus] = useState(
     apiKey ? "loading" : "unavailable"
   );
+  const [mapOpen, setMapOpen] = useState(false);
+  const onSelectRef = useRef(onSelect);
   useEffect(() => {
-    if (!apiKey || !containerRef.current) return;
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
+  const syncMarker = (lat, lng, pan) => {
+    if (!mapRef.current || !markerCtorRef.current) return;
+    if (!markerRef.current) {
+      markerRef.current = new markerCtorRef.current({ map: mapRef.current, position: { lat, lng } });
+    } else {
+      markerRef.current.setPosition({ lat, lng });
+    }
+    if (pan) {
+      mapRef.current.panTo({ lat, lng });
+      mapRef.current.setZoom(SELECTED_ZOOM);
+    }
+  };
+  const pickFromMap = (lat, lng) => {
+    syncMarker(lat, lng, true);
+    if (!geocoderRef.current) {
+      onSelectRef.current({ address: `${lat.toFixed(6)}, ${lng.toFixed(6)}`, lat, lng });
+      return;
+    }
+    geocoderRef.current.geocode({ location: { lat, lng } }, (results, gstatus) => {
+      if (gstatus === "OK" && results?.[0]) {
+        onSelectRef.current({
+          address: results[0].formatted_address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+          lat,
+          lng,
+          place_id: results[0].place_id
+        });
+      } else {
+        onSelectRef.current({ address: `${lat.toFixed(6)}, ${lng.toFixed(6)}`, lat, lng });
+      }
+    });
+  };
+  useEffect(() => {
+    if (!apiKey || !acContainerRef.current) {
+      if (!apiKey) setStatus("unavailable");
+      return;
+    }
     let cancelled = false;
     let element = null;
     let listener = null;
@@ -561,20 +608,23 @@ function DeliveryAddressPicker({ apiKey, onSelect, unavailableText, loadingText 
         const google = window.google;
         if (!google) throw new Error("Google Maps bootstrap loader missing");
         const { PlaceAutocompleteElement } = await google.maps.importLibrary("places");
-        if (cancelled || !containerRef.current) return;
+        if (cancelled || !acContainerRef.current || !PlaceAutocompleteElement) return;
         element = new PlaceAutocompleteElement();
-        containerRef.current.appendChild(element);
+        acContainerRef.current.appendChild(element);
         listener = async ({ placePrediction }) => {
           const place = placePrediction.toPlace();
           await place.fetchFields({ fields: ["formattedAddress", "location", "id", "displayName"] });
           if (!place.location) return;
-          onSelect({
+          const lat = place.location.lat();
+          const lng = place.location.lng();
+          onSelectRef.current({
             address: place.formattedAddress || place.displayName || "",
-            lat: place.location.lat(),
-            lng: place.location.lng(),
+            lat,
+            lng,
             place_id: place.id,
             name: place.displayName
           });
+          syncMarker(lat, lng, true);
         };
         element.addEventListener("gmp-select", listener);
         setStatus("ready");
@@ -588,16 +638,84 @@ function DeliveryAddressPicker({ apiKey, onSelect, unavailableText, loadingText 
       element?.remove();
     };
   }, [apiKey]);
+  useEffect(() => {
+    if (!mapOpen || !apiKey || !mapDivRef.current || mapRef.current) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const google = window.google;
+        if (!google) return;
+        const [maps, marker, geocoding] = await Promise.all([
+          google.maps.importLibrary("maps"),
+          google.maps.importLibrary("marker"),
+          google.maps.importLibrary("geocoding").catch(() => null)
+          // Geocoding API optional
+        ]);
+        if (cancelled || !mapDivRef.current || !maps.Map) return;
+        markerCtorRef.current = marker.Marker ?? null;
+        if (geocoding?.Geocoder) geocoderRef.current = new geocoding.Geocoder();
+        const center = value ? { lat: value.lat, lng: value.lng } : DEFAULT_CENTER;
+        const map = new maps.Map(mapDivRef.current, {
+          center,
+          zoom: value ? SELECTED_ZOOM : DEFAULT_ZOOM,
+          disableDefaultUI: true,
+          zoomControl: true,
+          clickableIcons: false
+        });
+        mapRef.current = map;
+        if (value) syncMarker(value.lat, value.lng, false);
+        map.addListener("click", (e) => {
+          if (e.latLng) pickFromMap(e.latLng.lat(), e.latLng.lng());
+        });
+      } catch {
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mapOpen, apiKey]);
+  useEffect(() => {
+    if (mapRef.current && value) syncMarker(value.lat, value.lng, true);
+  }, [value?.lat, value?.lng]);
   if (status === "unavailable") {
-    return /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-msg", children: unavailableText });
+    return /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-msg", children: strings.unavailable });
   }
-  return /* @__PURE__ */ jsxs("div", { children: [
-    /* @__PURE__ */ jsx("div", { ref: containerRef, "data-testid": "delivery-address-picker-container" }),
-    status === "loading" && /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-msg", children: loadingText }),
-    status === "error" && /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-msg sb-vd__addr-msg--err", children: unavailableText })
+  return /* @__PURE__ */ jsxs("div", { className: "sb-vd__addr-picker-inner", children: [
+    /* @__PURE__ */ jsx("div", { ref: acContainerRef, "data-testid": "delivery-address-picker-container" }),
+    status === "loading" && /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-msg", children: strings.loading }),
+    status === "error" && /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-msg sb-vd__addr-msg--err", children: strings.unavailable }),
+    status === "ready" ? /* @__PURE__ */ jsxs(Fragment, { children: [
+      /* @__PURE__ */ jsxs(
+        "button",
+        {
+          type: "button",
+          className: "sb-vd__addr-map-toggle",
+          "aria-expanded": mapOpen,
+          onClick: () => setMapOpen((v) => !v),
+          children: [
+            "\u{1F4CD} ",
+            mapOpen ? strings.hideMap : strings.showMap
+          ]
+        }
+      ),
+      mapOpen ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__addr-map-wrap", children: [
+        /* @__PURE__ */ jsx("div", { ref: mapDivRef, className: "sb-vd__addr-map", "data-testid": "delivery-address-map" }),
+        /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-map-hint", children: strings.mapHint })
+      ] }) : null
+    ] }) : null
   ] });
 }
-function ToggleRow({ label, enabled, location, apiKey, onToggle, onSelect, unavailableText, loadingText }) {
+function ToggleRow({
+  label,
+  enabled,
+  location,
+  apiKey,
+  strings,
+  onToggle,
+  onSelect,
+  children,
+  hidePicker
+}) {
   return /* @__PURE__ */ jsxs("div", { className: "sb-vd__addr-row", children: [
     /* @__PURE__ */ jsxs(
       "button",
@@ -614,16 +732,25 @@ function ToggleRow({ label, enabled, location, apiKey, onToggle, onSelect, unava
       }
     ),
     enabled ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__addr-picker", children: [
-      /* @__PURE__ */ jsx(
-        DeliveryAddressPicker,
-        {
-          apiKey,
-          onSelect,
-          unavailableText,
-          loadingText
-        }
-      ),
-      location ? /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-picked", children: location.address }) : null
+      children,
+      !hidePicker ? /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx(
+          DeliveryAddressPicker,
+          {
+            apiKey,
+            value: location,
+            onSelect,
+            strings: {
+              unavailable: strings.unavailable,
+              loading: strings.loading,
+              showMap: strings.showMap,
+              hideMap: strings.hideMap,
+              mapHint: strings.mapHint
+            }
+          }
+        ),
+        location ? /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-picked", children: location.address }) : null
+      ] }) : null
     ] }) : null
   ] });
 }
@@ -633,12 +760,16 @@ function DeliveryAddressSection({
   dropoffEnabled,
   pickupLocation,
   dropoffLocation,
+  dropoffSameAsPickup,
   onPickupToggle,
   onDropoffToggle,
   onPickupSelect,
   onDropoffSelect,
+  onDropoffSameToggle,
   strings
 }) {
+  const canMirrorPickup = pickupEnabled && pickupLocation != null;
+  const mirroring = canMirrorPickup && dropoffSameAsPickup;
   return /* @__PURE__ */ jsxs("div", { className: "sb-vd__addr-section", children: [
     /* @__PURE__ */ jsx("span", { className: "sb-vd__field-label", children: strings.title }),
     /* @__PURE__ */ jsx(
@@ -648,10 +779,9 @@ function DeliveryAddressSection({
         enabled: pickupEnabled,
         location: pickupLocation,
         apiKey,
+        strings,
         onToggle: onPickupToggle,
-        onSelect: onPickupSelect,
-        unavailableText: strings.unavailable,
-        loadingText: strings.loading
+        onSelect: onPickupSelect
       }
     ),
     /* @__PURE__ */ jsx(
@@ -661,10 +791,21 @@ function DeliveryAddressSection({
         enabled: dropoffEnabled,
         location: dropoffLocation,
         apiKey,
+        strings,
         onToggle: onDropoffToggle,
         onSelect: onDropoffSelect,
-        unavailableText: strings.unavailable,
-        loadingText: strings.loading
+        hidePicker: mirroring,
+        children: canMirrorPickup ? /* @__PURE__ */ jsxs("label", { className: "sb-vd__addr-same", children: [
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: "checkbox",
+              checked: dropoffSameAsPickup,
+              onChange: (e) => onDropoffSameToggle(e.target.checked)
+            }
+          ),
+          /* @__PURE__ */ jsx("span", { children: strings.sameAsPickup })
+        ] }) : null
       }
     )
   ] });
@@ -727,7 +868,6 @@ var S = {
     allSpecs: "\u0412\u0441\u0435 \u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438",
     equipment: "\u041A\u043E\u043C\u043F\u043B\u0435\u043A\u0442\u0430\u0446\u0438\u044F",
     accessories: "\u0414\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u043E\u043F\u0446\u0438\u0438",
-    accessoryFallback: "\u0414\u043E\u043F. \u043E\u043F\u0446\u0438\u044F",
     perBooking: "\u0437\u0430 \u0431\u0440\u043E\u043D\u044C",
     accUnavailable: "\u041D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E \u043D\u0430 \u044D\u0442\u0438 \u0434\u0430\u0442\u044B",
     deposit: "\u0414\u0435\u043F\u043E\u0437\u0438\u0442",
@@ -764,6 +904,10 @@ var S = {
     deliveryPickup: "\u0414\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u043C\u0430\u0448\u0438\u043D\u0443 \u043F\u043E \u0430\u0434\u0440\u0435\u0441\u0443",
     deliveryDropoff: "\u0417\u0430\u0431\u0435\u0440\u0451\u043C \u043C\u0430\u0448\u0438\u043D\u0443 \u043F\u043E \u0430\u0434\u0440\u0435\u0441\u0443",
     deliveryUnavailable: "\u041F\u043E\u0438\u0441\u043A \u0430\u0434\u0440\u0435\u0441\u0430 \u0432\u0440\u0435\u043C\u0435\u043D\u043D\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D",
+    deliveryShowMap: "\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u043D\u0430 \u043A\u0430\u0440\u0442\u0435",
+    deliveryHideMap: "\u0421\u043A\u0440\u044B\u0442\u044C \u043A\u0430\u0440\u0442\u0443",
+    deliveryMapHint: "\u041D\u0430\u0436\u043C\u0438\u0442\u0435 \u043D\u0430 \u043A\u0430\u0440\u0442\u0443, \u0447\u0442\u043E\u0431\u044B \u0432\u044B\u0431\u0440\u0430\u0442\u044C \u0442\u043E\u0447\u043A\u0443",
+    deliverySameAsPickup: "\u0422\u0430\u043A\u043E\u0439 \u0436\u0435 \u0430\u0434\u0440\u0435\u0441, \u043A\u0430\u043A \u0434\u043B\u044F \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438",
     labels: {
       fuel_type: "\u0422\u043E\u043F\u043B\u0438\u0432\u043E",
       transmission: "\u041A\u041F\u041F",
@@ -793,7 +937,6 @@ var S = {
     allSpecs: "All specs",
     equipment: "Equipment",
     accessories: "Additional Options",
-    accessoryFallback: "Add-on",
     perBooking: "per booking",
     accUnavailable: "Not available for these dates",
     deposit: "Deposit",
@@ -830,6 +973,10 @@ var S = {
     deliveryPickup: "Deliver the vehicle to my address",
     deliveryDropoff: "We'll pick it up from my address",
     deliveryUnavailable: "Address search is temporarily unavailable",
+    deliveryShowMap: "Pick on the map",
+    deliveryHideMap: "Hide map",
+    deliveryMapHint: "Tap the map to choose a point",
+    deliverySameAsPickup: "Same address as delivery",
     labels: {
       fuel_type: "Fuel",
       transmission: "Transmission",
@@ -873,6 +1020,7 @@ function VehicleBookingModal({
   const [dropoffEnabled, setDropoffEnabled] = useState(false);
   const [pickupLocation, setPickupLocation] = useState(null);
   const [dropoffLocation, setDropoffLocation] = useState(null);
+  const [dropoffSameAsPickup, setDropoffSameAsPickup] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [stage, setStage] = useState("detail");
   const [err, setErr] = useState("");
@@ -968,6 +1116,8 @@ function VehicleBookingModal({
   }, [start, end]);
   const datesValid = Boolean(start && end && start >= minStart && end > start);
   const selectedAccessories = Object.entries(accessories).filter(([, qty]) => qty > 0).map(([accessory_id, quantity]) => ({ accessory_id, quantity }));
+  const effectivePickupLocation = pickupEnabled ? pickupLocation : null;
+  const effectiveDropoffLocation = dropoffEnabled ? dropoffSameAsPickup && pickupEnabled && pickupLocation ? pickupLocation : dropoffLocation : null;
   const submit = async (e) => {
     e.preventDefault();
     if (submitting || !datesValid || !name.trim() || !contact.trim()) return;
@@ -993,8 +1143,8 @@ function VehicleBookingModal({
             }
           } : {},
           ...selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {},
-          ...pickupEnabled && pickupLocation ? { pickup_location: pickupLocation } : {},
-          ...dropoffEnabled && dropoffLocation ? { dropoff_location: dropoffLocation } : {}
+          ...effectivePickupLocation ? { pickup_location: effectivePickupLocation } : {},
+          ...effectiveDropoffLocation ? { dropoff_location: effectiveDropoffLocation } : {}
         })
       });
       if (res.ok) {
@@ -1022,8 +1172,8 @@ function VehicleBookingModal({
           end_date: end,
           ...referralCode ? { referral_code: referralCode } : {},
           ...selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {},
-          ...pickupEnabled && pickupLocation ? { pickup_location: pickupLocation } : {},
-          ...dropoffEnabled && dropoffLocation ? { dropoff_location: dropoffLocation } : {}
+          ...effectivePickupLocation ? { pickup_location: effectivePickupLocation } : {},
+          ...effectiveDropoffLocation ? { dropoff_location: effectiveDropoffLocation } : {}
         })
       });
       if (!res.ok) {
@@ -1053,6 +1203,90 @@ function VehicleBookingModal({
   const gallery = galleryUrls.length ? galleryUrls : fallbackImg ? [fallbackImg] : [];
   const mainImg = gallery[gi] || fallbackImg || "";
   const price = d?.min_price_per_day ?? vehicle.min_price_per_day;
+  const renderAccessories = () => {
+    if (!d || (d.accessories ?? []).length === 0) return null;
+    return /* @__PURE__ */ jsxs("div", { className: "sb-vd__accessories", children: [
+      /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.accessories }),
+      /* @__PURE__ */ jsx("div", { className: "sb-acc__row", children: d.accessories.flatMap(
+        (group) => group.items.map((item) => {
+          const qty = accessories[item.id] || 0;
+          const unavailable = item.available_stock !== null && item.available_stock <= 0;
+          const atMax = !unavailable && item.available_stock !== null && qty >= item.available_stock;
+          const itemName = locale === "ru" ? item.name_ru : item.name_en;
+          const categoryName = locale === "ru" ? group.name_ru : group.name_en;
+          return /* @__PURE__ */ jsxs("div", { className: `sb-acc__item ${unavailable ? "is-unavailable" : ""}`, children: [
+            /* @__PURE__ */ jsx("span", { className: "sb-acc__item-category", children: categoryName }),
+            item.photo_url ? (
+              // Tapping the photo OR the expand badge opens the same
+              // fullscreen preview — the badge is purely a visual
+              // "you can tap this" affordance, no separate handler.
+              /* @__PURE__ */ jsxs(
+                "button",
+                {
+                  type: "button",
+                  className: "sb-acc__item-photo sb-acc__item-photo--clickable",
+                  onClick: () => setAccessoryLightbox({
+                    photoUrl: safeImageUrl(item.photo_url ?? void 0) ?? "",
+                    description: item.description,
+                    name: itemName
+                  }),
+                  "aria-label": itemName,
+                  children: [
+                    /* @__PURE__ */ jsx("img", { src: safeImageUrl(item.photo_url ?? void 0), alt: itemName }),
+                    /* @__PURE__ */ jsx("span", { className: "sb-acc__item-expand", "aria-hidden": "true", children: /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+                      /* @__PURE__ */ jsx("path", { d: "m21 21-6-6m6 6v-4.8m0 4.8h-4.8" }),
+                      /* @__PURE__ */ jsx("path", { d: "M3 16.2V21m0 0h4.8M3 21l6-6" }),
+                      /* @__PURE__ */ jsx("path", { d: "M21 7.8V3m0 0h-4.8M21 3l-6 6" }),
+                      /* @__PURE__ */ jsx("path", { d: "M3 7.8V3m0 0h4.8M3 3l6 6" })
+                    ] }) })
+                  ]
+                }
+              )
+            ) : /* @__PURE__ */ jsx("div", { className: "sb-acc__item-photo" }),
+            /* @__PURE__ */ jsxs("div", { className: "sb-acc__item-info", children: [
+              /* @__PURE__ */ jsx("span", { className: "sb-acc__item-name", children: itemName }),
+              item.price != null ? /* @__PURE__ */ jsxs("span", { className: "sb-acc__item-price", children: [
+                Math.round(item.price).toLocaleString("en-US"),
+                " ",
+                t.priceUnit,
+                " ",
+                item.price_unit === "per_day" ? t.perDay : t.perBooking
+              ] }) : null,
+              unavailable ? /* @__PURE__ */ jsx("span", { className: "sb-acc__item-unavailable", children: t.accUnavailable }) : null
+            ] }),
+            /* @__PURE__ */ jsxs("div", { className: "sb-acc__stepper", children: [
+              /* @__PURE__ */ jsx(
+                "button",
+                {
+                  type: "button",
+                  "aria-label": "-",
+                  disabled: qty === 0,
+                  onClick: () => setAccessories((prev) => {
+                    const next = { ...prev };
+                    if (qty - 1 <= 0) delete next[item.id];
+                    else next[item.id] = qty - 1;
+                    return next;
+                  }),
+                  children: "\u2212"
+                }
+              ),
+              /* @__PURE__ */ jsx("span", { className: "sb-acc__stepper-value", children: qty }),
+              /* @__PURE__ */ jsx(
+                "button",
+                {
+                  type: "button",
+                  "aria-label": "+",
+                  disabled: unavailable || atMax,
+                  onClick: () => setAccessories((prev) => ({ ...prev, [item.id]: qty + 1 })),
+                  children: "+"
+                }
+              )
+            ] })
+          ] }, item.id);
+        })
+      ) })
+    ] });
+  };
   return createPortal(
     // Wrap in .sb-root so the design tokens (--sb-*) cascade into the portal,
     // which lives outside the page's .sb-root.
@@ -1251,96 +1485,6 @@ function VehicleBookingModal({
                     dep.currency_code
                   ] }, i)) })
                 ] }) : null,
-                (d.accessories ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__accessories", children: [
-                  /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.accessories }),
-                  /* @__PURE__ */ jsx("div", { className: "sb-acc__row", children: d.accessories.flatMap(
-                    (group) => group.items.map((item) => {
-                      const qty = accessories[item.id] || 0;
-                      const unavailable = item.available_stock !== null && item.available_stock <= 0;
-                      const atMax = !unavailable && item.available_stock !== null && qty >= item.available_stock;
-                      const itemName = locale === "ru" ? item.name_ru : item.name_en;
-                      const categoryName = locale === "ru" ? group.name_ru : group.name_en;
-                      return /* @__PURE__ */ jsxs(
-                        "div",
-                        {
-                          className: `sb-acc__item ${unavailable ? "is-unavailable" : ""}`,
-                          children: [
-                            /* @__PURE__ */ jsx("span", { className: "sb-acc__item-category", children: categoryName }),
-                            item.photo_url ? (
-                              // Tapping the photo OR the expand badge opens the
-                              // same fullscreen preview — the badge is purely a
-                              // visual "you can tap this" affordance (design
-                              // review 2026-07-16), no separate handler needed
-                              // since it's inside the same clickable wrapper.
-                              /* @__PURE__ */ jsxs(
-                                "button",
-                                {
-                                  type: "button",
-                                  className: "sb-acc__item-photo sb-acc__item-photo--clickable",
-                                  onClick: () => setAccessoryLightbox({
-                                    photoUrl: safeImageUrl(item.photo_url ?? void 0) ?? "",
-                                    description: item.description,
-                                    name: itemName
-                                  }),
-                                  "aria-label": itemName,
-                                  children: [
-                                    /* @__PURE__ */ jsx("img", { src: safeImageUrl(item.photo_url ?? void 0), alt: itemName }),
-                                    /* @__PURE__ */ jsx("span", { className: "sb-acc__item-expand", "aria-hidden": "true", children: /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
-                                      /* @__PURE__ */ jsx("path", { d: "m21 21-6-6m6 6v-4.8m0 4.8h-4.8" }),
-                                      /* @__PURE__ */ jsx("path", { d: "M3 16.2V21m0 0h4.8M3 21l6-6" }),
-                                      /* @__PURE__ */ jsx("path", { d: "M21 7.8V3m0 0h-4.8M21 3l-6 6" }),
-                                      /* @__PURE__ */ jsx("path", { d: "M3 7.8V3m0 0h4.8M3 3l6 6" })
-                                    ] }) })
-                                  ]
-                                }
-                              )
-                            ) : /* @__PURE__ */ jsx("div", { className: "sb-acc__item-photo" }),
-                            /* @__PURE__ */ jsxs("div", { className: "sb-acc__item-info", children: [
-                              /* @__PURE__ */ jsx("span", { className: "sb-acc__item-name", children: itemName }),
-                              item.price != null ? /* @__PURE__ */ jsxs("span", { className: "sb-acc__item-price", children: [
-                                Math.round(item.price).toLocaleString("en-US"),
-                                " ",
-                                t.priceUnit,
-                                " ",
-                                item.price_unit === "per_day" ? t.perDay : t.perBooking
-                              ] }) : null,
-                              unavailable ? /* @__PURE__ */ jsx("span", { className: "sb-acc__item-unavailable", children: t.accUnavailable }) : null
-                            ] }),
-                            /* @__PURE__ */ jsxs("div", { className: "sb-acc__stepper", children: [
-                              /* @__PURE__ */ jsx(
-                                "button",
-                                {
-                                  type: "button",
-                                  "aria-label": "-",
-                                  disabled: qty === 0,
-                                  onClick: () => setAccessories((prev) => {
-                                    const next = { ...prev };
-                                    if (qty - 1 <= 0) delete next[item.id];
-                                    else next[item.id] = qty - 1;
-                                    return next;
-                                  }),
-                                  children: "\u2212"
-                                }
-                              ),
-                              /* @__PURE__ */ jsx("span", { className: "sb-acc__stepper-value", children: qty }),
-                              /* @__PURE__ */ jsx(
-                                "button",
-                                {
-                                  type: "button",
-                                  "aria-label": "+",
-                                  disabled: unavailable || atMax,
-                                  onClick: () => setAccessories((prev) => ({ ...prev, [item.id]: qty + 1 })),
-                                  children: "+"
-                                }
-                              )
-                            ] })
-                          ]
-                        },
-                        item.id
-                      );
-                    })
-                  ) })
-                ] }) : null,
                 (d.options ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__equipment-wrap", children: [
                   /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.equipment }),
                   /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.options.map((o, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip sb-chip--ghost", children: o }, i)) })
@@ -1409,33 +1553,7 @@ function VehicleBookingModal({
                   ] }) : null
                 ] })
               ] }),
-              selectedAccessories.length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-bk__accessories", children: [
-                /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.accessories }),
-                /* @__PURE__ */ jsx("ul", { className: "sb-bk__accessories-list", children: selectedAccessories.map(({ accessory_id, quantity }) => {
-                  const group = (d.accessories ?? []).find(
-                    (g) => g.items.some((it) => it.id === accessory_id)
-                  );
-                  const item = group?.items.find((it) => it.id === accessory_id);
-                  const itemName = item ? locale === "ru" ? item.name_ru : item.name_en : t.accessoryFallback;
-                  const categoryName = group ? locale === "ru" ? group.name_ru : group.name_en : null;
-                  return /* @__PURE__ */ jsxs("li", { className: "sb-bk__accessory-row", children: [
-                    /* @__PURE__ */ jsxs("div", { className: "sb-bk__accessory-info", children: [
-                      categoryName ? /* @__PURE__ */ jsx("span", { className: "sb-bk__accessory-category", children: categoryName }) : null,
-                      /* @__PURE__ */ jsxs("span", { className: "sb-bk__accessory-name", children: [
-                        itemName,
-                        quantity > 1 ? ` \xD7 ${quantity}` : ""
-                      ] })
-                    ] }),
-                    item?.price != null ? /* @__PURE__ */ jsxs("span", { className: "sb-bk__accessory-price", children: [
-                      Math.round(item.price).toLocaleString("en-US"),
-                      " ",
-                      t.priceUnit,
-                      " ",
-                      item.price_unit === "per_day" ? t.perDay : t.perBooking
-                    ] }) : null
-                  ] }, accessory_id);
-                }) })
-              ] }) : null,
+              renderAccessories(),
               /* @__PURE__ */ jsxs("div", { className: "sb-vd__dates", children: [
                 /* @__PURE__ */ jsxs("label", { children: [
                   t.dateGet,
@@ -1472,6 +1590,7 @@ function VehicleBookingModal({
                   dropoffEnabled,
                   pickupLocation,
                   dropoffLocation,
+                  dropoffSameAsPickup,
                   onPickupToggle: (enabled) => {
                     setPickupEnabled(enabled);
                     if (!enabled) setPickupLocation(null);
@@ -1482,12 +1601,17 @@ function VehicleBookingModal({
                   },
                   onPickupSelect: setPickupLocation,
                   onDropoffSelect: setDropoffLocation,
+                  onDropoffSameToggle: setDropoffSameAsPickup,
                   strings: {
                     title: t.deliveryTitle,
                     pickupToggle: t.deliveryPickup,
                     dropoffToggle: t.deliveryDropoff,
                     unavailable: t.deliveryUnavailable,
-                    loading: t.loading
+                    loading: t.loading,
+                    showMap: t.deliveryShowMap,
+                    hideMap: t.deliveryHideMap,
+                    mapHint: t.deliveryMapHint,
+                    sameAsPickup: t.deliverySameAsPickup
                   }
                 }
               ),
@@ -1611,15 +1735,15 @@ function VehicleBookingModal({
                   ": ",
                   /* @__PURE__ */ jsx("b", { children: formatShortDate(end, locale) })
                 ] }),
-                pickupEnabled && pickupLocation ? /* @__PURE__ */ jsxs("p", { className: "sb-vd__dates-summary", children: [
+                effectivePickupLocation ? /* @__PURE__ */ jsxs("p", { className: "sb-vd__dates-summary", children: [
                   t.deliveryPickup,
                   ": ",
-                  /* @__PURE__ */ jsx("b", { children: pickupLocation.address })
+                  /* @__PURE__ */ jsx("b", { children: effectivePickupLocation.address })
                 ] }) : null,
-                dropoffEnabled && dropoffLocation ? /* @__PURE__ */ jsxs("p", { className: "sb-vd__dates-summary", children: [
+                effectiveDropoffLocation ? /* @__PURE__ */ jsxs("p", { className: "sb-vd__dates-summary", children: [
                   t.deliveryDropoff,
                   ": ",
-                  /* @__PURE__ */ jsx("b", { children: dropoffLocation.address })
+                  /* @__PURE__ */ jsx("b", { children: effectiveDropoffLocation.address })
                 ] }) : null,
                 /* @__PURE__ */ jsx(
                   "button",

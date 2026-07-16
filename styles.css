@@ -2341,52 +2341,55 @@ a.sb-map__line:hover {
   font-size: 1.2rem;
   font-weight: 800;
 }
-.sb-bk__accessories {
+/* Delivery-address picker: "pick on the map" toggle + inline map + the
+   "same address as delivery" checkbox on the collection row. */
+.sb-vd__addr-picker-inner {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
-.sb-bk__accessories-list {
+.sb-vd__addr-map-toggle {
+  align-self: flex-start;
+  padding: 0.3rem 0;
+  border: none;
+  background: none;
+  color: var(--sb-accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sb-vd__addr-map-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.sb-vd__addr-map {
+  width: 100%;
+  height: 220px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--sb-border);
+}
+.sb-vd__addr-map-hint {
   margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--sb-text-muted);
+  text-align: center;
 }
-.sb-bk__accessory-row {
+.sb-vd__addr-same {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--sb-border);
-  border-radius: 8px;
-}
-.sb-bk__accessory-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
-}
-.sb-bk__accessory-category {
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--sb-text-muted);
-}
-.sb-bk__accessory-name {
+  gap: 0.5rem;
   font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--sb-text-strong);
+  color: var(--sb-text);
+  cursor: pointer;
+  padding: 0.15rem 0;
 }
-.sb-bk__accessory-price {
-  flex: 0 0 auto;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--sb-accent);
-  white-space: nowrap;
+.sb-vd__addr-same input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--sb-accent);
+  cursor: pointer;
 }
 @media (max-width: 600px) {
   .sb-vd__specs {
