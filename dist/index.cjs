@@ -1174,6 +1174,7 @@ var S = {
   }
 };
 var HEADERS = { "ngrok-skip-browser-warning": "true" };
+var useIsomorphicLayoutEffect = typeof window !== "undefined" ? react.useLayoutEffect : react.useEffect;
 async function fetchDeliveryQuote(apiBase, location) {
   try {
     const res = await fetch(`${apiBase}/api/v1/catalog/delivery-quote/`, {
@@ -1225,6 +1226,14 @@ function VehicleBookingModal({
   const [tgErr, setTgErr] = react.useState("");
   const [copied, setCopied] = react.useState(false);
   const dialogRef = react.useRef(null);
+  useIsomorphicLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const overlay = dialog.parentElement;
+    if (overlay) overlay.scrollTop = 0;
+    const body = dialog.querySelector(".sb-modal__body");
+    if (body) body.scrollTop = 0;
+  }, [stage]);
   const handleShare = async () => {
     const url = new URL(window.location.href);
     url.searchParams.set("vehicle", vehicle.id);

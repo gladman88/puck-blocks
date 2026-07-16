@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type TouchEvent as ReactTouchEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type TouchEvent as ReactTouchEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { categoryLabel, type CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
@@ -258,6 +258,11 @@ const S = {
 
 const HEADERS = { 'ngrok-skip-browser-warning': 'true' };
 
+// useLayoutEffect on the client (resets scroll before the browser paints → no
+// flash of the previous stage's scroll offset), plain useEffect on the server
+// (the modal only ever mounts client-side, but this silences the SSR warning).
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 /** Fetch the delivery/collection price for a picked address — the SAME zone
  *  matcher the backend charges with, so the quote equals the eventual charge.
  *  Returns null on any failure (the UI just shows nothing rather than a wrong
@@ -375,6 +380,24 @@ export function VehicleBookingModal({
   const [tgErr, setTgErr] = useState('');
   const [copied, setCopied] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Land at the TOP of each stage. The detail / "how to book?" / form stages
+  // share one scroll container (the .sb-modal overlay on desktop, the inner
+  // .sb-modal__body on mobile) and React reuses that node across stages — so
+  // without this the new stage inherits the previous one's scroll offset. E.g.
+  // reading the specs at the bottom of the detail screen and tapping
+  // «Забронировать» dropped the user at the bottom of the choice screen,
+  // losing context (owner feedback 2026-07-16). Reset both possible scrollers
+  // on every stage change (scrollTop assignment, not scrollTo — jsdom-safe and
+  // instant, no smooth-scroll animation from the old offset).
+  useIsomorphicLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const overlay = dialog.parentElement; // .sb-modal (desktop scroller)
+    if (overlay) overlay.scrollTop = 0;
+    const body = dialog.querySelector<HTMLElement>('.sb-modal__body'); // mobile scroller
+    if (body) body.scrollTop = 0;
+  }, [stage]);
 
   // «Поделиться» — a deep link (`?vehicle=<id>` on the current page/locale) that
   // reopens this card. Native share sheet (mobile) → clipboard → prompt fallback.
