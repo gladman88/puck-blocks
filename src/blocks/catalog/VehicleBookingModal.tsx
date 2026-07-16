@@ -31,7 +31,10 @@ interface CatalogAccessoryItem {
   id: string;
   name_ru: string;
   name_en: string;
+  /** Thumb variant (400px) — the carousel tile. */
   photo_url: string | null;
+  /** Display variant (1280px) — the fullscreen lightbox. */
+  photo_full_url: string | null;
   /** Optional client-facing text — shown as a caption banner in the
    *  fullscreen photo preview. Always a string, '' when not set. */
   description: string;
@@ -678,7 +681,10 @@ export function VehicleBookingModal({
                       className="sb-acc__item-photo sb-acc__item-photo--clickable"
                       onClick={() =>
                         setAccessoryLightbox({
-                          photoUrl: safeImageUrl(item.photo_url ?? undefined) ?? '',
+                          // Prefer the large display variant for a crisp
+                          // fullscreen; fall back to the thumb.
+                          photoUrl:
+                            safeImageUrl(item.photo_full_url ?? item.photo_url ?? undefined) ?? '',
                           description: item.description,
                           name: itemName,
                         })

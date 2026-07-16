@@ -294,7 +294,9 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
           id: 'cat-1', name_ru: 'Кресла', name_en: 'Seats', photo_url: null,
           items: [
             {
-              id: 'acc-1', name_ru: 'Кресло', name_en: 'Seat', photo_url: 'https://example.com/seat.jpg',
+              id: 'acc-1', name_ru: 'Кресло', name_en: 'Seat',
+              photo_url: 'https://example.com/seat-thumb.jpg',
+              photo_full_url: 'https://example.com/seat-full.jpg',
               description: 'Компактное кресло для детей 9-18 кг.',
               price: 500, price_unit: 'per_booking', stock: null, available_stock: null,
             },
@@ -307,7 +309,10 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Seat' }));
     expect(await screen.findByText('Компактное кресло для детей 9-18 кг.')).toBeTruthy();
-    expect(screen.getAllByAltText('Seat').length).toBeGreaterThan(1);
+    // The tile uses the thumb; the fullscreen lightbox uses the display variant.
+    const seatImgs = screen.getAllByAltText('Seat') as HTMLImageElement[];
+    expect(seatImgs.some((img) => img.src === 'https://example.com/seat-full.jpg')).toBe(true);
+    expect(seatImgs.some((img) => img.src === 'https://example.com/seat-thumb.jpg')).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: 'Close photo' }));
     await waitFor(() => {

@@ -1435,7 +1435,9 @@ function VehicleBookingModal({
                   type: "button",
                   className: "sb-acc__item-photo sb-acc__item-photo--clickable",
                   onClick: () => setAccessoryLightbox({
-                    photoUrl: safeImageUrl(item.photo_url ?? void 0) ?? "",
+                    // Prefer the large display variant for a crisp
+                    // fullscreen; fall back to the thumb.
+                    photoUrl: safeImageUrl(item.photo_full_url ?? item.photo_url ?? void 0) ?? "",
                     description: item.description,
                     name: itemName
                   }),
