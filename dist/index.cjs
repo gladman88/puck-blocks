@@ -1466,6 +1466,33 @@ function VehicleBookingModal({
                   )
                 ] })
               ] }),
+              /* @__PURE__ */ jsxRuntime.jsx(
+                DeliveryAddressSection,
+                {
+                  apiKey: googleMapsApiKey,
+                  pickupEnabled,
+                  dropoffEnabled,
+                  pickupLocation,
+                  dropoffLocation,
+                  onPickupToggle: (enabled) => {
+                    setPickupEnabled(enabled);
+                    if (!enabled) setPickupLocation(null);
+                  },
+                  onDropoffToggle: (enabled) => {
+                    setDropoffEnabled(enabled);
+                    if (!enabled) setDropoffLocation(null);
+                  },
+                  onPickupSelect: setPickupLocation,
+                  onDropoffSelect: setDropoffLocation,
+                  strings: {
+                    title: t.deliveryTitle,
+                    pickupToggle: t.deliveryPickup,
+                    dropoffToggle: t.deliveryDropoff,
+                    unavailable: t.deliveryUnavailable,
+                    loading: t.loading
+                  }
+                }
+              ),
               /* @__PURE__ */ jsxRuntime.jsxs(
                 "button",
                 {
@@ -1577,33 +1604,6 @@ function VehicleBookingModal({
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsx(
-                  DeliveryAddressSection,
-                  {
-                    apiKey: googleMapsApiKey,
-                    pickupEnabled,
-                    dropoffEnabled,
-                    pickupLocation,
-                    dropoffLocation,
-                    onPickupToggle: (enabled) => {
-                      setPickupEnabled(enabled);
-                      if (!enabled) setPickupLocation(null);
-                    },
-                    onDropoffToggle: (enabled) => {
-                      setDropoffEnabled(enabled);
-                      if (!enabled) setDropoffLocation(null);
-                    },
-                    onPickupSelect: setPickupLocation,
-                    onDropoffSelect: setDropoffLocation,
-                    strings: {
-                      title: t.deliveryTitle,
-                      pickupToggle: t.deliveryPickup,
-                      dropoffToggle: t.deliveryDropoff,
-                      unavailable: t.deliveryUnavailable,
-                      loading: t.loading
-                    }
-                  }
-                ),
                 /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-vd__dates-summary", children: [
                   t.dateGet,
                   ": ",
@@ -1613,6 +1613,16 @@ function VehicleBookingModal({
                   ": ",
                   /* @__PURE__ */ jsxRuntime.jsx("b", { children: formatShortDate(end, locale) })
                 ] }),
+                pickupEnabled && pickupLocation ? /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-vd__dates-summary", children: [
+                  t.deliveryPickup,
+                  ": ",
+                  /* @__PURE__ */ jsxRuntime.jsx("b", { children: pickupLocation.address })
+                ] }) : null,
+                dropoffEnabled && dropoffLocation ? /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-vd__dates-summary", children: [
+                  t.deliveryDropoff,
+                  ": ",
+                  /* @__PURE__ */ jsxRuntime.jsx("b", { children: dropoffLocation.address })
+                ] }) : null,
                 /* @__PURE__ */ jsxRuntime.jsx(
                   "button",
                   {

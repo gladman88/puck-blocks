@@ -378,22 +378,31 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     );
   }
 
-  async function goToForm() {
+  // Delivery toggles live on the "How to book?" choice screen now (owner
+  // feedback 2026-07-16: they used to live only inside "Fill in manually",
+  // so the 1-click Telegram path had no way to request delivery at all).
+  // goToChoice() stops there so a test can interact with the toggles;
+  // goToForm() continues into the manual path afterwards.
+  async function goToChoice() {
     fireEvent.click(screen.getByText('Book'));
+    await screen.findByText('How to book?');
+  }
+  async function goToForm() {
     fireEvent.click(await screen.findByText('Fill in manually'));
   }
 
-  it('renders the toggles on the form step and omits location fields when nothing is toggled on', async () => {
+  it('renders the toggles on the choice screen and omits location fields when nothing is toggled on', async () => {
     let capturedBody: string | undefined;
     stubBookingFetch(baseDetail, (b) => (capturedBody = b));
 
     render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
     await screen.findByText('BMW Z4');
-    await goToForm();
+    await goToChoice();
 
     expect(screen.getByText('Deliver the vehicle to my address')).toBeTruthy();
     expect(screen.getByText("We'll pick it up from my address")).toBeTruthy();
 
+    await goToForm();
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
     fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66123456' } });
     fireEvent.click(screen.getByText('Send request'));
@@ -410,11 +419,12 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
 
     render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
     await screen.findByText('BMW Z4');
-    await goToForm();
+    await goToChoice();
 
     fireEvent.click(screen.getAllByRole('switch')[0]);
     expect(screen.getByText('Address search is temporarily unavailable')).toBeTruthy();
 
+    await goToForm();
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
     fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66123456' } });
     fireEvent.click(screen.getByText('Send request'));
@@ -424,7 +434,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     expect(payload.pickup_location).toBeUndefined();
   });
 
-  it('includes pickup_location in the payload once a location is actually picked', async () => {
+  it('includes pickup_location in the payload once a location is actually picked (manual path)', async () => {
     let capturedBody: string | undefined;
     stubBookingFetch(baseDetail, (b) => (capturedBody = b));
 
@@ -450,7 +460,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
       />,
     );
     await screen.findByText('BMW Z4');
-    await goToForm();
+    await goToChoice();
 
     fireEvent.click(screen.getAllByRole('switch')[0]);
     const fakeElement = await waitFor(() => {
@@ -471,6 +481,10 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     fakeElement.dispatchEvent(event);
     await screen.findByText('Patong Beach Road');
 
+    await goToForm();
+    // Read-only echo of the choice made on the previous screen.
+    expect(screen.getByText('Patong Beach Road')).toBeTruthy();
+
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
     fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66123456' } });
     fireEvent.click(screen.getByText('Send request'));
@@ -486,6 +500,80 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     expect(payload.dropoff_location).toBeUndefined();
 
     delete window.google;
+  });
+
+  it('a delivery address picked before the Telegram 1-click path is included in the intent payload', async () => {
+    let capturedBody: string | undefined;
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    class FakeAutocompleteElement {
+      constructor() {
+        return document.createElement('div');
+      }
+    }
+    window.google = {
+      maps: {
+        importLibrary: vi.fn().mockResolvedValue({ PlaceAutocompleteElement: FakeAutocompleteElement }),
+      },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        const u = String(url);
+        if (u.includes('/booking-intents/')) {
+          capturedBody = init?.body as string;
+          return Promise.resolve(new Response(JSON.stringify({ token: 'tok123' }), { status: 201 }));
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
+
+    render(
+      <VehicleBookingModal
+        vehicle={vehicle}
+        apiBase=""
+        locale="en"
+        botUsername="test_bot"
+        googleMapsApiKey="test-key"
+        onClose={vi.fn()}
+      />,
+    );
+    await screen.findByText('BMW Z4');
+    await goToChoice();
+
+    fireEvent.click(screen.getAllByRole('switch')[0]);
+    const fakeElement = await waitFor(() => {
+      const container = screen.getByTestId('delivery-address-picker-container');
+      const el = container.firstElementChild;
+      expect(el).not.toBeNull();
+      return el as HTMLDivElement;
+    });
+    const event = new Event('gmp-select') as Event & { placePrediction: unknown };
+    event.placePrediction = {
+      toPlace: () => ({
+        formattedAddress: 'Patong Beach Road',
+        id: 'place-1',
+        location: { lat: () => 7.9, lng: () => 98.29 },
+        fetchFields: vi.fn().mockResolvedValue(undefined),
+      }),
+    };
+    fakeElement.dispatchEvent(event);
+    await screen.findByText('Patong Beach Road');
+
+    fireEvent.click(screen.getByText('1-click booking via Telegram'));
+
+    await waitFor(() => expect(capturedBody).toBeDefined());
+    const payload = JSON.parse(capturedBody!);
+    expect(payload.pickup_location).toEqual({
+      address: 'Patong Beach Road',
+      lat: 7.9,
+      lng: 98.29,
+      place_id: 'place-1',
+    });
+
+    delete window.google;
+    errSpy.mockRestore();
   });
 });
 

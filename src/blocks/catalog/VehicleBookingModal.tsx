@@ -1073,6 +1073,40 @@ export function VehicleBookingModal({
                 </label>
               </div>
 
+              {/* Delivery/collection by address (Stage 6) — moved here from the
+                  manual-form-only screen (owner feedback 2026-07-16: the
+                  1-click Telegram path shared no way to request delivery at
+                  all, since these toggles used to live only inside "Fill in
+                  manually"). Shared state (pickupEnabled/dropoffEnabled/
+                  pickup­Location/dropoffLocation) already feeds BOTH
+                  handleTelegramBooking and submit(), so surfacing it once
+                  here — right under the dates, before either booking path is
+                  chosen — makes it apply to both without duplicating state. */}
+              <DeliveryAddressSection
+                apiKey={googleMapsApiKey}
+                pickupEnabled={pickupEnabled}
+                dropoffEnabled={dropoffEnabled}
+                pickupLocation={pickupLocation}
+                dropoffLocation={dropoffLocation}
+                onPickupToggle={(enabled) => {
+                  setPickupEnabled(enabled);
+                  if (!enabled) setPickupLocation(null);
+                }}
+                onDropoffToggle={(enabled) => {
+                  setDropoffEnabled(enabled);
+                  if (!enabled) setDropoffLocation(null);
+                }}
+                onPickupSelect={setPickupLocation}
+                onDropoffSelect={setDropoffLocation}
+                strings={{
+                  title: t.deliveryTitle,
+                  pickupToggle: t.deliveryPickup,
+                  dropoffToggle: t.deliveryDropoff,
+                  unavailable: t.deliveryUnavailable,
+                  loading: t.loading,
+                }}
+              />
+
               <button
                 type="button"
                 className="sb-vd__tg-card"
@@ -1180,37 +1214,27 @@ export function VehicleBookingModal({
                   />
                 </label>
 
-                {/* Delivery/collection by address (Stage 6) */}
-                <DeliveryAddressSection
-                  apiKey={googleMapsApiKey}
-                  pickupEnabled={pickupEnabled}
-                  dropoffEnabled={dropoffEnabled}
-                  pickupLocation={pickupLocation}
-                  dropoffLocation={dropoffLocation}
-                  onPickupToggle={(enabled) => {
-                    setPickupEnabled(enabled);
-                    if (!enabled) setPickupLocation(null);
-                  }}
-                  onDropoffToggle={(enabled) => {
-                    setDropoffEnabled(enabled);
-                    if (!enabled) setDropoffLocation(null);
-                  }}
-                  onPickupSelect={setPickupLocation}
-                  onDropoffSelect={setDropoffLocation}
-                  strings={{
-                    title: t.deliveryTitle,
-                    pickupToggle: t.deliveryPickup,
-                    dropoffToggle: t.deliveryDropoff,
-                    unavailable: t.deliveryUnavailable,
-                    loading: t.loading,
-                  }}
-                />
-
                 <p className="sb-vd__dates-summary">
                   {t.dateGet}: <b>{formatShortDate(start, locale)}</b>
                   {' — '}
                   {t.dateReturn}: <b>{formatShortDate(end, locale)}</b>
                 </p>
+
+                {/* Delivery/collection choice now lives on the PREVIOUS
+                    ("How to book?") screen, right under the dates — it must
+                    apply to both the Telegram and manual paths, and this form
+                    only handles name/contact. Read-only echo here mirrors the
+                    dates-summary line above it, same reasoning. */}
+                {pickupEnabled && pickupLocation ? (
+                  <p className="sb-vd__dates-summary">
+                    {t.deliveryPickup}: <b>{pickupLocation.address}</b>
+                  </p>
+                ) : null}
+                {dropoffEnabled && dropoffLocation ? (
+                  <p className="sb-vd__dates-summary">
+                    {t.deliveryDropoff}: <b>{dropoffLocation.address}</b>
+                  </p>
+                ) : null}
 
                 <button
                   className="sb-btn sb-btn--block"
