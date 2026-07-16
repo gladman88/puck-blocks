@@ -18,6 +18,7 @@ export interface PickedLocation {
 const DEFAULT_CENTER = { lat: 7.8804, lng: 98.3923 };
 const DEFAULT_ZOOM = 11;
 const SELECTED_ZOOM = 16;
+const DEBOUNCE_MS = 250;
 
 // Minimal ambient shapes for the pieces of the Google Maps JS API this file
 // touches — puck-blocks has no @types/google.maps dependency (this is the only
@@ -35,25 +36,28 @@ interface GooglePlace {
   location?: GoogleLatLng;
   fetchFields: (opts: { fields: string[] }) => Promise<void>;
 }
+type GooglePlaceCtor = new (opts: { id: string }) => GooglePlace;
+interface GoogleFormattableText {
+  text?: string;
+  toString: () => string;
+}
 interface GooglePlacePrediction {
   toPlace: () => GooglePlace;
+  text: GoogleFormattableText;
+  mainText?: GoogleFormattableText;
+  secondaryText?: GoogleFormattableText;
 }
-// `new Place({ id })` — used to resolve a POI clicked on the map into its real
-// name + canonical location (rather than reverse-geocoding the raw click point).
-type GooglePlaceCtor = new (opts: { id: string }) => GooglePlace;
-type GmpSelectListener = (event: { placePrediction: GooglePlacePrediction }) => void;
-// Deliberately NOT `extends HTMLElement` — the real element IS one (it's a
-// custom element instance), but typing addEventListener/removeEventListener
-// with a non-standard event name conflicts with HTMLElement's own overloads.
-// DOM insertion/removal below casts through `unknown` instead.
-interface GooglePlaceAutocompleteElement {
-  addEventListener: (type: 'gmp-select', listener: GmpSelectListener) => void;
-  removeEventListener: (type: 'gmp-select', listener: GmpSelectListener) => void;
+interface GoogleAutocompleteSuggestion {
+  placePrediction: GooglePlacePrediction | null;
+}
+interface GoogleAutocompleteSuggestionApi {
+  fetchAutocompleteSuggestions: (request: {
+    input: string;
+    sessionToken?: object;
+  }) => Promise<{ suggestions: GoogleAutocompleteSuggestion[] }>;
 }
 interface GoogleMapMouseEvent {
   latLng?: GoogleLatLng | null;
-  // Present when a POI icon (a labelled place, not empty map) was clicked —
-  // an IconMouseEvent. `stop()` suppresses Google's default POI info window.
   placeId?: string;
   stop?: () => void;
 }
@@ -79,7 +83,8 @@ interface GoogleGeocoder {
 }
 interface GoogleMapsNamespace {
   importLibrary: (name: string) => Promise<{
-    PlaceAutocompleteElement?: new () => GooglePlaceAutocompleteElement;
+    AutocompleteSuggestion?: GoogleAutocompleteSuggestionApi;
+    AutocompleteSessionToken?: new () => object;
     Place?: GooglePlaceCtor;
     Map?: new (el: HTMLElement, opts: Record<string, unknown>) => GoogleMap;
     Marker?: GoogleMarkerCtor;
@@ -96,13 +101,14 @@ interface DeliveryAddressPickerProps {
   /** Empty/undefined → the picker never attempts to load (no key configured
    *  for this deployment yet). Shows `unavailableText` instead. */
   apiKey: string | undefined;
-  /** The currently-picked location (so the marker reflects the value chosen
-   *  either via search or a previous map tap). */
+  /** The currently-picked location — shown IN the search input (like the FMS
+   *  picker) and reflected on the map marker. */
   value: PickedLocation | null;
   onSelect: (location: PickedLocation) => void;
   strings: {
     unavailable: string;
     loading: string;
+    searchPlaceholder: string;
     /** "Выбрать на карте" — expands the inline map. */
     showMap: string;
     /** "Скрыть карту". */
@@ -112,44 +118,65 @@ interface DeliveryAddressPickerProps {
   };
 }
 
+/** What to show in the input for a picked location: the place name when it has
+ *  one (a searched/POI place reads as "Banyan Tree"), else the address. */
+function displayValue(loc: PickedLocation | null): string {
+  if (!loc) return '';
+  return loc.name || loc.address;
+}
+
 /**
  * Google Places address picker (Stage 6) — mirrors the FMS location picker
- * (`frontend_fms/src/components/location-picker.tsx`) so both surfaces feel the
- * same ("как в системе"): search a place by name AND/OR tap a point on an
- * expandable map (reverse-geocoded to a real address). Framework-neutral —
- * built on the raw Google Maps JS API (`importLibrary`), NOT
- * `@react-google-maps/api`, because puck-blocks ships its own `sb-` CSS and
- * has no React-Google-Maps dependency.
+ * (`frontend_fms/src/components/location-picker.tsx`): ONE input that shows the
+ * typed query AND the selected address, an autocomplete dropdown, and an
+ * expandable map where tapping a POI captures that place (or an empty point is
+ * reverse-geocoded). Built framework-neutral on the RAW Google Maps JS API
+ * (`importLibrary`) — NOT `@react-google-maps/api`.
  *
- * Deliberately uses the modern `PlaceAutocompleteElement` web component (the
- * legacy `Autocomplete` class the FMS uses is closed to API keys enabled after
- * March 2025, so the fresh public-site key can't use it). The map tap path
- * needs the **Geocoding API** enabled on the key for reverse geocoding; if it
- * isn't, the tap still works and falls back to a `"lat, lng"` address (same
- * graceful degradation the FMS uses).
+ * Uses the modern `AutocompleteSuggestion` API (the legacy `Autocomplete`
+ * widget the FMS uses is closed to API keys enabled after March 2025), driving
+ * our OWN controlled input — so, unlike the `PlaceAutocompleteElement` web
+ * component, the selection can live in the input itself. The map tap path needs
+ * the **Geocoding API** for the reverse-geocode of empty points; if it isn't
+ * enabled a tap still works and falls back to a `"lat, lng"` address.
  */
 export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: DeliveryAddressPickerProps) {
-  const acContainerRef = useRef<HTMLDivElement>(null);
-  const mapDivRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<GoogleMap | null>(null);
-  const markerRef = useRef<GoogleMapMarker | null>(null);
-  // The library imports return the constructors — we don't rely on the
-  // `google.maps.Marker`/`Geocoder` GLOBALS being populated (with the modern
-  // `importLibrary` loader they aren't, unless their library was imported).
-  const markerCtorRef = useRef<GoogleMarkerCtor | null>(null);
-  const geocoderRef = useRef<GoogleGeocoder | null>(null);
-  const placeCtorRef = useRef<GooglePlaceCtor | null>(null);
+  const [query, setQuery] = useState<string>(() => displayValue(value));
+  const [suggestions, setSuggestions] = useState<GooglePlacePrediction[]>([]);
+  const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'unavailable'>(
     apiKey ? 'loading' : 'unavailable',
   );
   const [mapOpen, setMapOpen] = useState(false);
 
-  // Keep onSelect current without re-running the load effects (which would tear
-  // down + recreate the autocomplete element on every parent render).
+  const suggestApiRef = useRef<GoogleAutocompleteSuggestionApi | null>(null);
+  const sessionTokenCtorRef = useRef<(new () => object) | null>(null);
+  const sessionTokenRef = useRef<object | null>(null);
+  const placeCtorRef = useRef<GooglePlaceCtor | null>(null);
+  const mapDivRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<GoogleMap | null>(null);
+  const markerRef = useRef<GoogleMapMarker | null>(null);
+  const markerCtorRef = useRef<GoogleMarkerCtor | null>(null);
+  const geocoderRef = useRef<GoogleGeocoder | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const onSelectRef = useRef(onSelect);
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+
+  // Reflect an externally-changed value (a completed selection routed through
+  // the parent, or a reset) into the input — WITHOUT re-triggering a fetch
+  // (fetch happens only on user typing, in onInputChange). Keyed on coords so
+  // plain typing (value unchanged) never clobbers what the user is writing.
+  useEffect(() => {
+    setQuery(displayValue(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value?.lat, value?.lng]);
+
+  const newSessionToken = () => {
+    sessionTokenRef.current = sessionTokenCtorRef.current ? new sessionTokenCtorRef.current() : null;
+  };
 
   // Place/move the marker; optionally recenter the map on it.
   const syncMarker = (lat: number, lng: number, pan: boolean) => {
@@ -166,12 +193,11 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
   };
 
   // POI tap → resolve the clicked place by its id to its REAL name + canonical
-  // location (so the marker snaps onto the place, and the address reads e.g.
+  // location (so the marker snaps onto the place, and the input reads e.g.
   // "Banyan Tree" — not a nearby street). Mirrors the FMS "target capture".
   const pickFromPlaceId = async (placeId: string, fallbackLat?: number, fallbackLng?: number) => {
     const PlaceCtor = placeCtorRef.current;
     if (!PlaceCtor) {
-      // Places lib unavailable — fall back to reverse-geocoding the click point.
       if (fallbackLat != null && fallbackLng != null) pickFromMap(fallbackLat, fallbackLng);
       return;
     }
@@ -197,13 +223,10 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
     }
   };
 
-  // Map tap → place marker + reverse-geocode to a human-readable address.
+  // Empty-map tap → drop a pin + reverse-geocode to a human-readable address.
   const pickFromMap = (lat: number, lng: number) => {
     syncMarker(lat, lng, true);
     if (!geocoderRef.current) {
-      // No Geocoding API (library import failed / API not enabled on the key)
-      // — submit raw coordinates (backend accepts a place_id-less location;
-      // address just has to be non-empty).
       onSelectRef.current({ address: `${lat.toFixed(6)}, ${lng.toFixed(6)}`, lat, lng });
       return;
     }
@@ -221,62 +244,85 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
     });
   };
 
-  // 1. Load the Places autocomplete web component.
+  // Resolve a chosen autocomplete prediction to a full place → onSelect.
+  const selectPrediction = async (prediction: GooglePlacePrediction) => {
+    setOpen(false);
+    try {
+      const place = prediction.toPlace();
+      await place.fetchFields({ fields: ['location', 'formattedAddress', 'displayName', 'id'] });
+      if (!place.location) return;
+      const lat = place.location.lat();
+      const lng = place.location.lng();
+      onSelectRef.current({
+        address: place.formattedAddress || place.displayName || '',
+        lat,
+        lng,
+        place_id: place.id,
+        name: place.displayName,
+      });
+      syncMarker(lat, lng, true);
+      newSessionToken(); // a completed selection ends the billing session
+    } catch {
+      /* ignore — the user can pick again or use the map */
+    }
+  };
+
+  // 1. Load the Places library (suggestions + Place + session token).
   useEffect(() => {
-    if (!apiKey || !acContainerRef.current) {
-      if (!apiKey) setStatus('unavailable');
+    if (!apiKey) {
+      setStatus('unavailable');
       return;
     }
     let cancelled = false;
-    let element: GooglePlaceAutocompleteElement | null = null;
-    let listener: GmpSelectListener | null = null;
-
     (async () => {
       try {
         const google = window.google;
         if (!google) throw new Error('Google Maps bootstrap loader missing');
-        const { PlaceAutocompleteElement, Place } = await google.maps.importLibrary('places');
-        if (cancelled || !acContainerRef.current || !PlaceAutocompleteElement) return;
-        placeCtorRef.current = Place ?? null; // used to resolve POI map clicks
-
-        element = new PlaceAutocompleteElement();
-        acContainerRef.current.appendChild(element as unknown as Node);
-
-        listener = async ({ placePrediction }) => {
-          try {
-            const place = placePrediction.toPlace();
-            await place.fetchFields({ fields: ['formattedAddress', 'location', 'id', 'displayName'] });
-            if (!place.location) return; // no coordinates — nothing we can submit
-            const lat = place.location.lat();
-            const lng = place.location.lng();
-            onSelectRef.current({
-              address: place.formattedAddress || place.displayName || '',
-              lat,
-              lng,
-              place_id: place.id,
-              name: place.displayName,
-            });
-            syncMarker(lat, lng, true); // reflect the choice on the map if it's open
-          } catch {
-            // fetchFields rejected (network blip / quota / revoked field
-            // access) — swallow rather than leak an unhandled rejection; the
-            // user can pick the suggestion again or fall back to the map.
-          }
-        };
-        element.addEventListener('gmp-select', listener);
+        const { AutocompleteSuggestion, AutocompleteSessionToken, Place } =
+          await google.maps.importLibrary('places');
+        if (cancelled) return;
+        if (!AutocompleteSuggestion) throw new Error('AutocompleteSuggestion unavailable');
+        suggestApiRef.current = AutocompleteSuggestion;
+        sessionTokenCtorRef.current = AutocompleteSessionToken ?? null;
+        placeCtorRef.current = Place ?? null;
+        newSessionToken();
         setStatus('ready');
       } catch {
         if (!cancelled) setStatus('error');
       }
     })();
-
     return () => {
       cancelled = true;
-      if (element && listener) element.removeEventListener('gmp-select', listener);
-      (element as unknown as ChildNode | null)?.remove();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
+
+  const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const q = e.target.value;
+    setQuery(q);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const api = suggestApiRef.current;
+    if (!q.trim() || !api) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const { suggestions: raw } = await api.fetchAutocompleteSuggestions({
+          input: q,
+          ...(sessionTokenRef.current ? { sessionToken: sessionTokenRef.current } : {}),
+        });
+        const preds = (raw ?? [])
+          .map((s) => s.placePrediction)
+          .filter((p): p is GooglePlacePrediction => p != null);
+        setSuggestions(preds);
+        setOpen(preds.length > 0);
+      } catch {
+        setSuggestions([]);
+        setOpen(false);
+      }
+    }, DEBOUNCE_MS);
+  };
 
   // 2. Lazily initialise the map the first time it's opened.
   useEffect(() => {
@@ -286,10 +332,6 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
       try {
         const google = window.google;
         if (!google) return;
-        // Import each library explicitly and use the returned constructors —
-        // the modern loader does NOT populate the `google.maps.*` globals for
-        // libraries you didn't import. marker → legacy Marker (works without a
-        // mapId, unlike AdvancedMarkerElement); geocoding → Geocoder.
         const [maps, marker, geocoding] = await Promise.all([
           google.maps.importLibrary('maps'),
           google.maps.importLibrary('marker'),
@@ -304,26 +346,20 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
           zoom: value ? SELECTED_ZOOM : DEFAULT_ZOOM,
           disableDefaultUI: true,
           zoomControl: true,
-          // clickableIcons ON (default) so a tap on a POI icon carries its
-          // placeId — we resolve that to the real place instead of a nearby
-          // street address (see the click handler below).
+          // clickableIcons ON (default) so a POI-icon tap carries its placeId.
         });
         mapRef.current = map;
         if (value) syncMarker(value.lat, value.lng, false);
         map.addListener('click', (e) => {
           if (e.placeId) {
-            // A POI was tapped — capture that place, and suppress Google's
-            // default info window.
             e.stop?.();
             pickFromPlaceId(e.placeId, e.latLng?.lat(), e.latLng?.lng());
           } else if (e.latLng) {
-            // Empty-map tap — drop a pin and reverse-geocode the point.
             pickFromMap(e.latLng.lat(), e.latLng.lng());
           }
         });
       } catch {
-        // Map failed to load (e.g. Maps JS unavailable) — the search field
-        // still works; don't surface a hard error for the optional map.
+        /* map failed to load — the search input still works */
       }
     })();
     return () => {
@@ -332,20 +368,60 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapOpen, apiKey]);
 
-  // Keep the marker in sync when the value changes from outside the map (search
-  // selection, or a parent reset).
+  // Keep the marker in sync when the value changes from outside the map.
   useEffect(() => {
     if (mapRef.current && value) syncMarker(value.lat, value.lng, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value?.lat, value?.lng]);
 
   if (status === 'unavailable') {
-    return <p className="sb-vd__addr-msg">{strings.unavailable}</p>;
+    // No key configured: still show the (disabled) field with any prior value.
+    return (
+      <div className="sb-vd__addr-picker-inner">
+        <input
+          className="sb-input"
+          value={query}
+          disabled
+          placeholder={strings.searchPlaceholder}
+          aria-label={strings.searchPlaceholder}
+          data-testid="delivery-address-input"
+        />
+        <p className="sb-vd__addr-msg">{strings.unavailable}</p>
+      </div>
+    );
   }
 
   return (
     <div className="sb-vd__addr-picker-inner">
-      <div ref={acContainerRef} data-testid="delivery-address-picker-container" />
+      <div className="sb-vd__addr-search">
+        <input
+          className="sb-input"
+          type="text"
+          value={query}
+          disabled={status !== 'ready'}
+          placeholder={strings.searchPlaceholder}
+          onChange={onInputChange}
+          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          // Delay so a suggestion's onClick lands before the list closes.
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          aria-label={strings.searchPlaceholder}
+          data-testid="delivery-address-input"
+        />
+        {open && suggestions.length > 0 ? (
+          <ul className="sb-vd__addr-suggest" data-testid="delivery-address-suggestions">
+            {suggestions.map((p, i) => (
+              <li key={i}>
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => selectPrediction(p)}>
+                  <span className="sb-vd__addr-suggest-main">{p.mainText?.text ?? p.text.toString()}</span>
+                  {p.secondaryText?.text ? (
+                    <span className="sb-vd__addr-suggest-sub">{p.secondaryText.text}</span>
+                  ) : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
       {status === 'loading' && <p className="sb-vd__addr-msg">{strings.loading}</p>}
       {status === 'error' && <p className="sb-vd__addr-msg sb-vd__addr-msg--err">{strings.unavailable}</p>}
       {status === 'ready' ? (

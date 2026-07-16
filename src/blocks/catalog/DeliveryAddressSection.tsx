@@ -8,6 +8,7 @@ export interface DeliveryAddressStrings {
   dropoffToggle: string;
   unavailable: string;
   loading: string;
+  searchPlaceholder: string;
   showMap: string;
   hideMap: string;
   mapHint: string;
@@ -68,12 +69,12 @@ function ToggleRow({
                 strings={{
                   unavailable: strings.unavailable,
                   loading: strings.loading,
+                  searchPlaceholder: strings.searchPlaceholder,
                   showMap: strings.showMap,
                   hideMap: strings.hideMap,
                   mapHint: strings.mapHint,
                 }}
               />
-              {location ? <p className="sb-vd__addr-picked">{location.address}</p> : null}
             </>
           ) : null}
         </div>

@@ -549,22 +549,39 @@ function formatShortDate(isoDate, lang) {
 var DEFAULT_CENTER = { lat: 7.8804, lng: 98.3923 };
 var DEFAULT_ZOOM = 11;
 var SELECTED_ZOOM = 16;
+var DEBOUNCE_MS = 250;
+function displayValue(loc) {
+  if (!loc) return "";
+  return loc.name || loc.address;
+}
 function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
-  const acContainerRef = useRef(null);
+  const [query, setQuery] = useState(() => displayValue(value));
+  const [suggestions, setSuggestions] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState(
+    apiKey ? "loading" : "unavailable"
+  );
+  const [mapOpen, setMapOpen] = useState(false);
+  const suggestApiRef = useRef(null);
+  const sessionTokenCtorRef = useRef(null);
+  const sessionTokenRef = useRef(null);
+  const placeCtorRef = useRef(null);
   const mapDivRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
   const markerCtorRef = useRef(null);
   const geocoderRef = useRef(null);
-  const placeCtorRef = useRef(null);
-  const [status, setStatus] = useState(
-    apiKey ? "loading" : "unavailable"
-  );
-  const [mapOpen, setMapOpen] = useState(false);
+  const debounceRef = useRef(null);
   const onSelectRef = useRef(onSelect);
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+  useEffect(() => {
+    setQuery(displayValue(value));
+  }, [value?.lat, value?.lng]);
+  const newSessionToken = () => {
+    sessionTokenRef.current = sessionTokenCtorRef.current ? new sessionTokenCtorRef.current() : null;
+  };
   const syncMarker = (lat, lng, pan) => {
     if (!mapRef.current || !markerCtorRef.current) return;
     if (!markerRef.current) {
@@ -623,42 +640,43 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
       }
     });
   };
+  const selectPrediction = async (prediction) => {
+    setOpen(false);
+    try {
+      const place = prediction.toPlace();
+      await place.fetchFields({ fields: ["location", "formattedAddress", "displayName", "id"] });
+      if (!place.location) return;
+      const lat = place.location.lat();
+      const lng = place.location.lng();
+      onSelectRef.current({
+        address: place.formattedAddress || place.displayName || "",
+        lat,
+        lng,
+        place_id: place.id,
+        name: place.displayName
+      });
+      syncMarker(lat, lng, true);
+      newSessionToken();
+    } catch {
+    }
+  };
   useEffect(() => {
-    if (!apiKey || !acContainerRef.current) {
-      if (!apiKey) setStatus("unavailable");
+    if (!apiKey) {
+      setStatus("unavailable");
       return;
     }
     let cancelled = false;
-    let element = null;
-    let listener = null;
     (async () => {
       try {
         const google = window.google;
         if (!google) throw new Error("Google Maps bootstrap loader missing");
-        const { PlaceAutocompleteElement, Place } = await google.maps.importLibrary("places");
-        if (cancelled || !acContainerRef.current || !PlaceAutocompleteElement) return;
+        const { AutocompleteSuggestion, AutocompleteSessionToken, Place } = await google.maps.importLibrary("places");
+        if (cancelled) return;
+        if (!AutocompleteSuggestion) throw new Error("AutocompleteSuggestion unavailable");
+        suggestApiRef.current = AutocompleteSuggestion;
+        sessionTokenCtorRef.current = AutocompleteSessionToken ?? null;
         placeCtorRef.current = Place ?? null;
-        element = new PlaceAutocompleteElement();
-        acContainerRef.current.appendChild(element);
-        listener = async ({ placePrediction }) => {
-          try {
-            const place = placePrediction.toPlace();
-            await place.fetchFields({ fields: ["formattedAddress", "location", "id", "displayName"] });
-            if (!place.location) return;
-            const lat = place.location.lat();
-            const lng = place.location.lng();
-            onSelectRef.current({
-              address: place.formattedAddress || place.displayName || "",
-              lat,
-              lng,
-              place_id: place.id,
-              name: place.displayName
-            });
-            syncMarker(lat, lng, true);
-          } catch {
-          }
-        };
-        element.addEventListener("gmp-select", listener);
+        newSessionToken();
         setStatus("ready");
       } catch {
         if (!cancelled) setStatus("error");
@@ -666,10 +684,33 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
     })();
     return () => {
       cancelled = true;
-      if (element && listener) element.removeEventListener("gmp-select", listener);
-      element?.remove();
     };
   }, [apiKey]);
+  const onInputChange = (e) => {
+    const q = e.target.value;
+    setQuery(q);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const api = suggestApiRef.current;
+    if (!q.trim() || !api) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const { suggestions: raw } = await api.fetchAutocompleteSuggestions({
+          input: q,
+          ...sessionTokenRef.current ? { sessionToken: sessionTokenRef.current } : {}
+        });
+        const preds = (raw ?? []).map((s) => s.placePrediction).filter((p) => p != null);
+        setSuggestions(preds);
+        setOpen(preds.length > 0);
+      } catch {
+        setSuggestions([]);
+        setOpen(false);
+      }
+    }, DEBOUNCE_MS);
+  };
   useEffect(() => {
     if (!mapOpen || !apiKey || !mapDivRef.current || mapRef.current) return;
     let cancelled = false;
@@ -692,9 +733,7 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
           zoom: value ? SELECTED_ZOOM : DEFAULT_ZOOM,
           disableDefaultUI: true,
           zoomControl: true
-          // clickableIcons ON (default) so a tap on a POI icon carries its
-          // placeId — we resolve that to the real place instead of a nearby
-          // street address (see the click handler below).
+          // clickableIcons ON (default) so a POI-icon tap carries its placeId.
         });
         mapRef.current = map;
         if (value) syncMarker(value.lat, value.lng, false);
@@ -717,10 +756,43 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
     if (mapRef.current && value) syncMarker(value.lat, value.lng, true);
   }, [value?.lat, value?.lng]);
   if (status === "unavailable") {
-    return /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-msg", children: strings.unavailable });
+    return /* @__PURE__ */ jsxs("div", { className: "sb-vd__addr-picker-inner", children: [
+      /* @__PURE__ */ jsx(
+        "input",
+        {
+          className: "sb-input",
+          value: query,
+          disabled: true,
+          placeholder: strings.searchPlaceholder,
+          "aria-label": strings.searchPlaceholder,
+          "data-testid": "delivery-address-input"
+        }
+      ),
+      /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-msg", children: strings.unavailable })
+    ] });
   }
   return /* @__PURE__ */ jsxs("div", { className: "sb-vd__addr-picker-inner", children: [
-    /* @__PURE__ */ jsx("div", { ref: acContainerRef, "data-testid": "delivery-address-picker-container" }),
+    /* @__PURE__ */ jsxs("div", { className: "sb-vd__addr-search", children: [
+      /* @__PURE__ */ jsx(
+        "input",
+        {
+          className: "sb-input",
+          type: "text",
+          value: query,
+          disabled: status !== "ready",
+          placeholder: strings.searchPlaceholder,
+          onChange: onInputChange,
+          onFocus: () => suggestions.length > 0 && setOpen(true),
+          onBlur: () => setTimeout(() => setOpen(false), 150),
+          "aria-label": strings.searchPlaceholder,
+          "data-testid": "delivery-address-input"
+        }
+      ),
+      open && suggestions.length > 0 ? /* @__PURE__ */ jsx("ul", { className: "sb-vd__addr-suggest", "data-testid": "delivery-address-suggestions", children: suggestions.map((p, i) => /* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsxs("button", { type: "button", onMouseDown: (e) => e.preventDefault(), onClick: () => selectPrediction(p), children: [
+        /* @__PURE__ */ jsx("span", { className: "sb-vd__addr-suggest-main", children: p.mainText?.text ?? p.text.toString() }),
+        p.secondaryText?.text ? /* @__PURE__ */ jsx("span", { className: "sb-vd__addr-suggest-sub", children: p.secondaryText.text }) : null
+      ] }) }, i)) }) : null
+    ] }),
     status === "loading" && /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-msg", children: strings.loading }),
     status === "error" && /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-msg sb-vd__addr-msg--err", children: strings.unavailable }),
     status === "ready" ? /* @__PURE__ */ jsxs(Fragment, { children: [
@@ -772,24 +844,22 @@ function ToggleRow({
     ),
     enabled ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__addr-picker", children: [
       children,
-      !hidePicker ? /* @__PURE__ */ jsxs(Fragment, { children: [
-        /* @__PURE__ */ jsx(
-          DeliveryAddressPicker,
-          {
-            apiKey,
-            value: location,
-            onSelect,
-            strings: {
-              unavailable: strings.unavailable,
-              loading: strings.loading,
-              showMap: strings.showMap,
-              hideMap: strings.hideMap,
-              mapHint: strings.mapHint
-            }
+      !hidePicker ? /* @__PURE__ */ jsx(Fragment, { children: /* @__PURE__ */ jsx(
+        DeliveryAddressPicker,
+        {
+          apiKey,
+          value: location,
+          onSelect,
+          strings: {
+            unavailable: strings.unavailable,
+            loading: strings.loading,
+            searchPlaceholder: strings.searchPlaceholder,
+            showMap: strings.showMap,
+            hideMap: strings.hideMap,
+            mapHint: strings.mapHint
           }
-        ),
-        location ? /* @__PURE__ */ jsx("p", { className: "sb-vd__addr-picked", children: location.address }) : null
-      ] }) : null
+        }
+      ) }) : null
     ] }) : null
   ] });
 }
@@ -946,6 +1016,7 @@ var S = {
     deliveryShowMap: "\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u043D\u0430 \u043A\u0430\u0440\u0442\u0435",
     deliveryHideMap: "\u0421\u043A\u0440\u044B\u0442\u044C \u043A\u0430\u0440\u0442\u0443",
     deliveryMapHint: "\u041D\u0430\u0436\u043C\u0438\u0442\u0435 \u043D\u0430 \u043C\u0435\u0441\u0442\u043E \u0438\u043B\u0438 \u0442\u043E\u0447\u043A\u0443 \u043D\u0430 \u043A\u0430\u0440\u0442\u0435",
+    deliverySearchPlaceholder: "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0430\u0434\u0440\u0435\u0441 \u0438\u043B\u0438 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043C\u0435\u0441\u0442\u0430",
     deliverySameAsPickup: "\u0422\u0430\u043A\u043E\u0439 \u0436\u0435 \u0430\u0434\u0440\u0435\u0441, \u043A\u0430\u043A \u0434\u043B\u044F \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438",
     labels: {
       fuel_type: "\u0422\u043E\u043F\u043B\u0438\u0432\u043E",
@@ -1015,6 +1086,7 @@ var S = {
     deliveryShowMap: "Pick on the map",
     deliveryHideMap: "Hide map",
     deliveryMapHint: "Tap a place or a point on the map",
+    deliverySearchPlaceholder: "Enter an address or place name",
     deliverySameAsPickup: "Same address as delivery",
     labels: {
       fuel_type: "Fuel",
@@ -1650,6 +1722,7 @@ function VehicleBookingModal({
                     dropoffToggle: t.deliveryDropoff,
                     unavailable: t.deliveryUnavailable,
                     loading: t.loading,
+                    searchPlaceholder: t.deliverySearchPlaceholder,
                     showMap: t.deliveryShowMap,
                     hideMap: t.deliveryHideMap,
                     mapHint: t.deliveryMapHint,

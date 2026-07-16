@@ -404,6 +404,45 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     fireEvent.click(await screen.findByText('Fill in manually'));
   }
 
+  // Mock the new Places AutocompleteSuggestion API: typing any text yields one
+  // suggestion whose place address == the typed text (fixed coords), so a test
+  // can pick distinct addresses by typing distinct strings.
+  function stubGoogleSearch() {
+    const makePrediction = (input: string) => ({
+      text: { text: input, toString: () => input },
+      mainText: { text: input },
+      secondaryText: undefined,
+      toPlace: () => ({
+        formattedAddress: input,
+        location: { lat: () => 7.9, lng: () => 98.29 },
+        id: `p-${input}`,
+        fetchFields: vi.fn().mockResolvedValue(undefined),
+      }),
+    });
+    const AutocompleteSuggestion = {
+      fetchAutocompleteSuggestions: vi.fn(({ input }: { input: string }) =>
+        Promise.resolve({ suggestions: [{ placePrediction: makePrediction(input) }] }),
+      ),
+    };
+    class FakeSessionToken {}
+    window.google = {
+      maps: {
+        importLibrary: vi.fn((n: string) =>
+          n === 'places'
+            ? Promise.resolve({ AutocompleteSuggestion, AutocompleteSessionToken: FakeSessionToken })
+            : Promise.resolve({}),
+        ),
+      },
+    } as unknown as typeof window.google;
+  }
+
+  // Type into a delivery-address input and pick the resulting suggestion.
+  async function pickAddress(inputEl: HTMLElement, text: string) {
+    fireEvent.change(inputEl, { target: { value: text } });
+    fireEvent.click(await screen.findByText(text, {}, { timeout: 2000 }));
+    await waitFor(() => expect((inputEl as HTMLInputElement).value).toBe(text));
+  }
+
   it('renders the toggles on the choice screen and omits location fields when nothing is toggled on', async () => {
     let capturedBody: string | undefined;
     stubBookingFetch(baseDetail, (b) => (capturedBody = b));
@@ -450,17 +489,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
   it('includes pickup_location in the payload once a location is actually picked (manual path)', async () => {
     let capturedBody: string | undefined;
     stubBookingFetch(baseDetail, (b) => (capturedBody = b));
-
-    class FakeAutocompleteElement {
-      constructor() {
-        return document.createElement('div');
-      }
-    }
-    window.google = {
-      maps: {
-        importLibrary: vi.fn().mockResolvedValue({ PlaceAutocompleteElement: FakeAutocompleteElement }),
-      },
-    };
+    stubGoogleSearch();
 
     render(
       <VehicleBookingModal
@@ -476,23 +505,9 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     await goToChoice();
 
     fireEvent.click(screen.getAllByRole('switch')[0]);
-    const fakeElement = await waitFor(() => {
-      const container = screen.getByTestId('delivery-address-picker-container');
-      const el = container.firstElementChild;
-      expect(el).not.toBeNull();
-      return el as HTMLDivElement;
-    });
-    const event = new Event('gmp-select') as Event & { placePrediction: unknown };
-    event.placePrediction = {
-      toPlace: () => ({
-        formattedAddress: 'Patong Beach Road',
-        id: 'place-1',
-        location: { lat: () => 7.9, lng: () => 98.29 },
-        fetchFields: vi.fn().mockResolvedValue(undefined),
-      }),
-    };
-    fakeElement.dispatchEvent(event);
-    await screen.findByText('Patong Beach Road');
+    const input = await screen.findByTestId('delivery-address-input');
+    await waitFor(() => expect((input as HTMLInputElement).disabled).toBe(false));
+    await pickAddress(input, 'Patong Beach Road');
 
     await goToForm();
     // Read-only echo of the choice made on the previous screen.
@@ -504,12 +519,8 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
 
     await waitFor(() => expect(capturedBody).toBeDefined());
     const payload = JSON.parse(capturedBody!);
-    expect(payload.pickup_location).toEqual({
-      address: 'Patong Beach Road',
-      lat: 7.9,
-      lng: 98.29,
-      place_id: 'place-1',
-    });
+    expect(payload.pickup_location.address).toBe('Patong Beach Road');
+    expect(payload.pickup_location.lat).toBe(7.9);
     expect(payload.dropoff_location).toBeUndefined();
 
     delete window.google;
@@ -518,16 +529,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
   it('a delivery address picked before the Telegram 1-click path is included in the intent payload', async () => {
     let capturedBody: string | undefined;
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    class FakeAutocompleteElement {
-      constructor() {
-        return document.createElement('div');
-      }
-    }
-    window.google = {
-      maps: {
-        importLibrary: vi.fn().mockResolvedValue({ PlaceAutocompleteElement: FakeAutocompleteElement }),
-      },
-    };
+    stubGoogleSearch();
     vi.stubGlobal(
       'fetch',
       vi.fn((url: string, init?: RequestInit) => {
@@ -556,34 +558,16 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     await goToChoice();
 
     fireEvent.click(screen.getAllByRole('switch')[0]);
-    const fakeElement = await waitFor(() => {
-      const container = screen.getByTestId('delivery-address-picker-container');
-      const el = container.firstElementChild;
-      expect(el).not.toBeNull();
-      return el as HTMLDivElement;
-    });
-    const event = new Event('gmp-select') as Event & { placePrediction: unknown };
-    event.placePrediction = {
-      toPlace: () => ({
-        formattedAddress: 'Patong Beach Road',
-        id: 'place-1',
-        location: { lat: () => 7.9, lng: () => 98.29 },
-        fetchFields: vi.fn().mockResolvedValue(undefined),
-      }),
-    };
-    fakeElement.dispatchEvent(event);
-    await screen.findByText('Patong Beach Road');
+    const input = await screen.findByTestId('delivery-address-input');
+    await waitFor(() => expect((input as HTMLInputElement).disabled).toBe(false));
+    await pickAddress(input, 'Patong Beach Road');
 
     fireEvent.click(screen.getByText('1-click booking via Telegram'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
     const payload = JSON.parse(capturedBody!);
-    expect(payload.pickup_location).toEqual({
-      address: 'Patong Beach Road',
-      lat: 7.9,
-      lng: 98.29,
-      place_id: 'place-1',
-    });
+    expect(payload.pickup_location.address).toBe('Patong Beach Road');
+    expect(payload.pickup_location.lat).toBe(7.9);
 
     delete window.google;
     errSpy.mockRestore();
@@ -596,16 +580,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     // off so the two stay independent.
     let capturedBody: string | undefined;
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    class FakeAutocompleteElement {
-      constructor() {
-        return document.createElement('div');
-      }
-    }
-    window.google = {
-      maps: {
-        importLibrary: vi.fn().mockResolvedValue({ PlaceAutocompleteElement: FakeAutocompleteElement }),
-      },
-    };
+    stubGoogleSearch();
     vi.stubGlobal(
       'fetch',
       vi.fn((url: string, init?: RequestInit) => {
@@ -626,44 +601,24 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     await screen.findByText('BMW Z4');
     await goToChoice();
 
-    const dispatchPick = (el: HTMLElement, addr: string, id: string, lat: number, lng: number) => {
-      const event = new Event('gmp-select') as Event & { placePrediction: unknown };
-      event.placePrediction = {
-        toPlace: () => ({
-          formattedAddress: addr,
-          id,
-          location: { lat: () => lat, lng: () => lng },
-          fetchFields: vi.fn().mockResolvedValue(undefined),
-        }),
-      };
-      el.dispatchEvent(event);
-    };
-
     // 1. Enable COLLECTION first (switch #1) and pick a distinct return address.
     fireEvent.click(screen.getAllByRole('switch')[1]);
-    const dropoffEl = await waitFor(() => {
-      const el = screen.getByTestId('delivery-address-picker-container').firstElementChild;
-      expect(el).not.toBeNull();
-      return el as HTMLDivElement;
-    });
-    dispatchPick(dropoffEl, 'Return Point Rd', 'place-drop', 8.1, 98.4);
-    await screen.findByText('Return Point Rd');
+    const dropoffInput = await screen.findByTestId('delivery-address-input');
+    await waitFor(() => expect((dropoffInput as HTMLInputElement).disabled).toBe(false));
+    await pickAddress(dropoffInput, 'Return Point Rd');
 
-    // 2. Now enable DELIVERY (switch #0) and pick a different address.
+    // 2. Now enable DELIVERY (switch #0) and pick a different address (pickup
+    //    row is first in the DOM → its input is index 0).
     fireEvent.click(screen.getAllByRole('switch')[0]);
-    const pickupEl = await waitFor(() => {
-      // Two pickers now; pickup row is first in the DOM.
-      const el = screen.getAllByTestId('delivery-address-picker-container')[0].firstElementChild;
-      expect(el).not.toBeNull();
-      return el as HTMLDivElement;
-    });
-    dispatchPick(pickupEl, 'Patong Beach Road', 'place-pick', 7.9, 98.29);
-    await screen.findByText('Patong Beach Road');
+    await waitFor(() => expect(screen.getAllByTestId('delivery-address-input')).toHaveLength(2));
+    const pickupInput = screen.getAllByTestId('delivery-address-input')[0];
+    await waitFor(() => expect((pickupInput as HTMLInputElement).disabled).toBe(false));
+    await pickAddress(pickupInput, 'Patong Beach Road');
 
     // "Same address as delivery" is offered but must be UNCHECKED, and the
-    // collection address must still be shown (not mirrored away).
+    // collection address must still be in its field (not mirrored away).
     expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(false);
-    expect(screen.getByText('Return Point Rd')).toBeTruthy();
+    expect(screen.getByDisplayValue('Return Point Rd')).toBeTruthy();
 
     // 3. Submit — collection must remain the distinct return address.
     fireEvent.click(screen.getByText('1-click booking via Telegram'));

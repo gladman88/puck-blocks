@@ -11,6 +11,7 @@ const strings: DeliveryAddressStrings = {
   dropoffToggle: "We'll pick it up from my address",
   unavailable: 'Address search is temporarily unavailable',
   loading: 'Loading…',
+  searchPlaceholder: 'Enter an address or place name',
   showMap: 'Pick on the map',
   hideMap: 'Hide map',
   mapHint: 'Tap the map to choose a point',
@@ -72,12 +73,12 @@ describe('DeliveryAddressSection (puck-blocks)', () => {
     expect(screen.getByText('Address search is temporarily unavailable')).toBeTruthy();
   });
 
-  it('shows the picked address once a location is selected', () => {
+  it('shows the picked address in the search input', () => {
     renderSection({
       pickupEnabled: true,
       pickupLocation: { address: 'Patong Beach Road', lat: 7.9, lng: 98.29 },
     });
-    expect(screen.getByText('Patong Beach Road')).toBeTruthy();
+    expect(screen.getByDisplayValue('Patong Beach Road')).toBeTruthy();
   });
 
   it('dropoff toggle is independent of pickup toggle', () => {
@@ -117,7 +118,8 @@ describe('DeliveryAddressSection (puck-blocks)', () => {
 
   it('checking "same as delivery" hides the collection picker and fires onDropoffSameToggle', () => {
     const onDropoffSameToggle = vi.fn();
-    // same=false → the collection picker (unavailable msg) is visible alongside the checkbox.
+    // Pickup has a picked address (shown as its selected field). same=false →
+    // the collection picker is still visible (its "unavailable" message shows).
     const { rerender } = renderSection({
       pickupEnabled: true,
       dropoffEnabled: true,
@@ -125,13 +127,13 @@ describe('DeliveryAddressSection (puck-blocks)', () => {
       dropoffSameAsPickup: false,
       onDropoffSameToggle,
     });
-    // Two pickers visible (pickup + dropoff) → two unavailable messages.
-    expect(screen.getAllByText('Address search is temporarily unavailable')).toHaveLength(2);
+    expect(screen.getByDisplayValue('Patong Beach Road')).toBeTruthy();       // pickup field
+    expect(screen.getAllByTestId('delivery-address-input')).toHaveLength(2);  // pickup + collection pickers
 
     fireEvent.click(screen.getByRole('checkbox'));
     expect(onDropoffSameToggle).toHaveBeenCalledWith(true);
 
-    // With same=true the collection picker is hidden → only the pickup picker's message remains.
+    // With same=true the collection picker is hidden → only the pickup field remains.
     rerender(
       <DeliveryAddressSection
         apiKey={undefined}
@@ -148,6 +150,7 @@ describe('DeliveryAddressSection (puck-blocks)', () => {
         strings={strings}
       />,
     );
-    expect(screen.getAllByText('Address search is temporarily unavailable')).toHaveLength(1);
+    expect(screen.getAllByTestId('delivery-address-input')).toHaveLength(1);
+    expect(screen.getByDisplayValue('Patong Beach Road')).toBeTruthy();  // pickup field still shown
   });
 });

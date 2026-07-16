@@ -1763,14 +1763,17 @@ a.sb-map__line:hover {
 }
 .sb-vd__prices-grid {
   display: grid;
+  /* Desktop keeps 170px (a wider modal → 160px would reflow the columns).
+     Mobile drops to 160px below (see the max-width query) so two columns still
+     fit a ~336px content width. */
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 .sb-vd__price-row {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  padding: 0.55rem 0.7rem;
+  padding: 0.48rem 0.58rem;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius);
 }
@@ -2253,10 +2256,51 @@ a.sb-map__line:hover {
 .sb-vd__addr-msg--err {
   color: #f87171;
 }
-.sb-vd__addr-picked {
+/* One field (like the FMS picker): the search input holds the typed query AND
+   the selected address; an autocomplete dropdown floats under it. */
+.sb-vd__addr-search {
+  position: relative;
+}
+.sb-vd__addr-suggest {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  z-index: 5;
   margin: 0;
-  font-size: 0.78rem;
+  padding: 0.25rem;
+  list-style: none;
+  background: var(--sb-bg-alt);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  max-height: 240px;
+  overflow-y: auto;
+}
+.sb-vd__addr-suggest button {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--sb-text);
+  cursor: pointer;
+}
+.sb-vd__addr-suggest button:hover {
+  background: var(--sb-bg);
+}
+.sb-vd__addr-suggest-main {
+  font-size: 0.88rem;
+  font-weight: 600;
   color: var(--sb-text-strong);
+}
+.sb-vd__addr-suggest-sub {
+  font-size: 0.78rem;
+  color: var(--sb-text-muted);
 }
 /* Window 1 → 2 split (catalog booking) */
 .sb-vd__cta {
@@ -2405,5 +2449,10 @@ a.sb-map__line:hover {
 @media (max-width: 600px) {
   .sb-vd__specs {
     grid-template-columns: 1fr;
+  }
+  /* Narrower mobile modal: 160px min keeps two price columns (170px would
+     drop to one); desktop stays 170px so its wider modal doesn't over-reflow. */
+  .sb-vd__prices-grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   }
 }

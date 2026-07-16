@@ -157,6 +157,7 @@ const S = {
     deliveryShowMap: 'Выбрать на карте',
     deliveryHideMap: 'Скрыть карту',
     deliveryMapHint: 'Нажмите на место или точку на карте',
+    deliverySearchPlaceholder: 'Введите адрес или название места',
     deliverySameAsPickup: 'Такой же адрес, как для доставки',
     labels: {
       fuel_type: 'Топливо',
@@ -226,6 +227,7 @@ const S = {
     deliveryShowMap: 'Pick on the map',
     deliveryHideMap: 'Hide map',
     deliveryMapHint: 'Tap a place or a point on the map',
+    deliverySearchPlaceholder: 'Enter an address or place name',
     deliverySameAsPickup: 'Same address as delivery',
     labels: {
       fuel_type: 'Fuel',
@@ -1091,6 +1093,7 @@ export function VehicleBookingModal({
                   dropoffToggle: t.deliveryDropoff,
                   unavailable: t.deliveryUnavailable,
                   loading: t.loading,
+                  searchPlaceholder: t.deliverySearchPlaceholder,
                   showMap: t.deliveryShowMap,
                   hideMap: t.deliveryHideMap,
                   mapHint: t.deliveryMapHint,
