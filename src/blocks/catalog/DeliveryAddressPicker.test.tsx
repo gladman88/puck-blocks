@@ -53,10 +53,10 @@ function stubPlacesLib(opts: {
 }
 
 describe('DeliveryAddressPicker (puck-blocks)', () => {
-  it('shows the unavailable message (and a disabled field) when no API key is configured', () => {
+  it('shows only the unavailable message (no dead empty input) when no API key is configured', () => {
     render(<DeliveryAddressPicker apiKey={undefined} value={null} onSelect={vi.fn()} strings={strings} />);
     expect(screen.getByText(strings.unavailable)).toBeTruthy();
-    expect((screen.getByTestId('delivery-address-input') as HTMLInputElement).disabled).toBe(true);
+    expect(screen.queryByTestId('delivery-address-input')).toBeNull();
   });
 
   it('shows a picked location IN the input, leading with the place name (a captured POI reads as the place)', () => {

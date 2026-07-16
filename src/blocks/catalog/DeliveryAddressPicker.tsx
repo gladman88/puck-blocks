@@ -287,7 +287,12 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
         placeCtorRef.current = Place ?? null;
         newSessionToken();
         setStatus('ready');
-      } catch {
+      } catch (err) {
+        // Surface WHY search couldn't init (missing key / API not enabled /
+        // AutocompleteSuggestion unavailable) — otherwise the user only sees
+        // "temporarily unavailable" with no clue.
+        // eslint-disable-next-line no-console
+        console.error('[DeliveryAddressPicker] Google Places init failed:', err);
         if (!cancelled) setStatus('error');
       }
     })();
@@ -374,19 +379,23 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value?.lat, value?.lng]);
 
-  if (status === 'unavailable') {
-    // No key configured: still show the (disabled) field with any prior value.
+  if (status === 'error' || status === 'unavailable') {
+    // Search couldn't initialise (no key / Places API not enabled / library
+    // unavailable). Don't show a dead empty input — surface the already-picked
+    // value read-only if there is one, otherwise just the reason.
     return (
       <div className="sb-vd__addr-picker-inner">
-        <input
-          className="sb-input"
-          value={query}
-          disabled
-          placeholder={strings.searchPlaceholder}
-          aria-label={strings.searchPlaceholder}
-          data-testid="delivery-address-input"
-        />
-        <p className="sb-vd__addr-msg">{strings.unavailable}</p>
+        {value ? (
+          <input
+            className="sb-input"
+            value={query}
+            disabled
+            aria-label={strings.searchPlaceholder}
+            data-testid="delivery-address-input"
+          />
+        ) : (
+          <p className="sb-vd__addr-msg sb-vd__addr-msg--err">{strings.unavailable}</p>
+        )}
       </div>
     );
   }
@@ -423,7 +432,6 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
         ) : null}
       </div>
       {status === 'loading' && <p className="sb-vd__addr-msg">{strings.loading}</p>}
-      {status === 'error' && <p className="sb-vd__addr-msg sb-vd__addr-msg--err">{strings.unavailable}</p>}
       {status === 'ready' ? (
         <>
           <button

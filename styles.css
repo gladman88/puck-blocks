@@ -1909,11 +1909,21 @@ a.sb-map__line:hover {
   background: rgba(0, 0, 0, 0.92);
   cursor: zoom-out;
 }
+/* Shrink-wraps the image so the caption can overlay the photo's real bottom
+   edge (within its width), instead of spanning the whole viewport. */
+.sb-acc-lightbox__figure {
+  position: relative;
+  display: inline-flex;
+  margin: 0;
+  cursor: default;
+}
 .sb-acc-lightbox__photo {
+  display: block;
   max-width: 92vw;
   max-height: 92vh;
-  object-fit: contain;
-  cursor: default;
+  width: auto;
+  height: auto;
+  border-radius: 10px;
 }
 .sb-acc-lightbox__close {
   position: absolute;
@@ -1930,22 +1940,26 @@ a.sb-map__line:hover {
   line-height: 1;
   cursor: pointer;
 }
-/* Dark gradient caption banner pinned to the bottom (Instagram-style),
-   mirrors frontend_catalog's .acc-photo-caption. pointer-events:none so it
-   never blocks tap-to-close on the backdrop behind it. */
+/* Dark gradient caption banner overlaid on the photo's bottom (Instagram-
+   style) — absolutely positioned within the figure, so it stays inside the
+   image's width and never spills into the viewport letterbox. Rounded to match
+   the photo's bottom corners; max-height so a very long description scrolls
+   rather than covering the whole image. */
 .sb-acc-lightbox__caption {
-  position: fixed;
+  position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 1;
-  padding: 1.5rem 1.25rem;
-  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.45) 65%, transparent);
-  color: rgba(255, 255, 255, 0.92);
+  max-height: 55%;
+  overflow-y: auto;
+  padding: 2rem 1rem 0.9rem;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.45) 55%, transparent);
+  color: rgba(255, 255, 255, 0.95);
   font-size: 0.85rem;
   line-height: 1.45;
-  pointer-events: none;
 }
 .sb-acc__item-info {
   display: flex;

@@ -1261,15 +1261,18 @@ export function VehicleBookingModal({
         >
           ×
         </button>
-        <img
-          className="sb-acc-lightbox__photo"
-          src={accessoryLightbox.photoUrl}
-          alt={accessoryLightbox.name}
-          onClick={(e) => e.stopPropagation()}
-        />
-        {accessoryLightbox.description ? (
-          <div className="sb-acc-lightbox__caption">{accessoryLightbox.description}</div>
-        ) : null}
+        {/* The figure shrink-wraps the image so the caption overlays the
+            photo's bottom edge (within its width), not the viewport. */}
+        <figure className="sb-acc-lightbox__figure" onClick={(e) => e.stopPropagation()}>
+          <img
+            className="sb-acc-lightbox__photo"
+            src={accessoryLightbox.photoUrl}
+            alt={accessoryLightbox.name}
+          />
+          {accessoryLightbox.description ? (
+            <figcaption className="sb-acc-lightbox__caption">{accessoryLightbox.description}</figcaption>
+          ) : null}
+        </figure>
       </div>
     ) : null}
     </div>,

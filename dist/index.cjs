@@ -680,7 +680,8 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
         placeCtorRef.current = Place ?? null;
         newSessionToken();
         setStatus("ready");
-      } catch {
+      } catch (err) {
+        console.error("[DeliveryAddressPicker] Google Places init failed:", err);
         if (!cancelled) setStatus("error");
       }
     })();
@@ -757,21 +758,17 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
   react.useEffect(() => {
     if (mapRef.current && value) syncMarker(value.lat, value.lng, true);
   }, [value?.lat, value?.lng]);
-  if (status === "unavailable") {
-    return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__addr-picker-inner", children: [
-      /* @__PURE__ */ jsxRuntime.jsx(
-        "input",
-        {
-          className: "sb-input",
-          value: query,
-          disabled: true,
-          placeholder: strings.searchPlaceholder,
-          "aria-label": strings.searchPlaceholder,
-          "data-testid": "delivery-address-input"
-        }
-      ),
-      /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vd__addr-msg", children: strings.unavailable })
-    ] });
+  if (status === "error" || status === "unavailable") {
+    return /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__addr-picker-inner", children: value ? /* @__PURE__ */ jsxRuntime.jsx(
+      "input",
+      {
+        className: "sb-input",
+        value: query,
+        disabled: true,
+        "aria-label": strings.searchPlaceholder,
+        "data-testid": "delivery-address-input"
+      }
+    ) : /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vd__addr-msg sb-vd__addr-msg--err", children: strings.unavailable }) });
   }
   return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__addr-picker-inner", children: [
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__addr-search", children: [
@@ -796,7 +793,6 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
       ] }) }, i)) }) : null
     ] }),
     status === "loading" && /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vd__addr-msg", children: strings.loading }),
-    status === "error" && /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vd__addr-msg sb-vd__addr-msg--err", children: strings.unavailable }),
     status === "ready" ? /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
       /* @__PURE__ */ jsxRuntime.jsxs(
         "button",
@@ -1897,16 +1893,17 @@ function VehicleBookingModal({
                 children: "\xD7"
               }
             ),
-            /* @__PURE__ */ jsxRuntime.jsx(
-              "img",
-              {
-                className: "sb-acc-lightbox__photo",
-                src: accessoryLightbox.photoUrl,
-                alt: accessoryLightbox.name,
-                onClick: (e) => e.stopPropagation()
-              }
-            ),
-            accessoryLightbox.description ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-acc-lightbox__caption", children: accessoryLightbox.description }) : null
+            /* @__PURE__ */ jsxRuntime.jsxs("figure", { className: "sb-acc-lightbox__figure", onClick: (e) => e.stopPropagation(), children: [
+              /* @__PURE__ */ jsxRuntime.jsx(
+                "img",
+                {
+                  className: "sb-acc-lightbox__photo",
+                  src: accessoryLightbox.photoUrl,
+                  alt: accessoryLightbox.name
+                }
+              ),
+              accessoryLightbox.description ? /* @__PURE__ */ jsxRuntime.jsx("figcaption", { className: "sb-acc-lightbox__caption", children: accessoryLightbox.description }) : null
+            ] })
           ]
         }
       ) : null
