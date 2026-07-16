@@ -38,6 +38,9 @@ interface GooglePlace {
 interface GooglePlacePrediction {
   toPlace: () => GooglePlace;
 }
+// `new Place({ id })` — used to resolve a POI clicked on the map into its real
+// name + canonical location (rather than reverse-geocoding the raw click point).
+type GooglePlaceCtor = new (opts: { id: string }) => GooglePlace;
 type GmpSelectListener = (event: { placePrediction: GooglePlacePrediction }) => void;
 // Deliberately NOT `extends HTMLElement` — the real element IS one (it's a
 // custom element instance), but typing addEventListener/removeEventListener
@@ -49,6 +52,10 @@ interface GooglePlaceAutocompleteElement {
 }
 interface GoogleMapMouseEvent {
   latLng?: GoogleLatLng | null;
+  // Present when a POI icon (a labelled place, not empty map) was clicked —
+  // an IconMouseEvent. `stop()` suppresses Google's default POI info window.
+  placeId?: string;
+  stop?: () => void;
 }
 interface GoogleMapMarker {
   setPosition: (pos: { lat: number; lng: number }) => void;
@@ -73,6 +80,7 @@ interface GoogleGeocoder {
 interface GoogleMapsNamespace {
   importLibrary: (name: string) => Promise<{
     PlaceAutocompleteElement?: new () => GooglePlaceAutocompleteElement;
+    Place?: GooglePlaceCtor;
     Map?: new (el: HTMLElement, opts: Record<string, unknown>) => GoogleMap;
     Marker?: GoogleMarkerCtor;
     Geocoder?: new () => GoogleGeocoder;
@@ -130,6 +138,7 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
   // `importLibrary` loader they aren't, unless their library was imported).
   const markerCtorRef = useRef<GoogleMarkerCtor | null>(null);
   const geocoderRef = useRef<GoogleGeocoder | null>(null);
+  const placeCtorRef = useRef<GooglePlaceCtor | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'unavailable'>(
     apiKey ? 'loading' : 'unavailable',
   );
@@ -153,6 +162,38 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
     if (pan) {
       mapRef.current.panTo({ lat, lng });
       mapRef.current.setZoom(SELECTED_ZOOM);
+    }
+  };
+
+  // POI tap → resolve the clicked place by its id to its REAL name + canonical
+  // location (so the marker snaps onto the place, and the address reads e.g.
+  // "Banyan Tree" — not a nearby street). Mirrors the FMS "target capture".
+  const pickFromPlaceId = async (placeId: string, fallbackLat?: number, fallbackLng?: number) => {
+    const PlaceCtor = placeCtorRef.current;
+    if (!PlaceCtor) {
+      // Places lib unavailable — fall back to reverse-geocoding the click point.
+      if (fallbackLat != null && fallbackLng != null) pickFromMap(fallbackLat, fallbackLng);
+      return;
+    }
+    try {
+      const place = new PlaceCtor({ id: placeId });
+      await place.fetchFields({ fields: ['location', 'formattedAddress', 'displayName', 'id'] });
+      if (!place.location) {
+        if (fallbackLat != null && fallbackLng != null) pickFromMap(fallbackLat, fallbackLng);
+        return;
+      }
+      const lat = place.location.lat();
+      const lng = place.location.lng();
+      syncMarker(lat, lng, true);
+      onSelectRef.current({
+        address: place.formattedAddress || place.displayName || '',
+        lat,
+        lng,
+        place_id: place.id,
+        name: place.displayName,
+      });
+    } catch {
+      if (fallbackLat != null && fallbackLng != null) pickFromMap(fallbackLat, fallbackLng);
     }
   };
 
@@ -194,8 +235,9 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
       try {
         const google = window.google;
         if (!google) throw new Error('Google Maps bootstrap loader missing');
-        const { PlaceAutocompleteElement } = await google.maps.importLibrary('places');
+        const { PlaceAutocompleteElement, Place } = await google.maps.importLibrary('places');
         if (cancelled || !acContainerRef.current || !PlaceAutocompleteElement) return;
+        placeCtorRef.current = Place ?? null; // used to resolve POI map clicks
 
         element = new PlaceAutocompleteElement();
         acContainerRef.current.appendChild(element as unknown as Node);
@@ -262,12 +304,22 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
           zoom: value ? SELECTED_ZOOM : DEFAULT_ZOOM,
           disableDefaultUI: true,
           zoomControl: true,
-          clickableIcons: false,
+          // clickableIcons ON (default) so a tap on a POI icon carries its
+          // placeId — we resolve that to the real place instead of a nearby
+          // street address (see the click handler below).
         });
         mapRef.current = map;
         if (value) syncMarker(value.lat, value.lng, false);
         map.addListener('click', (e) => {
-          if (e.latLng) pickFromMap(e.latLng.lat(), e.latLng.lng());
+          if (e.placeId) {
+            // A POI was tapped — capture that place, and suppress Google's
+            // default info window.
+            e.stop?.();
+            pickFromPlaceId(e.placeId, e.latLng?.lat(), e.latLng?.lng());
+          } else if (e.latLng) {
+            // Empty-map tap — drop a pin and reverse-geocode the point.
+            pickFromMap(e.latLng.lat(), e.latLng.lng());
+          }
         });
       } catch {
         // Map failed to load (e.g. Maps JS unavailable) — the search field

@@ -142,6 +142,70 @@ describe('DeliveryAddressPicker (puck-blocks)', () => {
     );
   });
 
+  it('tapping a POI on the map captures the place itself (name + canonical location), not a nearby street', async () => {
+    const onSelect = vi.fn();
+
+    class FakeAutocompleteElement {
+      constructor() {
+        return document.createElement('div');
+      }
+    }
+    // The clicked POI resolves to its REAL location (7.9/98.3), distinct from
+    // the raw click point (7.82/98.29) — proving we don't just drop a pin.
+    class FakePlace {
+      location = { lat: () => 7.9, lng: () => 98.3 };
+      formattedAddress = 'Banyan Tree, Bang Tao, Phuket';
+      displayName = 'Banyan Tree';
+      id = 'poi-1';
+      constructor(_opts: { id: string }) {}
+      fetchFields() {
+        return Promise.resolve();
+      }
+    }
+    let mapClickHandler: ((e: { placeId?: string; latLng?: { lat: () => number; lng: () => number }; stop?: () => void }) => void) | null = null;
+    class FakeMap {
+      panTo() {}
+      setZoom() {}
+      addListener(_event: string, handler: typeof mapClickHandler) {
+        mapClickHandler = handler;
+      }
+    }
+    class FakeMarker {
+      setPosition() {}
+      setMap() {}
+    }
+
+    window.google = {
+      maps: {
+        importLibrary: vi.fn((name: string) => {
+          if (name === 'places') return Promise.resolve({ PlaceAutocompleteElement: FakeAutocompleteElement, Place: FakePlace });
+          if (name === 'marker') return Promise.resolve({ Marker: FakeMarker });
+          if (name === 'geocoding') return Promise.resolve({});
+          return Promise.resolve({ Map: FakeMap });
+        }),
+      },
+    } as unknown as typeof window.google;
+
+    render(<DeliveryAddressPicker apiKey="test-key" value={null} onSelect={onSelect} strings={strings} />);
+    fireEvent.click(await screen.findByText(/Pick on the map/));
+    await screen.findByTestId('delivery-address-map');
+    await waitFor(() => expect(mapClickHandler).not.toBeNull());
+
+    const stop = vi.fn();
+    mapClickHandler!({ placeId: 'poi-1', latLng: { lat: () => 7.82, lng: () => 98.29 }, stop });
+
+    await waitFor(() =>
+      expect(onSelect).toHaveBeenCalledWith({
+        address: 'Banyan Tree, Bang Tao, Phuket',
+        lat: 7.9,
+        lng: 98.3,
+        place_id: 'poi-1',
+        name: 'Banyan Tree',
+      }),
+    );
+    expect(stop).toHaveBeenCalled(); // default POI info window suppressed
+  });
+
   it('falls back to raw coordinates on a map tap when the Geocoder is unavailable', async () => {
     const onSelect = vi.fn();
 

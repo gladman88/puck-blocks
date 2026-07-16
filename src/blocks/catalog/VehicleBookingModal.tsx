@@ -156,7 +156,7 @@ const S = {
     deliveryUnavailable: 'Поиск адреса временно недоступен',
     deliveryShowMap: 'Выбрать на карте',
     deliveryHideMap: 'Скрыть карту',
-    deliveryMapHint: 'Нажмите на карту, чтобы выбрать точку',
+    deliveryMapHint: 'Нажмите на место или точку на карте',
     deliverySameAsPickup: 'Такой же адрес, как для доставки',
     labels: {
       fuel_type: 'Топливо',
@@ -225,7 +225,7 @@ const S = {
     deliveryUnavailable: 'Address search is temporarily unavailable',
     deliveryShowMap: 'Pick on the map',
     deliveryHideMap: 'Hide map',
-    deliveryMapHint: 'Tap the map to choose a point',
+    deliveryMapHint: 'Tap a place or a point on the map',
     deliverySameAsPickup: 'Same address as delivery',
     labels: {
       fuel_type: 'Fuel',

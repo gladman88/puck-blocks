@@ -558,6 +558,7 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
   const markerRef = react.useRef(null);
   const markerCtorRef = react.useRef(null);
   const geocoderRef = react.useRef(null);
+  const placeCtorRef = react.useRef(null);
   const [status, setStatus] = react.useState(
     apiKey ? "loading" : "unavailable"
   );
@@ -576,6 +577,33 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
     if (pan) {
       mapRef.current.panTo({ lat, lng });
       mapRef.current.setZoom(SELECTED_ZOOM);
+    }
+  };
+  const pickFromPlaceId = async (placeId, fallbackLat, fallbackLng) => {
+    const PlaceCtor = placeCtorRef.current;
+    if (!PlaceCtor) {
+      if (fallbackLat != null && fallbackLng != null) pickFromMap(fallbackLat, fallbackLng);
+      return;
+    }
+    try {
+      const place = new PlaceCtor({ id: placeId });
+      await place.fetchFields({ fields: ["location", "formattedAddress", "displayName", "id"] });
+      if (!place.location) {
+        if (fallbackLat != null && fallbackLng != null) pickFromMap(fallbackLat, fallbackLng);
+        return;
+      }
+      const lat = place.location.lat();
+      const lng = place.location.lng();
+      syncMarker(lat, lng, true);
+      onSelectRef.current({
+        address: place.formattedAddress || place.displayName || "",
+        lat,
+        lng,
+        place_id: place.id,
+        name: place.displayName
+      });
+    } catch {
+      if (fallbackLat != null && fallbackLng != null) pickFromMap(fallbackLat, fallbackLng);
     }
   };
   const pickFromMap = (lat, lng) => {
@@ -609,8 +637,9 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
       try {
         const google = window.google;
         if (!google) throw new Error("Google Maps bootstrap loader missing");
-        const { PlaceAutocompleteElement } = await google.maps.importLibrary("places");
+        const { PlaceAutocompleteElement, Place } = await google.maps.importLibrary("places");
         if (cancelled || !acContainerRef.current || !PlaceAutocompleteElement) return;
+        placeCtorRef.current = Place ?? null;
         element = new PlaceAutocompleteElement();
         acContainerRef.current.appendChild(element);
         listener = async ({ placePrediction }) => {
@@ -664,13 +693,20 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
           center,
           zoom: value ? SELECTED_ZOOM : DEFAULT_ZOOM,
           disableDefaultUI: true,
-          zoomControl: true,
-          clickableIcons: false
+          zoomControl: true
+          // clickableIcons ON (default) so a tap on a POI icon carries its
+          // placeId — we resolve that to the real place instead of a nearby
+          // street address (see the click handler below).
         });
         mapRef.current = map;
         if (value) syncMarker(value.lat, value.lng, false);
         map.addListener("click", (e) => {
-          if (e.latLng) pickFromMap(e.latLng.lat(), e.latLng.lng());
+          if (e.placeId) {
+            e.stop?.();
+            pickFromPlaceId(e.placeId, e.latLng?.lat(), e.latLng?.lng());
+          } else if (e.latLng) {
+            pickFromMap(e.latLng.lat(), e.latLng.lng());
+          }
         });
       } catch {
       }
@@ -911,7 +947,7 @@ var S = {
     deliveryUnavailable: "\u041F\u043E\u0438\u0441\u043A \u0430\u0434\u0440\u0435\u0441\u0430 \u0432\u0440\u0435\u043C\u0435\u043D\u043D\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D",
     deliveryShowMap: "\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u043D\u0430 \u043A\u0430\u0440\u0442\u0435",
     deliveryHideMap: "\u0421\u043A\u0440\u044B\u0442\u044C \u043A\u0430\u0440\u0442\u0443",
-    deliveryMapHint: "\u041D\u0430\u0436\u043C\u0438\u0442\u0435 \u043D\u0430 \u043A\u0430\u0440\u0442\u0443, \u0447\u0442\u043E\u0431\u044B \u0432\u044B\u0431\u0440\u0430\u0442\u044C \u0442\u043E\u0447\u043A\u0443",
+    deliveryMapHint: "\u041D\u0430\u0436\u043C\u0438\u0442\u0435 \u043D\u0430 \u043C\u0435\u0441\u0442\u043E \u0438\u043B\u0438 \u0442\u043E\u0447\u043A\u0443 \u043D\u0430 \u043A\u0430\u0440\u0442\u0435",
     deliverySameAsPickup: "\u0422\u0430\u043A\u043E\u0439 \u0436\u0435 \u0430\u0434\u0440\u0435\u0441, \u043A\u0430\u043A \u0434\u043B\u044F \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438",
     labels: {
       fuel_type: "\u0422\u043E\u043F\u043B\u0438\u0432\u043E",
@@ -980,7 +1016,7 @@ var S = {
     deliveryUnavailable: "Address search is temporarily unavailable",
     deliveryShowMap: "Pick on the map",
     deliveryHideMap: "Hide map",
-    deliveryMapHint: "Tap the map to choose a point",
+    deliveryMapHint: "Tap a place or a point on the map",
     deliverySameAsPickup: "Same address as delivery",
     labels: {
       fuel_type: "Fuel",
