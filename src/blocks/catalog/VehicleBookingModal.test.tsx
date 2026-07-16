@@ -190,7 +190,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     expect(payload.accessories).toEqual([{ accessory_id: 'acc-1', quantity: 1 }]);
   });
 
-  it('shows a summary of selected accessories on the "how to book" choice screen (owner feedback 2026-07-15: only the vehicle was shown)', async () => {
+  it('shows a summary of selected accessories on the "how to book" choice screen, with category/price, directly after the vehicle and before the dates (owner feedback 2026-07-16: was a bare name-only list buried below the dates)', async () => {
     const detail = {
       ...baseDetail,
       accessories: [
@@ -215,7 +215,19 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
 
     await screen.findByText('How to book?');
     expect(screen.getByText('Additional Options')).toBeTruthy(); // section label, reused
+    expect(screen.getByText('Seats')).toBeTruthy(); // category, resolved from the same detail payload
     expect(screen.getByText('Child seat × 2')).toBeTruthy();
+    expect(screen.getByText('500 THB per booking')).toBeTruthy();
+
+    // Order: vehicle → accessories summary → dates (not dates in between).
+    const body = document.querySelector('.sb-modal__body--book') as HTMLElement;
+    const children = Array.from(body.children).map((el) => el.className);
+    const vehicleIdx = children.indexOf('sb-bk__vehicle');
+    const accessoriesIdx = children.indexOf('sb-bk__accessories');
+    const datesIdx = children.indexOf('sb-vd__dates');
+    expect(vehicleIdx).toBeGreaterThanOrEqual(0);
+    expect(accessoriesIdx).toBeGreaterThan(vehicleIdx);
+    expect(datesIdx).toBeGreaterThan(accessoriesIdx);
   });
 
   it('omits the accessories summary on the choice screen when nothing is selected', async () => {

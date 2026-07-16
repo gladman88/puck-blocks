@@ -1005,6 +1005,51 @@ export function VehicleBookingModal({
                 </div>
               </div>
 
+              {/* Selected paid accessories — order-list style, directly under
+                  the vehicle (owner feedback 2026-07-16: was buried below the
+                  dates, and showed only a bare name — no category/price, so
+                  it read as an unstyled afterthought rather than part of the
+                  order). Category + price/unit are resolved from the same
+                  detail payload used by the picker above, so this list reads
+                  exactly like a normal order line. */}
+              {selectedAccessories.length > 0 ? (
+                <div className="sb-bk__accessories">
+                  <span className="sb-vd__section-label">{t.accessories}</span>
+                  <ul className="sb-bk__accessories-list">
+                    {selectedAccessories.map(({ accessory_id, quantity }) => {
+                      const group = (d.accessories ?? []).find((g) =>
+                        g.items.some((it) => it.id === accessory_id),
+                      );
+                      const item = group?.items.find((it) => it.id === accessory_id);
+                      // A selected id not found in the current detail payload
+                      // still went into the request — show a generic label
+                      // instead of silently under-reporting what was picked.
+                      const itemName = item ? (locale === 'ru' ? item.name_ru : item.name_en) : t.accessoryFallback;
+                      const categoryName = group ? (locale === 'ru' ? group.name_ru : group.name_en) : null;
+                      return (
+                        <li key={accessory_id} className="sb-bk__accessory-row">
+                          <div className="sb-bk__accessory-info">
+                            {categoryName ? (
+                              <span className="sb-bk__accessory-category">{categoryName}</span>
+                            ) : null}
+                            <span className="sb-bk__accessory-name">
+                              {itemName}
+                              {quantity > 1 ? ` × ${quantity}` : ''}
+                            </span>
+                          </div>
+                          {item?.price != null ? (
+                            <span className="sb-bk__accessory-price">
+                              {Math.round(item.price).toLocaleString('en-US')} {t.priceUnit}{' '}
+                              {item.price_unit === 'per_day' ? t.perDay : t.perBooking}
+                            </span>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : null}
+
               <div className="sb-vd__dates">
                 <label>
                   {t.dateGet}
@@ -1027,34 +1072,6 @@ export function VehicleBookingModal({
                   />
                 </label>
               </div>
-
-              {/* Selected paid accessories summary (owner feedback
-                  2026-07-15: the choice screen showed only the vehicle, not
-                  what add-ons the customer picked). Names resolved from the
-                  detail payload's own accessory groups, localized like
-                  everywhere else in this modal. */}
-              {selectedAccessories.length > 0 ? (
-                <div className="sb-bk__accessories">
-                  <span className="sb-vd__section-label">{t.accessories}</span>
-                  <ul className="sb-bk__accessories-list">
-                    {selectedAccessories.map(({ accessory_id, quantity }) => {
-                      const item = (d.accessories ?? [])
-                        .flatMap((group) => group.items)
-                        .find((it) => it.id === accessory_id);
-                      // A selected id not found in the current detail payload
-                      // still went into the request — show a generic label
-                      // instead of silently under-reporting what was picked.
-                      const itemName = item ? (locale === 'ru' ? item.name_ru : item.name_en) : t.accessoryFallback;
-                      return (
-                        <li key={accessory_id}>
-                          {itemName}
-                          {quantity > 1 ? ` × ${quantity}` : ''}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ) : null}
 
               <button
                 type="button"

@@ -2354,12 +2354,39 @@ a.sb-map__line:hover {
   flex-direction: column;
   gap: 0.25rem;
 }
-.sb-bk__accessories-list li {
-  font-size: 0.85rem;
-  color: var(--sb-text);
-  padding: 0.4rem 0.6rem;
+.sb-bk__accessory-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
   border: 1px solid var(--sb-border);
   border-radius: 8px;
+}
+.sb-bk__accessory-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.sb-bk__accessory-category {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--sb-text-muted);
+}
+.sb-bk__accessory-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--sb-text-strong);
+}
+.sb-bk__accessory-price {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--sb-accent);
+  white-space: nowrap;
 }
 @media (max-width: 600px) {
   .sb-vd__specs {

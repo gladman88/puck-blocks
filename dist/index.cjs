@@ -1411,6 +1411,33 @@ function VehicleBookingModal({
                   ] }) : null
                 ] })
               ] }),
+              selectedAccessories.length > 0 ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-bk__accessories", children: [
+                /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__section-label", children: t.accessories }),
+                /* @__PURE__ */ jsxRuntime.jsx("ul", { className: "sb-bk__accessories-list", children: selectedAccessories.map(({ accessory_id, quantity }) => {
+                  const group = (d.accessories ?? []).find(
+                    (g) => g.items.some((it) => it.id === accessory_id)
+                  );
+                  const item = group?.items.find((it) => it.id === accessory_id);
+                  const itemName = item ? locale === "ru" ? item.name_ru : item.name_en : t.accessoryFallback;
+                  const categoryName = group ? locale === "ru" ? group.name_ru : group.name_en : null;
+                  return /* @__PURE__ */ jsxRuntime.jsxs("li", { className: "sb-bk__accessory-row", children: [
+                    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-bk__accessory-info", children: [
+                      categoryName ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-bk__accessory-category", children: categoryName }) : null,
+                      /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-bk__accessory-name", children: [
+                        itemName,
+                        quantity > 1 ? ` \xD7 ${quantity}` : ""
+                      ] })
+                    ] }),
+                    item?.price != null ? /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-bk__accessory-price", children: [
+                      Math.round(item.price).toLocaleString("en-US"),
+                      " ",
+                      t.priceUnit,
+                      " ",
+                      item.price_unit === "per_day" ? t.perDay : t.perBooking
+                    ] }) : null
+                  ] }, accessory_id);
+                }) })
+              ] }) : null,
               /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__dates", children: [
                 /* @__PURE__ */ jsxRuntime.jsxs("label", { children: [
                   t.dateGet,
@@ -1439,17 +1466,6 @@ function VehicleBookingModal({
                   )
                 ] })
               ] }),
-              selectedAccessories.length > 0 ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-bk__accessories", children: [
-                /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__section-label", children: t.accessories }),
-                /* @__PURE__ */ jsxRuntime.jsx("ul", { className: "sb-bk__accessories-list", children: selectedAccessories.map(({ accessory_id, quantity }) => {
-                  const item = (d.accessories ?? []).flatMap((group) => group.items).find((it) => it.id === accessory_id);
-                  const itemName = item ? locale === "ru" ? item.name_ru : item.name_en : t.accessoryFallback;
-                  return /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
-                    itemName,
-                    quantity > 1 ? ` \xD7 ${quantity}` : ""
-                  ] }, accessory_id);
-                }) })
-              ] }) : null,
               /* @__PURE__ */ jsxRuntime.jsxs(
                 "button",
                 {
