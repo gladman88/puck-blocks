@@ -1219,6 +1219,8 @@ function VehicleBookingModal({
   referralCode,
   telegramUser,
   onTelegramLink,
+  initialFrom,
+  initialTo,
   onClose
 }) {
   const t = S[locale];
@@ -1227,8 +1229,10 @@ function VehicleBookingModal({
   const [gi, setGi] = react.useState(0);
   const [specsExpanded, setSpecsExpanded] = react.useState(false);
   const minStart = !vehicle.is_available && vehicle.free_from && vehicle.free_from > todayISO() ? vehicle.free_from : todayISO();
-  const [start, setStart] = react.useState(minStart);
-  const [end, setEnd] = react.useState(nextDay(minStart));
+  const seedStart = initialFrom && initialFrom >= minStart ? initialFrom : minStart;
+  const seedEnd = initialTo && initialTo > seedStart ? initialTo : nextDay(seedStart);
+  const [start, setStart] = react.useState(seedStart);
+  const [end, setEnd] = react.useState(seedEnd);
   const [name, setName] = react.useState(telegramUser?.first_name || "");
   const [channel, setChannel] = react.useState(telegramUser ? "telegram" : "whatsapp");
   const [contact, setContact] = react.useState(telegramUser?.username ? `@${telegramUser.username}` : "");
@@ -2641,6 +2645,8 @@ function VehicleCatalog({
         referralCode,
         telegramUser,
         onTelegramLink,
+        initialFrom: filters.availableFrom,
+        initialTo: filters.availableTo,
         onClose: () => setSelected(null)
       }
     ) : null

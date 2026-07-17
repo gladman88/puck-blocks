@@ -337,6 +337,11 @@ interface Props {
    *  (plain browser / the marketing site), the modal opens the link in a new
    *  tab instead so the catalog stays alive to poll for confirmation. */
   onTelegramLink?: (url: string) => void;
+  /** Dates the customer already picked in the catalog filter (ISO YYYY-MM-DD).
+   *  Seed the booking form so they don't re-enter them — clamped to this
+   *  vehicle's earliest bookable day; absent → today / next-day defaults. */
+  initialFrom?: string;
+  initialTo?: string;
   onClose: () => void;
 }
 
@@ -354,6 +359,8 @@ export function VehicleBookingModal({
   referralCode,
   telegramUser,
   onTelegramLink,
+  initialFrom,
+  initialTo,
   onClose,
 }: Props) {
   const t = S[locale];
@@ -366,8 +373,13 @@ export function VehicleBookingModal({
     !vehicle.is_available && vehicle.free_from && vehicle.free_from > todayISO()
       ? vehicle.free_from
       : todayISO();
-  const [start, setStart] = useState(minStart);
-  const [end, setEnd] = useState(nextDay(minStart));
+  // Seed from the catalog filter's picked dates (so the customer doesn't
+  // re-enter them), clamped to this vehicle's earliest bookable day. The
+  // return date is kept only if it's still after the (possibly clamped) start.
+  const seedStart = initialFrom && initialFrom >= minStart ? initialFrom : minStart;
+  const seedEnd = initialTo && initialTo > seedStart ? initialTo : nextDay(seedStart);
+  const [start, setStart] = useState(seedStart);
+  const [end, setEnd] = useState(seedEnd);
   // Prefill from the Telegram Mini App user, if the host passed one (parity
   // with frontend_catalog's BookingForm — name/channel/contact are just a
   // starting point, still editable).

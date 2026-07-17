@@ -540,6 +540,8 @@ export function VehicleCatalog({
           referralCode={referralCode}
           telegramUser={telegramUser}
           onTelegramLink={onTelegramLink}
+          initialFrom={filters.availableFrom}
+          initialTo={filters.availableTo}
           onClose={() => setSelected(null)}
         />
       ) : null}

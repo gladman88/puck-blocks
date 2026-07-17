@@ -1047,3 +1047,44 @@ describe('classifyIntentPollResponse (intent status-poll branches)', () => {
     expect(classifyIntentPollResponse({ ok: false, status: 500 }, null)).toBe('retry');
   });
 });
+
+describe('VehicleBookingModal — seeds dates from the catalog filter', () => {
+  const stubDetail = () =>
+    vi.stubGlobal('fetch', vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } })),
+    ));
+
+  it('prefills pick-up/return from initialFrom/initialTo', async () => {
+    stubDetail();
+    render(
+      <VehicleBookingModal
+        vehicle={vehicle}
+        apiBase=""
+        locale="en"
+        botUsername="test_bot"
+        initialFrom="2099-08-01"
+        initialTo="2099-08-05"
+        onClose={vi.fn()}
+      />,
+    );
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    await screen.findByText('How to book?');
+    expect((screen.getByLabelText('Pick-up date') as HTMLInputElement).value).toBe('2099-08-01');
+    expect((screen.getByLabelText('Return date') as HTMLInputElement).value).toBe('2099-08-05');
+  });
+
+  it('falls back to today / next-day when the filter had no dates', async () => {
+    stubDetail();
+    render(
+      <VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />,
+    );
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    await screen.findByText('How to book?');
+    const pickup = (screen.getByLabelText('Pick-up date') as HTMLInputElement).value;
+    const ret = (screen.getByLabelText('Return date') as HTMLInputElement).value;
+    expect(pickup).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(ret > pickup).toBe(true);
+  });
+});
