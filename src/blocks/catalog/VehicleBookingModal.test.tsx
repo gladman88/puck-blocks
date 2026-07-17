@@ -1,7 +1,14 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { VehicleBookingModal } from './VehicleBookingModal';
 import type { CatalogVehicle } from '../VehicleCatalog';
+
+beforeEach(() => {
+  // jsdom has no window.open; default it to a harmless stub so the 1-click
+  // browser handoff doesn't emit "Not implemented" noise. Tests that need to
+  // observe the opened tab override this with their own stub.
+  vi.stubGlobal('open', vi.fn(() => null));
+});
 
 afterEach(() => {
   cleanup(); // unmount portal'd modal so screen queries don't leak across tests
@@ -200,7 +207,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
       vi.fn((url: string, init?: RequestInit) => {
         const u = String(url);
         if (u.includes('/booking-requests/')) {
-          capturedBody = init?.body as string;
+          if (init?.body) capturedBody = init.body as string; // ignore the bodyless status poll
           return Promise.resolve(new Response(JSON.stringify({ success: true, booking_id: 'b1' }), { status: 201 }));
         }
         return Promise.resolve(
@@ -248,7 +255,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
       vi.fn((url: string, init?: RequestInit) => {
         const u = String(url);
         if (u.includes('/booking-intents/')) {
-          capturedBody = init?.body as string;
+          if (init?.body) capturedBody = init.body as string; // ignore the bodyless status poll
           return Promise.resolve(new Response(JSON.stringify({ token: 'tok123' }), { status: 201 }));
         }
         return Promise.resolve(
@@ -540,7 +547,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
       vi.fn((url: string, init?: RequestInit) => {
         const u = String(url);
         if (u.includes('/booking-intents/')) {
-          capturedBody = init?.body as string;
+          if (init?.body) capturedBody = init.body as string; // ignore the bodyless status poll
           return Promise.resolve(new Response(JSON.stringify({ token: 'tok123' }), { status: 201 }));
         }
         return Promise.resolve(
@@ -591,7 +598,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
       vi.fn((url: string, init?: RequestInit) => {
         const u = String(url);
         if (u.includes('/booking-intents/')) {
-          capturedBody = init?.body as string;
+          if (init?.body) capturedBody = init.body as string; // ignore the bodyless status poll
           return Promise.resolve(new Response(JSON.stringify({ token: 'tok123' }), { status: 201 }));
         }
         return Promise.resolve(
@@ -731,7 +738,7 @@ describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-bl
       vi.fn((url: string, init?: RequestInit) => {
         const u = String(url);
         if (u.includes('/booking-intents/')) {
-          capturedBody = init?.body as string;
+          if (init?.body) capturedBody = init.body as string; // ignore the bodyless status poll
           return Promise.resolve(new Response(JSON.stringify({ token: 'tok123' }), { status: 201 }));
         }
         return Promise.resolve(
@@ -766,7 +773,7 @@ describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-bl
       vi.fn((url: string, init?: RequestInit) => {
         const u = String(url);
         if (u.includes('/booking-intents/')) {
-          capturedBody = init?.body as string;
+          if (init?.body) capturedBody = init.body as string; // ignore the bodyless status poll
           return Promise.resolve(new Response(JSON.stringify({ token: 'tok123' }), { status: 201 }));
         }
         return Promise.resolve(
@@ -835,6 +842,69 @@ describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-bl
     expect(window.location.href).not.toContain('bk_');
   });
 
+  it('1-click uses the host openTelegramLink handoff (Mini App) and does not open a browser tab', async () => {
+    const onTelegramLink = vi.fn();
+    const openMock = vi.fn();
+    vi.stubGlobal('open', openMock);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const u = String(url);
+        if (u.includes('/status/')) {
+          return Promise.resolve(new Response(JSON.stringify({ status: 'pending' }), { status: 200, headers: { 'content-type': 'application/json' } }));
+        }
+        if (u.includes('/booking-intents/')) {
+          return Promise.resolve(new Response(JSON.stringify({ token: 'tok123' }), { status: 201 }));
+        }
+        return Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }));
+      }),
+    );
+    render(
+      <VehicleBookingModal
+        vehicle={vehicle}
+        apiBase=""
+        locale="en"
+        botUsername="test_bot"
+        onTelegramLink={onTelegramLink}
+        onClose={vi.fn()}
+      />,
+    );
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+
+    await waitFor(() => expect(onTelegramLink).toHaveBeenCalledTimes(1));
+    expect(onTelegramLink.mock.calls[0][0]).toContain('start=bk_tok123');
+    expect(openMock).not.toHaveBeenCalled(); // Mini App path never opens a browser tab
+  });
+
+  it('shows the in-app confirmation once the intent is redeemed (browser: new tab + status poll → used)', async () => {
+    const popup = { location: { href: '' }, close: vi.fn() };
+    vi.stubGlobal('open', vi.fn(() => popup as unknown as Window));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const u = String(url);
+        if (u.includes('/status/')) {
+          return Promise.resolve(new Response(JSON.stringify({ status: 'used' }), { status: 200, headers: { 'content-type': 'application/json' } }));
+        }
+        if (u.includes('/booking-intents/')) {
+          return Promise.resolve(new Response(JSON.stringify({ token: 'tok123' }), { status: 201 }));
+        }
+        return Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }));
+      }),
+    );
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+
+    // No host callback → the bot opens in the synchronously-created new tab...
+    await waitFor(() => expect(popup.location.href).toContain('start=bk_tok123'));
+    // ...and once the poll sees the redemption, the in-app confirmation appears.
+    await screen.findByText('Request sent!');
+  });
+
   it('appends &ref= to the share link when a referral code is set', async () => {
     stubDetailFetch(baseDetail);
     const writeText = vi.fn().mockResolvedValue(undefined);
@@ -867,7 +937,7 @@ describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-pu
       vi.fn((url: string, init?: RequestInit) => {
         const u = String(url);
         if (u.includes('/booking-requests/')) {
-          capturedBody = init?.body as string;
+          if (init?.body) capturedBody = init.body as string; // ignore the bodyless status poll
           return Promise.resolve(new Response(JSON.stringify({ success: true, booking_id: 'b1' }), { status: 201 }));
         }
         return Promise.resolve(

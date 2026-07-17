@@ -110,6 +110,13 @@ export interface VehicleCatalogProps {
    * the booking form (VehicleBookingModal).
    */
   telegramUser?: TelegramCatalogUser | null;
+  /**
+   * Host handoff for the "1-click via Telegram" deep link, forwarded to
+   * VehicleBookingModal. Inside a Telegram Mini App the host passes
+   * `window.Telegram.WebApp.openTelegramLink`; omitted elsewhere (the modal
+   * then opens the link in a new tab). Keeps this component framework-neutral.
+   */
+  onTelegramLink?: (url: string) => void;
 }
 
 const STRINGS = {
@@ -265,6 +272,7 @@ export function VehicleCatalog({
   showFilters = false,
   referralCode,
   telegramUser,
+  onTelegramLink,
   puck,
 }: VehicleCatalogProps & PuckInjected) {
   const locale: 'ru' | 'en' = localeProp ?? (puck?.metadata?.locale === 'en' ? 'en' : 'ru');
@@ -531,6 +539,7 @@ export function VehicleCatalog({
           googleMapsApiKey={googleMapsApiKey}
           referralCode={referralCode}
           telegramUser={telegramUser}
+          onTelegramLink={onTelegramLink}
           onClose={() => setSelected(null)}
         />
       ) : null}

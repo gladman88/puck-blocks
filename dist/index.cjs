@@ -1199,6 +1199,7 @@ function VehicleBookingModal({
   googleMapsApiKey,
   referralCode,
   telegramUser,
+  onTelegramLink,
   onClose
 }) {
   const t = S[locale];
@@ -1224,6 +1225,7 @@ function VehicleBookingModal({
   const [err, setErr] = react.useState("");
   const [tgSubmitting, setTgSubmitting] = react.useState(false);
   const [tgErr, setTgErr] = react.useState("");
+  const [pollToken, setPollToken] = react.useState(null);
   const [copied, setCopied] = react.useState(false);
   const dialogRef = react.useRef(null);
   useIsomorphicLayoutEffect(() => {
@@ -1394,11 +1396,58 @@ function VehicleBookingModal({
       setSubmitting(false);
     }
   };
+  react.useEffect(() => {
+    if (!pollToken) return;
+    let stopped = false;
+    const check = async () => {
+      if (stopped) return;
+      try {
+        const res = await fetch(
+          `${apiBase}/api/v1/catalog/booking-intents/${encodeURIComponent(pollToken)}/status/`,
+          { headers: HEADERS }
+        );
+        if (res.status === 404) {
+          stopped = true;
+          setPollToken(null);
+          return;
+        }
+        if (!res.ok) return;
+        const { status } = await res.json();
+        if (status === "used") {
+          stopped = true;
+          setPollToken(null);
+          setStage("success");
+        } else if (status === "expired") {
+          stopped = true;
+          setPollToken(null);
+        }
+      } catch {
+      }
+    };
+    const interval = setInterval(check, 4e3);
+    const onVisible = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") check();
+    };
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisible);
+    const timeout = setTimeout(() => {
+      stopped = true;
+      setPollToken(null);
+    }, 5 * 60 * 1e3);
+    check();
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+      clearTimeout(timeout);
+      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [pollToken, apiBase]);
   const handleTelegramBooking = async () => {
     if (tgSubmitting || !datesValid) return;
     setTgSubmitting(true);
     setTgErr("");
+    let popup = null;
     try {
+      popup = onTelegramLink || typeof window === "undefined" ? null : window.open("", "_blank");
       const res = await fetch(`${apiBase}/api/v1/catalog/booking-intents/`, {
         method: "POST",
         headers: { "content-type": "application/json", ...HEADERS },
@@ -1414,21 +1463,32 @@ function VehicleBookingModal({
       });
       if (!res.ok) {
         setTgErr(res.status === 429 ? t.tooMany : t.sendErr);
+        popup?.close();
         return;
       }
       const { token } = await res.json();
       if (!token) {
         setTgErr(t.sendErr);
+        popup?.close();
         return;
       }
       const href = safeHref(`https://t.me/${botUsername}?start=bk_${encodeURIComponent(token)}`);
       if (!href) {
         setTgErr(t.sendErr);
+        popup?.close();
         return;
       }
-      window.location.href = href;
+      setPollToken(token);
+      if (onTelegramLink) {
+        onTelegramLink(href);
+      } else if (popup) {
+        popup.location.href = href;
+      } else {
+        window.location.href = href;
+      }
     } catch {
       setTgErr(t.sendErr);
+      popup?.close();
     } finally {
       setTgSubmitting(false);
     }
@@ -2341,6 +2401,7 @@ function VehicleCatalog({
   showFilters = false,
   referralCode,
   telegramUser,
+  onTelegramLink,
   puck
 }) {
   const locale = localeProp ?? (puck?.metadata?.locale === "en" ? "en" : "ru");
@@ -2538,6 +2599,7 @@ function VehicleCatalog({
         googleMapsApiKey,
         referralCode,
         telegramUser,
+        onTelegramLink,
         onClose: () => setSelected(null)
       }
     ) : null

@@ -286,6 +286,13 @@ interface VehicleCatalogProps {
      * the booking form (VehicleBookingModal).
      */
     telegramUser?: TelegramCatalogUser | null;
+    /**
+     * Host handoff for the "1-click via Telegram" deep link, forwarded to
+     * VehicleBookingModal. Inside a Telegram Mini App the host passes
+     * `window.Telegram.WebApp.openTelegramLink`; omitted elsewhere (the modal
+     * then opens the link in a new tab). Keeps this component framework-neutral.
+     */
+    onTelegramLink?: (url: string) => void;
 }
 type PuckInjected = {
     puck?: {
@@ -300,7 +307,7 @@ type PuckInjected = {
  * card (like frontend_catalog), with a per-section category filter. Used twice
  * (cars / bikes). Locale comes from Puck metadata (page locale).
  */
-declare function VehicleCatalog({ heading, anchorId, vehicleType, apiBase, telegramBot, googleMapsApiKey, defaultCategory, locale: localeProp, showFilters, referralCode, telegramUser, puck, }: VehicleCatalogProps & PuckInjected): react.JSX.Element;
+declare function VehicleCatalog({ heading, anchorId, vehicleType, apiBase, telegramBot, googleMapsApiKey, defaultCategory, locale: localeProp, showFilters, referralCode, telegramUser, onTelegramLink, puck, }: VehicleCatalogProps & PuckInjected): react.JSX.Element;
 
 interface MapContactsProps {
     /** Section anchor id (e.g. "contacts"). */

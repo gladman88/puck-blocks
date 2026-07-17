@@ -312,6 +312,13 @@ interface Props {
    *  booking payload as `telegram_user_data` (parity with frontend_catalog's
    *  BookingForm). */
   telegramUser?: TelegramCatalogUser | null;
+  /** Host-provided handoff for the "1-click via Telegram" deep link. Inside a
+   *  Telegram Mini App the host passes `window.Telegram.WebApp.openTelegramLink`
+   *  (opens the bot chat natively + closes the mini app) — this component stays
+   *  framework-neutral and never touches `window.Telegram` itself. When absent
+   *  (plain browser / the marketing site), the modal opens the link in a new
+   *  tab instead so the catalog stays alive to poll for confirmation. */
+  onTelegramLink?: (url: string) => void;
   onClose: () => void;
 }
 
@@ -328,6 +335,7 @@ export function VehicleBookingModal({
   googleMapsApiKey,
   referralCode,
   telegramUser,
+  onTelegramLink,
   onClose,
 }: Props) {
   const t = S[locale];
@@ -378,6 +386,12 @@ export function VehicleBookingModal({
   // "choice" screen.
   const [tgSubmitting, setTgSubmitting] = useState(false);
   const [tgErr, setTgErr] = useState('');
+  // After the 1-click handoff, poll the intent's status so the catalog can show
+  // the in-app "заявка отправлена" confirmation once the customer finishes in
+  // the bot and returns to this (still-open) tab — the browser case, where the
+  // booking is created out-of-band and the app otherwise can't know. Non-null
+  // = a redemption poll is live for this token; see the effect below.
+  const [pollToken, setPollToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -611,6 +625,53 @@ export function VehicleBookingModal({
     }
   };
 
+  // Poll the intent until the bot redeems it into a real booking ('used') or it
+  // lapses ('expired' / 404), then show the in-app confirmation. This closes the
+  // loop for the browser case, where the booking is created out-of-band in the
+  // Telegram bot and the catalog otherwise can't know the outcome. Cheap indexed
+  // read (no PII); we poll on an interval AND whenever the tab regains focus (the
+  // moment the customer returns from Telegram), with a hard cap so it never runs
+  // forever. In a Mini App that closed on handoff this simply never mounts.
+  useEffect(() => {
+    if (!pollToken) return;
+    let stopped = false;
+    const check = async () => {
+      if (stopped) return;
+      try {
+        const res = await fetch(
+          `${apiBase}/api/v1/catalog/booking-intents/${encodeURIComponent(pollToken)}/status/`,
+          { headers: HEADERS },
+        );
+        if (res.status === 404) { stopped = true; setPollToken(null); return; }
+        if (!res.ok) return; // transient (429/5xx) — keep polling
+        const { status } = (await res.json()) as { status?: string };
+        if (status === 'used') {
+          stopped = true;
+          setPollToken(null);
+          setStage('success');
+        } else if (status === 'expired') {
+          stopped = true;
+          setPollToken(null);
+        }
+      } catch {
+        // Network blip — the interval will retry.
+      }
+    };
+    const interval = setInterval(check, 4000);
+    const onVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') check();
+    };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible);
+    const timeout = setTimeout(() => { stopped = true; setPollToken(null); }, 5 * 60 * 1000);
+    check(); // immediate first check
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+      clearTimeout(timeout);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [pollToken, apiBase]);
+
   // 1-click Telegram booking (plans/catalog-telegram-booking-intent/):
   // Telegram's /start payload caps at 64 chars, far too small to carry
   // accessories/delivery addresses directly — so the current selection is
@@ -620,7 +681,13 @@ export function VehicleBookingModal({
     if (tgSubmitting || !datesValid) return;
     setTgSubmitting(true);
     setTgErr('');
+    let popup: Window | null = null;
     try {
+      // Browser fallback opens the bot in a NEW tab, so the catalog stays alive
+      // to poll for confirmation. Opened synchronously here (before the `await`)
+      // so it isn't blocked as a popup. The Mini App path uses the host callback
+      // instead (native handoff + closes the app) → no placeholder tab there.
+      popup = onTelegramLink || typeof window === 'undefined' ? null : window.open('', '_blank');
       const res = await fetch(`${apiBase}/api/v1/catalog/booking-intents/`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...HEADERS },
@@ -636,6 +703,7 @@ export function VehicleBookingModal({
       });
       if (!res.ok) {
         setTgErr(res.status === 429 ? t.tooMany : t.sendErr);
+        popup?.close();
         return;
       }
       // Guard the token explicitly rather than trusting the response shape —
@@ -644,16 +712,27 @@ export function VehicleBookingModal({
       const { token } = (await res.json()) as { token?: string };
       if (!token) {
         setTgErr(t.sendErr);
+        popup?.close();
         return;
       }
       const href = safeHref(`https://t.me/${botUsername}?start=bk_${encodeURIComponent(token)}`);
       if (!href) {
         setTgErr(t.sendErr);
+        popup?.close();
         return;
       }
-      window.location.href = href;
+      // Start polling BEFORE the handoff so a fast redemption isn't missed.
+      setPollToken(token);
+      if (onTelegramLink) {
+        onTelegramLink(href); // Telegram Mini App — native handoff, closes the app
+      } else if (popup) {
+        popup.location.href = href; // browser — the tab we opened synchronously
+      } else {
+        window.location.href = href; // popup blocked — same-tab fallback (no poll)
+      }
     } catch {
       setTgErr(t.sendErr);
+      popup?.close();
     } finally {
       setTgSubmitting(false);
     }
