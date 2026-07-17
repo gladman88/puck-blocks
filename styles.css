@@ -23,6 +23,10 @@
   --sb-container: 1200px;
   --sb-section-py: clamp(3rem, 6vw, 6rem);
   --sb-header-h: 4.75rem;
+  /* Uniform height for every filter control (pill, date chip, sort, clear) so
+     they line up — matches the pill's natural height (0.8rem × 1.5 line-height
+     + 0.4rem×2 padding + 2px border). box-sizing is border-box everywhere. */
+  --sb-fbar-h: 2.125rem;
 
   background: var(--sb-bg);
   color: var(--sb-text);
@@ -1270,7 +1274,8 @@ a.sb-map__line:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.4rem 0.9rem;
+  height: var(--sb-fbar-h);
+  padding: 0 0.9rem;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius-pill);
   background: transparent;
@@ -1291,9 +1296,9 @@ a.sb-map__line:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  margin-left: auto;
+  flex: 0 0 auto;
+  width: var(--sb-fbar-h);
+  height: var(--sb-fbar-h);
   border: 1px solid var(--sb-border);
   border-radius: 50%;
   background: transparent;
@@ -1322,12 +1327,19 @@ a.sb-map__line:hover {
   flex: 1 1 16rem;
   min-width: 0;
 }
+/* On desktop don't stretch the dates across the whole row — cap them at a
+   sensible width (controls then left-pack). On mobile (≤640px) they keep
+   filling, so there's no empty gap on the narrow date row. */
+@media (min-width: 641px) {
+  .sb-filterbar__daterange {
+    max-width: 22rem;
+  }
+}
 .sb-filterbar__actions {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   flex: 0 0 auto;
-  margin-left: auto; /* hug the right edge when sharing the row with the dates */
 }
 /* Date chip: a real-looking, stable-width field whose label WE render (so the
    format is ДД.ММ.ГГГГ everywhere, not iOS's "17 Jul 2026" that wraps). The
@@ -1339,12 +1351,13 @@ a.sb-map__line:hover {
   align-items: center;
   flex: 1 1 0; /* grow to fill the date-range group → no empty gap */
   min-width: 6.6rem;
-  padding: 0.5rem 0.7rem;
+  height: var(--sb-fbar-h);
+  padding: 0 0.7rem;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius);
   background: var(--sb-bg);
   color: var(--sb-text-strong);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   cursor: pointer;
 }
 .sb-filterbar__datechip-val {
@@ -1379,7 +1392,8 @@ a.sb-map__line:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.4rem 0.7rem;
+  height: var(--sb-fbar-h);
+  padding: 0 0.7rem;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius);
   background: transparent;
