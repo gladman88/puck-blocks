@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { money, nextDay, todayISO } from './dates';
+import { describe, expect, it, vi } from 'vitest';
+import { formatDDMMYYYY, money, nextDay, openNativeDatePicker, todayISO } from './dates';
 
 describe('money', () => {
   it('formats numbers (catalog prices arrive as JSON numbers)', () => {
@@ -38,5 +38,34 @@ describe('date helpers', () => {
 
   it('todayISO is a well-formed YYYY-MM-DD', () => {
     expect(todayISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('formatDDMMYYYY renders the ISO date as ДД.ММ.ГГГГ (zero-padding preserved)', () => {
+    expect(formatDDMMYYYY('2026-07-17')).toBe('17.07.2026');
+    expect(formatDDMMYYYY('2026-01-05')).toBe('05.01.2026');
+  });
+
+  it('formatDDMMYYYY returns empty for empty/malformed input', () => {
+    expect(formatDDMMYYYY('')).toBe('');
+    expect(formatDDMMYYYY('nope')).toBe('');
+  });
+});
+
+describe('openNativeDatePicker', () => {
+  it('calls showPicker() when the browser supports it', () => {
+    const showPicker = vi.fn();
+    openNativeDatePicker({ showPicker } as unknown as HTMLInputElement);
+    expect(showPicker).toHaveBeenCalledTimes(1);
+  });
+
+  it('is a no-op (no throw) when showPicker is unavailable (Safari < 16)', () => {
+    expect(() => openNativeDatePicker({} as HTMLInputElement)).not.toThrow();
+  });
+
+  it('swallows a throwing showPicker (e.g. not user-activated)', () => {
+    const showPicker = vi.fn(() => {
+      throw new Error('NotAllowedError');
+    });
+    expect(() => openNativeDatePicker({ showPicker } as unknown as HTMLInputElement)).not.toThrow();
   });
 });

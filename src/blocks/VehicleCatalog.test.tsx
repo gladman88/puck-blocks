@@ -261,6 +261,36 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
     expect(getByLabelText('Clear filters')).toBeTruthy();
   });
 
+  it('date-range chips show a placeholder label (not a collapsed empty input) before a date is picked', async () => {
+    stubFilteredFetch();
+    const { findByText, getByText, getByLabelText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
+    await findByText('BMW Z4');
+
+    // Custom chip label renders the placeholder; the native picker input is
+    // still reachable by its accessible name for a11y / date entry.
+    expect(getByText('From date')).toBeTruthy();
+    expect(getByText('To date')).toBeTruthy();
+    expect(getByLabelText('From date')).toBeTruthy();
+    expect(getByLabelText('To date')).toBeTruthy();
+  });
+
+  it('clearing filters also resets the date range (regression: dates survived reset)', async () => {
+    const fetchMock = stubFilteredFetch();
+    const { findByText, getByLabelText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
+    await findByText('BMW Z4');
+
+    const lastVehiclesUrl = () => {
+      const urls = fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.includes('/vehicles/'));
+      return urls[urls.length - 1];
+    };
+
+    fireEvent.change(getByLabelText('From date'), { target: { value: '2026-08-01' } });
+    await waitFor(() => expect(lastVehiclesUrl()).toContain('available_from=2026-08-01'));
+
+    fireEvent.click(getByLabelText('Clear filters'));
+    await waitFor(() => expect(lastVehiclesUrl()).not.toContain('available_from'));
+  });
+
   it('clicking the Cars pill re-fetches with vehicle_type=car', async () => {
     const fetchMock = stubFilteredFetch();
     const { findByText, getByText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);

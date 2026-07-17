@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type Touc
 import { createPortal } from 'react-dom';
 import { categoryLabel, type CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
-import { formatShortDate, money, nextDay, todayISO } from './dates';
+import { formatShortDate, money, nextDay, openNativeDatePicker, todayISO } from './dates';
 import { DeliveryAddressSection, type PickedLocation, type DeliveryCost } from './DeliveryAddressSection';
 
 interface GalleryImage {
@@ -1240,6 +1240,7 @@ export function VehicleBookingModal({
                     className="sb-input"
                     value={start}
                     min={minStart}
+                    onClick={(e) => openNativeDatePicker(e.currentTarget)}
                     onChange={(e) => setStart(e.target.value)}
                   />
                 </label>
@@ -1250,6 +1251,7 @@ export function VehicleBookingModal({
                     className="sb-input"
                     value={end}
                     min={nextDay(start)}
+                    onClick={(e) => openNativeDatePicker(e.currentTarget)}
                     onChange={(e) => setEnd(e.target.value)}
                   />
                 </label>

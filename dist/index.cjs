@@ -538,6 +538,18 @@ function money(value) {
   const n = typeof value === "number" ? value : parseFloat(value);
   return Number.isFinite(n) ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "";
 }
+function openNativeDatePicker(el) {
+  try {
+    el.showPicker?.();
+  } catch {
+  }
+}
+function formatDDMMYYYY(isoDate) {
+  if (!isoDate) return "";
+  const [y, m, d] = isoDate.split("-");
+  if (!y || !m || !d) return "";
+  return `${d}.${m}.${y}`;
+}
 function formatShortDate(isoDate, lang) {
   if (!isoDate) return "";
   const [y, m, d] = isoDate.split("-").map(Number);
@@ -1871,6 +1883,7 @@ function VehicleBookingModal({
                       className: "sb-input",
                       value: start,
                       min: minStart,
+                      onClick: (e) => openNativeDatePicker(e.currentTarget),
                       onChange: (e) => setStart(e.target.value)
                     }
                   )
@@ -1884,6 +1897,7 @@ function VehicleBookingModal({
                       className: "sb-input",
                       value: end,
                       min: nextDay(start),
+                      onClick: (e) => openNativeDatePicker(e.currentTarget),
                       onChange: (e) => setEnd(e.target.value)
                     }
                   )
@@ -2117,7 +2131,14 @@ function VehicleBookingModal({
   );
 }
 function defaultFilterState() {
-  return { vehicleType: void 0, category: void 0, search: void 0, sort: "default" };
+  return {
+    vehicleType: void 0,
+    category: void 0,
+    search: void 0,
+    availableFrom: void 0,
+    availableTo: void 0,
+    sort: "default"
+  };
 }
 function FilterBar({ filters, categories, onChange, strings: t, locale }) {
   const [categoryOpen, setCategoryOpen] = react.useState(false);
@@ -2243,29 +2264,37 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
         /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "8", y1: "2", x2: "8", y2: "6" }),
         /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsx(
-        "input",
-        {
-          type: "date",
-          className: "sb-input sb-filterbar__date",
-          "aria-label": t.dateFrom,
-          value: filters.availableFrom || "",
-          min: today,
-          onChange: (e) => handleFromChange(e.target.value)
-        }
-      ),
+      /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "sb-filterbar__datechip", children: [
+        /* @__PURE__ */ jsxRuntime.jsx("span", { className: `sb-filterbar__datechip-val${filters.availableFrom ? "" : " sb-filterbar__datechip-val--ph"}`, children: filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom }),
+        /* @__PURE__ */ jsxRuntime.jsx(
+          "input",
+          {
+            type: "date",
+            className: "sb-filterbar__datechip-input",
+            "aria-label": t.dateFrom,
+            value: filters.availableFrom || "",
+            min: today,
+            onClick: (e) => openNativeDatePicker(e.currentTarget),
+            onChange: (e) => handleFromChange(e.target.value)
+          }
+        )
+      ] }),
       /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-filterbar__date-sep", children: "\u2014" }),
-      /* @__PURE__ */ jsxRuntime.jsx(
-        "input",
-        {
-          type: "date",
-          className: "sb-input sb-filterbar__date",
-          "aria-label": t.dateTo,
-          value: filters.availableTo || "",
-          min: filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
-          onChange: (e) => onChange({ availableTo: e.target.value || void 0 })
-        }
-      ),
+      /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "sb-filterbar__datechip", children: [
+        /* @__PURE__ */ jsxRuntime.jsx("span", { className: `sb-filterbar__datechip-val${filters.availableTo ? "" : " sb-filterbar__datechip-val--ph"}`, children: filters.availableTo ? formatDDMMYYYY(filters.availableTo) : t.dateTo }),
+        /* @__PURE__ */ jsxRuntime.jsx(
+          "input",
+          {
+            type: "date",
+            className: "sb-filterbar__datechip-input",
+            "aria-label": t.dateTo,
+            value: filters.availableTo || "",
+            min: filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
+            onClick: (e) => openNativeDatePicker(e.currentTarget),
+            onChange: (e) => onChange({ availableTo: e.target.value || void 0 })
+          }
+        )
+      ] }),
       /* @__PURE__ */ jsxRuntime.jsxs("button", { type: "button", className: "sb-filterbar__sort", onClick: cycleSort, children: [
         /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
           /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "6", x2: "9", y2: "6" }),

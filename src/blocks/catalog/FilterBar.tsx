@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { categoryLabel, type CatalogCategory } from '../VehicleCatalog';
-import { nextDay, todayISO } from './dates';
+import { formatDDMMYYYY, nextDay, openNativeDatePicker, todayISO } from './dates';
 
 export type CatalogSortOption = 'default' | 'price_asc' | 'price_desc';
 
@@ -19,8 +19,19 @@ export interface CatalogFilterState {
 }
 
 export function defaultFilterState(): CatalogFilterState {
-  return { vehicleType: undefined, category: undefined, search: undefined, sort: 'default' };
+  // Must list EVERY field — the clear-filters button sends this whole object as
+  // the patch, so an omitted key (previously availableFrom/availableTo) would
+  // survive the merge and the reset would silently leave the dates set.
+  return {
+    vehicleType: undefined,
+    category: undefined,
+    search: undefined,
+    availableFrom: undefined,
+    availableTo: undefined,
+    sort: 'default',
+  };
 }
+
 
 export interface FilterBarStrings {
   all: string;
@@ -189,23 +200,40 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
           <line x1="8" y1="2" x2="8" y2="6" />
           <line x1="3" y1="10" x2="21" y2="10" />
         </svg>
-        <input
-          type="date"
-          className="sb-input sb-filterbar__date"
-          aria-label={t.dateFrom}
-          value={filters.availableFrom || ''}
-          min={today}
-          onChange={(e) => handleFromChange(e.target.value)}
-        />
+        {/* Date "chip": we render our own numeric ДД.ММ.ГГГГ label at a stable
+            width and overlay a transparent native <input type="date"> so a tap
+            still opens the native picker. This sidesteps iOS painting the value
+            in an uncontrollable "17 Jul 2026" format that wraps + collapses the
+            row (see styles.css). Empty → a muted placeholder, same width. */}
+        <label className="sb-filterbar__datechip">
+          <span className={`sb-filterbar__datechip-val${filters.availableFrom ? '' : ' sb-filterbar__datechip-val--ph'}`}>
+            {filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom}
+          </span>
+          <input
+            type="date"
+            className="sb-filterbar__datechip-input"
+            aria-label={t.dateFrom}
+            value={filters.availableFrom || ''}
+            min={today}
+            onClick={(e) => openNativeDatePicker(e.currentTarget)}
+            onChange={(e) => handleFromChange(e.target.value)}
+          />
+        </label>
         <span className="sb-filterbar__date-sep">—</span>
-        <input
-          type="date"
-          className="sb-input sb-filterbar__date"
-          aria-label={t.dateTo}
-          value={filters.availableTo || ''}
-          min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
-          onChange={(e) => onChange({ availableTo: e.target.value || undefined })}
-        />
+        <label className="sb-filterbar__datechip">
+          <span className={`sb-filterbar__datechip-val${filters.availableTo ? '' : ' sb-filterbar__datechip-val--ph'}`}>
+            {filters.availableTo ? formatDDMMYYYY(filters.availableTo) : t.dateTo}
+          </span>
+          <input
+            type="date"
+            className="sb-filterbar__datechip-input"
+            aria-label={t.dateTo}
+            value={filters.availableTo || ''}
+            min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
+            onClick={(e) => openNativeDatePicker(e.currentTarget)}
+            onChange={(e) => onChange({ availableTo: e.target.value || undefined })}
+          />
+        </label>
 
         <button type="button" className="sb-filterbar__sort" onClick={cycleSort}>
           <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

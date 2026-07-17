@@ -29,6 +29,36 @@ export function money(value: string | number | null | undefined): string {
   return Number.isFinite(n) ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '';
 }
 
+/**
+ * Compact, locale-independent numeric date (ДД.ММ.ГГГГ) for the catalog filter
+ * chips. We render this OURSELVES instead of relying on the native
+ * `<input type="date">` value, which iOS paints in an uncontrollable locale
+ * format ("17 Jul 2026") that wraps to two lines and breaks the filter row.
+ * Input is an ISO `YYYY-MM-DD` string (already zero-padded).
+ */
+/**
+ * Open a native `<input type="date">` picker on demand. A desktop click only
+ * focuses a date input (its picker opens from the calendar indicator, which
+ * isn't obvious — and on the filter chip it's hidden); calling showPicker() on
+ * click opens the picker on both desktop and mobile, while keyboard entry still
+ * works. Guarded for browsers without showPicker (Safari < 16) — there the
+ * native mobile tap still opens it.
+ */
+export function openNativeDatePicker(el: HTMLInputElement): void {
+  try {
+    (el as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
+  } catch {
+    /* older browser / not user-activated — native mobile tap still opens it */
+  }
+}
+
+export function formatDDMMYYYY(isoDate: string): string {
+  if (!isoDate) return '';
+  const [y, m, d] = isoDate.split('-');
+  if (!y || !m || !d) return '';
+  return `${d}.${m}.${y}`;
+}
+
 export function formatShortDate(isoDate: string, lang: 'en' | 'ru'): string {
   if (!isoDate) return '';
   const [y, m, d] = isoDate.split('-').map(Number);
