@@ -1312,6 +1312,23 @@ a.sb-map__line:hover {
   color: var(--sb-text-muted);
   flex-shrink: 0;
 }
+/* Date range grows to fill the row (its chips grow inside it → no empty gap);
+   the sort+clear actions group wraps as ONE tidy block below on narrow screens,
+   instead of each control dangling on its own line. */
+.sb-filterbar__daterange {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.sb-filterbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  margin-left: auto; /* hug the right edge when sharing the row with the dates */
+}
 /* Date chip: a real-looking, stable-width field whose label WE render (so the
    format is ДД.ММ.ГГГГ everywhere, not iOS's "17 Jul 2026" that wraps). The
    native date <input> is overlaid transparently so a tap still opens the OS
@@ -1320,8 +1337,8 @@ a.sb-map__line:hover {
   position: relative;
   display: inline-flex;
   align-items: center;
-  flex: 0 1 auto;
-  min-width: 6.9rem;
+  flex: 1 1 0; /* grow to fill the date-range group → no empty gap */
+  min-width: 6.6rem;
   padding: 0.5rem 0.7rem;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius);
@@ -1362,7 +1379,6 @@ a.sb-map__line:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  margin-left: auto;
   padding: 0.4rem 0.7rem;
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius);
@@ -1380,9 +1396,6 @@ a.sb-map__line:hover {
 @media (max-width: 640px) {
   .sb-filterbar__row {
     gap: 0.4rem;
-  }
-  .sb-filterbar__sort {
-    margin-left: 0;
   }
 }
 

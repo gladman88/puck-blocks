@@ -2223,22 +2223,6 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
             activeCategory ? categoryLabel(activeCategory, locale) : t.category
           ]
         }
-      ) : null,
-      hasActiveFilters ? /* @__PURE__ */ jsx(
-        "button",
-        {
-          type: "button",
-          className: "sb-filterbar__clear",
-          onClick: () => {
-            onChange(defaultFilterState());
-            setCategoryOpen(false);
-          },
-          "aria-label": t.clearFilters,
-          children: /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-            /* @__PURE__ */ jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
-            /* @__PURE__ */ jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
-          ] })
-        }
       ) : null
     ] }),
     categoryOpen ? /* @__PURE__ */ jsx("div", { className: "sb-filterbar__categories", children: categories.map((cat) => /* @__PURE__ */ jsx(
@@ -2256,51 +2240,71 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
       cat.id
     )) }) : null,
     /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__row", children: [
-      /* @__PURE__ */ jsxs("svg", { className: "sb-filterbar__cal-ico", viewBox: "0 0 24 24", width: "14", height: "14", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-        /* @__PURE__ */ jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
-        /* @__PURE__ */ jsx("line", { x1: "16", y1: "2", x2: "16", y2: "6" }),
-        /* @__PURE__ */ jsx("line", { x1: "8", y1: "2", x2: "8", y2: "6" }),
-        /* @__PURE__ */ jsx("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
-      ] }),
-      /* @__PURE__ */ jsxs("label", { className: "sb-filterbar__datechip", children: [
-        /* @__PURE__ */ jsx("span", { className: `sb-filterbar__datechip-val${filters.availableFrom ? "" : " sb-filterbar__datechip-val--ph"}`, children: filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom }),
-        /* @__PURE__ */ jsx(
-          "input",
-          {
-            type: "date",
-            className: "sb-filterbar__datechip-input",
-            "aria-label": t.dateFrom,
-            value: filters.availableFrom || "",
-            min: today,
-            onClick: (e) => openNativeDatePicker(e.currentTarget),
-            onChange: (e) => handleFromChange(e.target.value)
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsx("span", { className: "sb-filterbar__date-sep", children: "\u2014" }),
-      /* @__PURE__ */ jsxs("label", { className: "sb-filterbar__datechip", children: [
-        /* @__PURE__ */ jsx("span", { className: `sb-filterbar__datechip-val${filters.availableTo ? "" : " sb-filterbar__datechip-val--ph"}`, children: filters.availableTo ? formatDDMMYYYY(filters.availableTo) : t.dateTo }),
-        /* @__PURE__ */ jsx(
-          "input",
-          {
-            type: "date",
-            className: "sb-filterbar__datechip-input",
-            "aria-label": t.dateTo,
-            value: filters.availableTo || "",
-            min: filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
-            onClick: (e) => openNativeDatePicker(e.currentTarget),
-            onChange: (e) => onChange({ availableTo: e.target.value || void 0 })
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-filterbar__sort", onClick: cycleSort, children: [
-        /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-          /* @__PURE__ */ jsx("line", { x1: "3", y1: "6", x2: "9", y2: "6" }),
-          /* @__PURE__ */ jsx("line", { x1: "3", y1: "12", x2: "7", y2: "12" }),
-          /* @__PURE__ */ jsx("line", { x1: "3", y1: "18", x2: "5", y2: "18" }),
-          /* @__PURE__ */ jsx("path", { d: "M17 4v16m0 0-4-4m4 4 4-4" })
+      /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__daterange", children: [
+        /* @__PURE__ */ jsxs("svg", { className: "sb-filterbar__cal-ico", viewBox: "0 0 24 24", width: "14", height: "14", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+          /* @__PURE__ */ jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
+          /* @__PURE__ */ jsx("line", { x1: "16", y1: "2", x2: "16", y2: "6" }),
+          /* @__PURE__ */ jsx("line", { x1: "8", y1: "2", x2: "8", y2: "6" }),
+          /* @__PURE__ */ jsx("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
         ] }),
-        /* @__PURE__ */ jsx("span", { className: filters.sort !== "default" ? "sb-filterbar__sort-active" : "", children: sortLabel })
+        /* @__PURE__ */ jsxs("label", { className: "sb-filterbar__datechip", children: [
+          /* @__PURE__ */ jsx("span", { className: `sb-filterbar__datechip-val${filters.availableFrom ? "" : " sb-filterbar__datechip-val--ph"}`, children: filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom }),
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: "date",
+              className: "sb-filterbar__datechip-input",
+              "aria-label": t.dateFrom,
+              value: filters.availableFrom || "",
+              min: today,
+              onClick: (e) => openNativeDatePicker(e.currentTarget),
+              onChange: (e) => handleFromChange(e.target.value)
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsx("span", { className: "sb-filterbar__date-sep", children: "\u2014" }),
+        /* @__PURE__ */ jsxs("label", { className: "sb-filterbar__datechip", children: [
+          /* @__PURE__ */ jsx("span", { className: `sb-filterbar__datechip-val${filters.availableTo ? "" : " sb-filterbar__datechip-val--ph"}`, children: filters.availableTo ? formatDDMMYYYY(filters.availableTo) : t.dateTo }),
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: "date",
+              className: "sb-filterbar__datechip-input",
+              "aria-label": t.dateTo,
+              value: filters.availableTo || "",
+              min: filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
+              onClick: (e) => openNativeDatePicker(e.currentTarget),
+              onChange: (e) => onChange({ availableTo: e.target.value || void 0 })
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__actions", children: [
+        /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-filterbar__sort", onClick: cycleSort, children: [
+          /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+            /* @__PURE__ */ jsx("line", { x1: "3", y1: "6", x2: "9", y2: "6" }),
+            /* @__PURE__ */ jsx("line", { x1: "3", y1: "12", x2: "7", y2: "12" }),
+            /* @__PURE__ */ jsx("line", { x1: "3", y1: "18", x2: "5", y2: "18" }),
+            /* @__PURE__ */ jsx("path", { d: "M17 4v16m0 0-4-4m4 4 4-4" })
+          ] }),
+          /* @__PURE__ */ jsx("span", { className: filters.sort !== "default" ? "sb-filterbar__sort-active" : "", children: sortLabel })
+        ] }),
+        hasActiveFilters ? /* @__PURE__ */ jsx(
+          "button",
+          {
+            type: "button",
+            className: "sb-filterbar__clear",
+            onClick: () => {
+              onChange(defaultFilterState());
+              setCategoryOpen(false);
+            },
+            "aria-label": t.clearFilters,
+            children: /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+              /* @__PURE__ */ jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
+              /* @__PURE__ */ jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
+            ] })
+          }
+        ) : null
       ] })
     ] })
   ] });

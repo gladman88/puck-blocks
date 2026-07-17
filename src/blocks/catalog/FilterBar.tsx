@@ -152,22 +152,6 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
           </button>
         ) : null}
 
-        {hasActiveFilters ? (
-          <button
-            type="button"
-            className="sb-filterbar__clear"
-            onClick={() => {
-              onChange(defaultFilterState());
-              setCategoryOpen(false);
-            }}
-            aria-label={t.clearFilters}
-          >
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        ) : null}
       </div>
 
       {categoryOpen ? (
@@ -194,56 +178,79 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
       ) : null}
 
       <div className="sb-filterbar__row">
-        <svg className="sb-filterbar__cal-ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <rect x="3" y="4" width="18" height="18" rx="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
-        </svg>
-        {/* Date "chip": we render our own numeric ДД.ММ.ГГГГ label at a stable
-            width and overlay a transparent native <input type="date"> so a tap
-            still opens the native picker. This sidesteps iOS painting the value
-            in an uncontrollable "17 Jul 2026" format that wraps + collapses the
-            row (see styles.css). Empty → a muted placeholder, same width. */}
-        <label className="sb-filterbar__datechip">
-          <span className={`sb-filterbar__datechip-val${filters.availableFrom ? '' : ' sb-filterbar__datechip-val--ph'}`}>
-            {filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom}
-          </span>
-          <input
-            type="date"
-            className="sb-filterbar__datechip-input"
-            aria-label={t.dateFrom}
-            value={filters.availableFrom || ''}
-            min={today}
-            onClick={(e) => openNativeDatePicker(e.currentTarget)}
-            onChange={(e) => handleFromChange(e.target.value)}
-          />
-        </label>
-        <span className="sb-filterbar__date-sep">—</span>
-        <label className="sb-filterbar__datechip">
-          <span className={`sb-filterbar__datechip-val${filters.availableTo ? '' : ' sb-filterbar__datechip-val--ph'}`}>
-            {filters.availableTo ? formatDDMMYYYY(filters.availableTo) : t.dateTo}
-          </span>
-          <input
-            type="date"
-            className="sb-filterbar__datechip-input"
-            aria-label={t.dateTo}
-            value={filters.availableTo || ''}
-            min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
-            onClick={(e) => openNativeDatePicker(e.currentTarget)}
-            onChange={(e) => onChange({ availableTo: e.target.value || undefined })}
-          />
-        </label>
-
-        <button type="button" className="sb-filterbar__sort" onClick={cycleSort}>
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <line x1="3" y1="6" x2="9" y2="6" />
-            <line x1="3" y1="12" x2="7" y2="12" />
-            <line x1="3" y1="18" x2="5" y2="18" />
-            <path d="M17 4v16m0 0-4-4m4 4 4-4" />
+        {/* Date range is one flex unit that GROWS to fill the row (no empty
+            gap); sort + clear are a second unit that wraps together as a tidy
+            block instead of each control dangling on its own line. */}
+        <div className="sb-filterbar__daterange">
+          <svg className="sb-filterbar__cal-ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
           </svg>
-          <span className={filters.sort !== 'default' ? 'sb-filterbar__sort-active' : ''}>{sortLabel}</span>
-        </button>
+          {/* Date "chip": our own numeric ДД.ММ.ГГГГ label at a stable width,
+              with a transparent native <input type="date"> overlaid so a tap
+              still opens the OS picker — iOS otherwise paints the value in an
+              uncontrollable "17 Jul 2026" format that wraps and breaks the row.
+              Empty → a muted placeholder of the same width. */}
+          <label className="sb-filterbar__datechip">
+            <span className={`sb-filterbar__datechip-val${filters.availableFrom ? '' : ' sb-filterbar__datechip-val--ph'}`}>
+              {filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom}
+            </span>
+            <input
+              type="date"
+              className="sb-filterbar__datechip-input"
+              aria-label={t.dateFrom}
+              value={filters.availableFrom || ''}
+              min={today}
+              onClick={(e) => openNativeDatePicker(e.currentTarget)}
+              onChange={(e) => handleFromChange(e.target.value)}
+            />
+          </label>
+          <span className="sb-filterbar__date-sep">—</span>
+          <label className="sb-filterbar__datechip">
+            <span className={`sb-filterbar__datechip-val${filters.availableTo ? '' : ' sb-filterbar__datechip-val--ph'}`}>
+              {filters.availableTo ? formatDDMMYYYY(filters.availableTo) : t.dateTo}
+            </span>
+            <input
+              type="date"
+              className="sb-filterbar__datechip-input"
+              aria-label={t.dateTo}
+              value={filters.availableTo || ''}
+              min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
+              onClick={(e) => openNativeDatePicker(e.currentTarget)}
+              onChange={(e) => onChange({ availableTo: e.target.value || undefined })}
+            />
+          </label>
+        </div>
+
+        <div className="sb-filterbar__actions">
+          <button type="button" className="sb-filterbar__sort" onClick={cycleSort}>
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <line x1="3" y1="6" x2="9" y2="6" />
+              <line x1="3" y1="12" x2="7" y2="12" />
+              <line x1="3" y1="18" x2="5" y2="18" />
+              <path d="M17 4v16m0 0-4-4m4 4 4-4" />
+            </svg>
+            <span className={filters.sort !== 'default' ? 'sb-filterbar__sort-active' : ''}>{sortLabel}</span>
+          </button>
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              className="sb-filterbar__clear"
+              onClick={() => {
+                onChange(defaultFilterState());
+                setCategoryOpen(false);
+              }}
+              aria-label={t.clearFilters}
+            >
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   );
