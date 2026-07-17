@@ -1172,6 +1172,13 @@ var S = {
   }
 };
 var HEADERS = { "ngrok-skip-browser-warning": "true" };
+function classifyIntentPollResponse(res, body) {
+  if (res.status === 404) return "gone";
+  if (!res.ok) return "retry";
+  if (body?.status === "used") return "used";
+  if (body?.status === "expired") return "expired";
+  return "retry";
+}
 var useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 async function fetchDeliveryQuote(apiBase, location) {
   try {
@@ -1397,29 +1404,30 @@ function VehicleBookingModal({
   useEffect(() => {
     if (!pollToken) return;
     let stopped = false;
+    let inFlight = false;
     const check = async () => {
-      if (stopped) return;
+      if (stopped || inFlight) return;
+      inFlight = true;
       try {
         const res = await fetch(
           `${apiBase}/api/v1/catalog/booking-intents/${encodeURIComponent(pollToken)}/status/`,
           { headers: HEADERS }
         );
-        if (res.status === 404) {
-          stopped = true;
-          setPollToken(null);
-          return;
-        }
-        if (!res.ok) return;
-        const { status } = await res.json();
-        if (status === "used") {
+        if (stopped) return;
+        const body = res.ok ? await res.json() : null;
+        if (stopped) return;
+        const verdict = classifyIntentPollResponse(res, body);
+        if (verdict === "used") {
           stopped = true;
           setPollToken(null);
           setStage("success");
-        } else if (status === "expired") {
+        } else if (verdict === "expired" || verdict === "gone") {
           stopped = true;
           setPollToken(null);
         }
       } catch {
+      } finally {
+        inFlight = false;
       }
     };
     const interval = setInterval(check, 4e3);

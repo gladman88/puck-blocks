@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
-import { VehicleBookingModal } from './VehicleBookingModal';
+import { VehicleBookingModal, classifyIntentPollResponse } from './VehicleBookingModal';
 import type { CatalogVehicle } from '../VehicleCatalog';
 
 beforeEach(() => {
@@ -905,6 +905,49 @@ describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-bl
     await screen.findByText('Request sent!');
   });
 
+  it('closes the opened tab (and does not navigate it) when the intent POST fails', async () => {
+    const popup = { location: { href: '' }, close: vi.fn() };
+    vi.stubGlobal('open', vi.fn(() => popup as unknown as Window));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const u = String(url);
+        if (u.includes('/booking-intents/')) return Promise.resolve(new Response('', { status: 500 }));
+        return Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }));
+      }),
+    );
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+
+    await screen.findByText('Could not send. Please try again.');
+    expect(popup.close).toHaveBeenCalledTimes(1);
+    expect(popup.location.href).toBe(''); // never navigated the placeholder tab
+    expect(screen.queryByText('Request sent!')).toBeNull();
+  });
+
+  it('closes the opened tab when the intent response carries no token', async () => {
+    const popup = { location: { href: '' }, close: vi.fn() };
+    vi.stubGlobal('open', vi.fn(() => popup as unknown as Window));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const u = String(url);
+        if (u.includes('/booking-intents/')) return Promise.resolve(new Response(JSON.stringify({}), { status: 201 }));
+        return Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }));
+      }),
+    );
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+
+    await screen.findByText('Could not send. Please try again.');
+    expect(popup.close).toHaveBeenCalledTimes(1);
+    expect(popup.location.href).toBe('');
+  });
+
   it('appends &ref= to the share link when a referral code is set', async () => {
     stubDetailFetch(baseDetail);
     const writeText = vi.fn().mockResolvedValue(undefined);
@@ -978,5 +1021,29 @@ describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-pu
 
     expect((screen.getByLabelText('Your name') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Phone number') as HTMLInputElement).value).toBe('');
+  });
+});
+
+describe('classifyIntentPollResponse (intent status-poll branches)', () => {
+  it('2xx used → used (show confirmation)', () => {
+    expect(classifyIntentPollResponse({ ok: true, status: 200 }, { status: 'used' })).toBe('used');
+  });
+  it('2xx expired → expired (stop, no confirmation)', () => {
+    expect(classifyIntentPollResponse({ ok: true, status: 200 }, { status: 'expired' })).toBe('expired');
+  });
+  it('2xx pending → retry (keep polling)', () => {
+    expect(classifyIntentPollResponse({ ok: true, status: 200 }, { status: 'pending' })).toBe('retry');
+  });
+  it('2xx with a malformed body (no status) → retry', () => {
+    expect(classifyIntentPollResponse({ ok: true, status: 200 }, {})).toBe('retry');
+  });
+  it('404 → gone (unknown/purged token → stop)', () => {
+    expect(classifyIntentPollResponse({ ok: false, status: 404 }, null)).toBe('gone');
+  });
+  it('429 → retry (throttled → keep polling)', () => {
+    expect(classifyIntentPollResponse({ ok: false, status: 429 }, null)).toBe('retry');
+  });
+  it('500 → retry (transient server error → keep polling)', () => {
+    expect(classifyIntentPollResponse({ ok: false, status: 500 }, null)).toBe('retry');
   });
 });

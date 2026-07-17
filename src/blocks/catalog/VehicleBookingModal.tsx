@@ -258,6 +258,24 @@ const S = {
 
 const HEADERS = { 'ngrok-skip-browser-warning': 'true' };
 
+/** Decide what a booking-intent status poll response means. Pure + exported so
+ *  the terminal/transient branches are unit-testable without driving timers:
+ *  - 'used'    → the bot redeemed the intent into a booking → show confirmation;
+ *  - 'expired' → the intent lapsed unredeemed → stop, no confirmation;
+ *  - 'gone'    → 404 (unknown/purged token) → stop;
+ *  - 'retry'   → still pending, or a transient error (429/5xx / malformed 2xx
+ *                body) → keep polling. */
+export function classifyIntentPollResponse(
+  res: { ok: boolean; status: number },
+  body: { status?: string } | null,
+): 'used' | 'expired' | 'gone' | 'retry' {
+  if (res.status === 404) return 'gone';
+  if (!res.ok) return 'retry';
+  if (body?.status === 'used') return 'used';
+  if (body?.status === 'expired') return 'expired';
+  return 'retry';
+}
+
 // useLayoutEffect on the client (resets scroll before the browser paints → no
 // flash of the previous stage's scroll offset), plain useEffect on the server
 // (the modal only ever mounts client-side, but this silences the SSR warning).
@@ -635,26 +653,32 @@ export function VehicleBookingModal({
   useEffect(() => {
     if (!pollToken) return;
     let stopped = false;
+    let inFlight = false; // no overlapping polls (interval + visibility + slow network)
     const check = async () => {
-      if (stopped) return;
+      if (stopped || inFlight) return;
+      inFlight = true;
       try {
         const res = await fetch(
           `${apiBase}/api/v1/catalog/booking-intents/${encodeURIComponent(pollToken)}/status/`,
           { headers: HEADERS },
         );
-        if (res.status === 404) { stopped = true; setPollToken(null); return; }
-        if (!res.ok) return; // transient (429/5xx) — keep polling
-        const { status } = (await res.json()) as { status?: string };
-        if (status === 'used') {
+        if (stopped) return; // torn down while the request was in flight
+        const body = res.ok ? ((await res.json()) as { status?: string }) : null;
+        if (stopped) return;
+        const verdict = classifyIntentPollResponse(res, body);
+        if (verdict === 'used') {
           stopped = true;
           setPollToken(null);
           setStage('success');
-        } else if (status === 'expired') {
+        } else if (verdict === 'expired' || verdict === 'gone') {
           stopped = true;
           setPollToken(null);
         }
+        // 'retry' (pending / transient 429/5xx / malformed body) → keep polling
       } catch {
         // Network blip — the interval will retry.
+      } finally {
+        inFlight = false;
       }
     };
     const interval = setInterval(check, 4000);
