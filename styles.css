@@ -120,6 +120,29 @@
 .sb-btn:active {
   transform: translateY(1px);
 }
+.sb-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.sb-btn:disabled:active {
+  transform: none;
+}
+/* Inline loading spinner (e.g. the booking-form submit while the request is
+   in flight) — gives the customer immediate feedback so they don't re-tap. */
+.sb-btn__spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: sb-spin 0.6s linear infinite;
+}
+@keyframes sb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .sb-btn--ghost {
   background: transparent;
   color: var(--sb-text-strong);

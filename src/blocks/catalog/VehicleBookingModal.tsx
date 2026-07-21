@@ -134,6 +134,7 @@ const S = {
     error: 'Не удалось загрузить',
     name: 'Ваше имя',
     send: 'Отправить запрос',
+    sending: 'Отправляем…',
     tgQuick: 'Бронь в 1 клик через Telegram',
     tgQuickSub: 'Без форм — бот заполнит всё за вас',
     or: 'или',
@@ -211,6 +212,7 @@ const S = {
     error: 'Failed to load',
     name: 'Your name',
     send: 'Send request',
+    sending: 'Sending…',
     tgQuick: '1-click booking via Telegram',
     tgQuickSub: 'No forms — the bot fills everything in for you',
     or: 'or',
@@ -465,6 +467,13 @@ export function VehicleBookingModal({
   // on with a picked address (see effectiveDropoffLocation below).
   const [dropoffSameAsPickup, setDropoffSameAsPickup] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // Synchronous re-entry guard for the manual submit. The `submitting` STATE
+  // (and the button's `disabled`) lag one render behind a fast double/triple
+  // tap — so on a slow connection an impatient customer's repeated taps all
+  // pass the `if (submitting)` check and fire multiple POSTs (prod incident
+  // 2026-07-21: one booking → three identical manager notifications). A ref
+  // flips synchronously, before the first `await`, closing that window.
+  const submittingRef = useRef(false);
   const [stage, setStage] = useState<'detail' | 'choice' | 'form' | 'success'>('detail');
   const [err, setErr] = useState('');
   // 1-click Telegram booking (plans/catalog-telegram-booking-intent/) — POSTs
@@ -473,6 +482,9 @@ export function VehicleBookingModal({
   // form's (submitting/err) since they're two independent flows on the same
   // "choice" screen.
   const [tgSubmitting, setTgSubmitting] = useState(false);
+  // Same synchronous re-entry guard for the 1-click Telegram path (a double
+  // tap would otherwise mint two booking-intents + open two tabs).
+  const tgSubmittingRef = useRef(false);
   const [tgErr, setTgErr] = useState('');
   // After the 1-click handoff, poll the intent's status so the catalog can show
   // the in-app "заявка отправлена" confirmation once the customer finishes in
@@ -672,7 +684,7 @@ export function VehicleBookingModal({
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (submitting || !datesValid || !name.trim() || !contact.trim()) return;
+    if (submittingRef.current || submitting || !datesValid || !name.trim() || !contact.trim()) return;
     const contactValid = channel === 'whatsapp'
       ? isValidWhatsAppPhone(contact)
       : isValidTelegramUsername(contact);
@@ -680,6 +692,7 @@ export function VehicleBookingModal({
       setContactError(channel === 'whatsapp' ? t.phoneInvalid : t.tgInvalid);
       return;
     }
+    submittingRef.current = true;
     setSubmitting(true);
     setErr('');
     try {
@@ -716,6 +729,7 @@ export function VehicleBookingModal({
     } catch {
       setErr(t.sendErr);
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -779,7 +793,8 @@ export function VehicleBookingModal({
   // POSTed to a booking-intent first, and only the returned token travels in
   // the deep link. The bot resolves it back into the full selection.
   const handleTelegramBooking = async () => {
-    if (tgSubmitting || !datesValid) return;
+    if (tgSubmittingRef.current || tgSubmitting || !datesValid) return;
+    tgSubmittingRef.current = true;
     setTgSubmitting(true);
     setTgErr('');
     let popup: Window | null = null;
@@ -835,6 +850,7 @@ export function VehicleBookingModal({
       setTgErr(t.sendErr);
       popup?.close();
     } finally {
+      tgSubmittingRef.current = false;
       setTgSubmitting(false);
     }
   };
@@ -1548,7 +1564,14 @@ export function VehicleBookingModal({
                   type="submit"
                   disabled={submitting || !datesValid}
                 >
-                  {t.send}
+                  {submitting ? (
+                    <>
+                      <span className="sb-btn__spinner" aria-hidden="true" />
+                      {t.sending}
+                    </>
+                  ) : (
+                    t.send
+                  )}
                 </button>
                 {err ? <p className="sb-form__status sb-form__status--err">{err}</p> : null}
               </form>

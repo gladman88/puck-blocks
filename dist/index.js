@@ -1062,6 +1062,7 @@ var S = {
     error: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C",
     name: "\u0412\u0430\u0448\u0435 \u0438\u043C\u044F",
     send: "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u043F\u0440\u043E\u0441",
+    sending: "\u041E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C\u2026",
     tgQuick: "\u0411\u0440\u043E\u043D\u044C \u0432 1 \u043A\u043B\u0438\u043A \u0447\u0435\u0440\u0435\u0437 Telegram",
     tgQuickSub: "\u0411\u0435\u0437 \u0444\u043E\u0440\u043C \u2014 \u0431\u043E\u0442 \u0437\u0430\u043F\u043E\u043B\u043D\u0438\u0442 \u0432\u0441\u0451 \u0437\u0430 \u0432\u0430\u0441",
     or: "\u0438\u043B\u0438",
@@ -1139,6 +1140,7 @@ var S = {
     error: "Failed to load",
     name: "Your name",
     send: "Send request",
+    sending: "Sending\u2026",
     tgQuick: "1-click booking via Telegram",
     tgQuickSub: "No forms \u2014 the bot fills everything in for you",
     or: "or",
@@ -1266,9 +1268,11 @@ function VehicleBookingModal({
   const [dropoffLocation, setDropoffLocation] = useState(null);
   const [dropoffSameAsPickup, setDropoffSameAsPickup] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [stage, setStage] = useState("detail");
   const [err, setErr] = useState("");
   const [tgSubmitting, setTgSubmitting] = useState(false);
+  const tgSubmittingRef = useRef(false);
   const [tgErr, setTgErr] = useState("");
   const [pollToken, setPollToken] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -1403,12 +1407,13 @@ function VehicleBookingModal({
   }, [apiBase, effectiveDropoffLocation?.lat, effectiveDropoffLocation?.lng]);
   const submit = async (e) => {
     e.preventDefault();
-    if (submitting || !datesValid || !name.trim() || !contact.trim()) return;
+    if (submittingRef.current || submitting || !datesValid || !name.trim() || !contact.trim()) return;
     const contactValid = channel === "whatsapp" ? isValidWhatsAppPhone(contact) : isValidTelegramUsername(contact);
     if (!contactValid) {
       setContactError(channel === "whatsapp" ? t.phoneInvalid : t.tgInvalid);
       return;
     }
+    submittingRef.current = true;
     setSubmitting(true);
     setErr("");
     try {
@@ -1443,6 +1448,7 @@ function VehicleBookingModal({
     } catch {
       setErr(t.sendErr);
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -1493,7 +1499,8 @@ function VehicleBookingModal({
     };
   }, [pollToken, apiBase]);
   const handleTelegramBooking = async () => {
-    if (tgSubmitting || !datesValid) return;
+    if (tgSubmittingRef.current || tgSubmitting || !datesValid) return;
+    tgSubmittingRef.current = true;
     setTgSubmitting(true);
     setTgErr("");
     let popup = null;
@@ -1541,6 +1548,7 @@ function VehicleBookingModal({
       setTgErr(t.sendErr);
       popup?.close();
     } finally {
+      tgSubmittingRef.current = false;
       setTgSubmitting(false);
     }
   };
@@ -2140,7 +2148,10 @@ function VehicleBookingModal({
                     className: "sb-btn sb-btn--block",
                     type: "submit",
                     disabled: submitting || !datesValid,
-                    children: t.send
+                    children: submitting ? /* @__PURE__ */ jsxs(Fragment, { children: [
+                      /* @__PURE__ */ jsx("span", { className: "sb-btn__spinner", "aria-hidden": "true" }),
+                      t.sending
+                    ] }) : t.send
                   }
                 ),
                 err ? /* @__PURE__ */ jsx("p", { className: "sb-form__status sb-form__status--err", children: err }) : null

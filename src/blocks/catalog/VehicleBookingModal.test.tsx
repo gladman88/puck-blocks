@@ -1122,6 +1122,42 @@ describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-pu
       expect(called).toBe(false);
     });
   });
+
+  // Prod incident 2026-07-21: an impatient customer double/triple-tapped the
+  // submit button on a slow connection (no spinner, disabled lagged) → 3
+  // identical booking-request POSTs → 3 identical manager notifications for
+  // ONE booking. The synchronous `submittingRef` guard must collapse rapid
+  // taps to a single POST regardless of the state/`disabled` lag.
+  describe('double-submit protection', () => {
+    it('a rapid double-tap fires only ONE booking-request POST', async () => {
+      let postCount = 0;
+      vi.stubGlobal('fetch', vi.fn((url: string) => {
+        if (url.includes('/catalog/vehicles/')) {
+          return Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }));
+        }
+        // booking-request POST — resolve after a tick so the second tap races
+        // the still-in-flight first one (the real double-tap scenario).
+        postCount += 1;
+        return new Promise<Response>((resolve) =>
+          setTimeout(() => resolve(new Response(JSON.stringify({ success: true, booking_id: 'b1' }), { status: 201 })), 40),
+        );
+      }));
+
+      render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+      await screen.findByText('BMW Z4');
+      fireEvent.click(screen.getByText('Book'));
+      fireEvent.click(await screen.findByText('Fill in manually'));
+      fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
+      fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66912345678' } });
+
+      const sendBtn = screen.getByText('Send request');
+      fireEvent.click(sendBtn); // first tap — sets the ref synchronously
+      fireEvent.click(sendBtn); // second tap before the first resolves / re-renders
+
+      await new Promise((r) => setTimeout(r, 90));
+      expect(postCount).toBe(1);
+    });
+  });
 });
 
 describe('classifyIntentPollResponse (intent status-poll branches)', () => {
