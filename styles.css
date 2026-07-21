@@ -2228,6 +2228,55 @@ a.sb-map__line:hover {
   font-size: 0.85rem;
   color: var(--sb-text-muted);
 }
+.sb-vd__field-error {
+  font-size: 0.8rem;
+  color: #ff6b6b;
+}
+/* Contact-channel segmented control — a real toggle, not two look-alike
+   buttons: the active tab is raised (background + shadow) and bold, the
+   inactive tab is flat/muted. The brand icon keeps its real color (green/
+   blue) in BOTH states so WhatsApp vs Telegram stays identifiable even
+   before reading the label. */
+.sb-vd__channel {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--sb-surface);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-pill);
+}
+.sb-vd__channel button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--sb-radius-pill) - 0.25rem);
+  background: transparent;
+  color: var(--sb-text-muted);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.sb-vd__channel button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--sb-text);
+}
+.sb-vd__channel button.is-active {
+  background: var(--sb-bg);
+  border-color: var(--sb-border);
+  color: var(--sb-text-strong);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+.sb-vd__channel-ico {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+}
 .sb-vd__dates-summary {
   margin: 0;
   font-size: 0.85rem;

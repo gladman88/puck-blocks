@@ -1004,7 +1004,9 @@ describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-pu
     fireEvent.click(await screen.findByText('Fill in manually'));
 
     expect((screen.getByLabelText('Your name') as HTMLInputElement).value).toBe('Ivan');
-    expect((screen.getByLabelText('Phone number') as HTMLInputElement).value).toBe('@ivan_p');
+    // Prefilled from a Telegram Mini App user → channel defaults to Telegram,
+    // so the field label follows suit (was a static "Phone number" before).
+    expect((screen.getByLabelText('Telegram') as HTMLInputElement).value).toBe('@ivan_p');
 
     fireEvent.click(screen.getByText('Send request'));
     await waitFor(() => expect(capturedBody).toBeDefined());
@@ -1021,6 +1023,71 @@ describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-pu
 
     expect((screen.getByLabelText('Your name') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Phone number') as HTMLInputElement).value).toBe('');
+  });
+
+  // Strict per-channel format validation (owner decision 2026-07-21):
+  // WhatsApp's own `wa.me/<username>` link doesn't reliably open a chat yet
+  // (its username-resolution rollout is still mid-flight), so each channel
+  // only accepts its own shape at submit time rather than silently filing
+  // a Telegram handle as a WhatsApp contact (the incident that prompted this).
+  describe('per-channel contact format validation', () => {
+    async function openManualForm(fetchImpl: (url: string, init?: RequestInit) => Promise<Response>) {
+      vi.stubGlobal('fetch', fetchImpl);
+      render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+      await screen.findByText('BMW Z4');
+      fireEvent.click(screen.getByText('Book'));
+      fireEvent.click(await screen.findByText('Fill in manually'));
+      fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
+    }
+
+    it('rejects a Telegram-shaped handle in the WhatsApp field and does not submit', async () => {
+      let called = false;
+      await openManualForm(vi.fn((url: string) => {
+        if (url.includes('/catalog/vehicles/')) {
+          return Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }));
+        }
+        called = true;
+        return Promise.resolve(new Response('{}', { status: 200 }));
+      }));
+
+      // WhatsApp is the default channel — no need to switch.
+      fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: 'Evgenii_yar' } });
+      fireEvent.click(screen.getByText('Send request'));
+
+      expect(await screen.findByText(/Enter a phone number/)).toBeTruthy();
+      expect(called).toBe(false);
+    });
+
+    it('rejects a phone number in the Telegram field and does not submit', async () => {
+      let called = false;
+      await openManualForm(vi.fn((url: string) => {
+        if (url.includes('/catalog/vehicles/')) {
+          return Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }));
+        }
+        called = true;
+        return Promise.resolve(new Response('{}', { status: 200 }));
+      }));
+
+      fireEvent.click(screen.getByRole('button', { name: /Telegram/ }));
+      fireEvent.change(screen.getByLabelText('Telegram'), { target: { value: '+66912345678' } });
+      fireEvent.click(screen.getByText('Send request'));
+
+      expect(await screen.findByText(/Enter a Telegram username/)).toBeTruthy();
+      expect(called).toBe(false);
+    });
+
+    it('clears the error as soon as the customer edits the contact field', async () => {
+      await openManualForm(vi.fn(() =>
+        Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }))
+      ));
+
+      fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: 'not-a-phone' } });
+      fireEvent.click(screen.getByText('Send request'));
+      expect(await screen.findByText(/Enter a phone number/)).toBeTruthy();
+
+      fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66912345678' } });
+      expect(screen.queryByText(/Enter a phone number/)).toBeNull();
+    });
   });
 });
 
