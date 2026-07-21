@@ -155,7 +155,7 @@ const S = {
     phonePh: '+66...',
     tgPh: '@username',
     phoneInvalid: 'Введите номер телефона (только цифры, можно с +)',
-    tgInvalid: 'Введите ник в Telegram (5–32 символа, начинается с буквы)',
+    tgInvalid: 'Введите ник в Telegram (латиница, цифры, знак _)',
     deliveryTitle: 'Доставка',
     deliveryPickup: 'Доставить машину по адресу',
     deliveryDropoff: 'Заберём машину по адресу',
@@ -232,7 +232,7 @@ const S = {
     phonePh: '+66...',
     tgPh: '@username',
     phoneInvalid: 'Enter a phone number (digits only, + is fine)',
-    tgInvalid: 'Enter a Telegram username (5–32 chars, starts with a letter)',
+    tgInvalid: 'Enter a Telegram username (letters, digits, underscore)',
     deliveryTitle: 'Delivery',
     deliveryPickup: 'Deliver the vehicle to my address',
     deliveryDropoff: "We'll pick it up from my address",
@@ -359,9 +359,13 @@ interface Props {
 // accepts its own shape — the other is rejected at submit, not silently
 // mis-filed like the incident that prompted this.
 const WHATSAPP_PHONE_RE = /^\+?[\d\s\-()]{7,20}$/;
-// Telegram's own username rules: 5-32 chars, starts with a letter, only
-// letters/digits/underscores after that. A leading @ is optional/stripped.
-const TELEGRAM_USERNAME_RE = /^@?[a-zA-Z][a-zA-Z0-9_]{4,31}$/;
+// Telegram handle: latin letters / digits / underscores, optional leading @.
+// Deliberately LENIENT on length — the standard self-set minimum is 5 chars,
+// but shorter usernames (4 and below) exist via Fragment auction, so a hard
+// 5-min would falsely reject a real customer. We only enforce "looks like a
+// handle, not a phone number": valid charset + at least one letter (a
+// pure-digit string is a phone and belongs in the other field).
+const TELEGRAM_HANDLE_RE = /^[a-zA-Z0-9_]{3,32}$/;
 
 function isValidWhatsAppPhone(value: string): boolean {
   const trimmed = value.trim();
@@ -370,7 +374,8 @@ function isValidWhatsAppPhone(value: string): boolean {
 }
 
 function isValidTelegramUsername(value: string): boolean {
-  return TELEGRAM_USERNAME_RE.test(value.trim());
+  const handle = value.trim().replace(/^@/, '');
+  return TELEGRAM_HANDLE_RE.test(handle) && /[a-zA-Z]/.test(handle);
 }
 
 // Official-brand-colored icons for the channel toggle — always rendered in
@@ -1466,6 +1471,7 @@ export function VehicleBookingModal({
                   <div className="sb-vd__channel" role="group" aria-label={t.contactWay}>
                     <button
                       type="button"
+                      data-channel="whatsapp"
                       aria-pressed={channel === 'whatsapp'}
                       className={channel === 'whatsapp' ? 'is-active' : ''}
                       onClick={() => { setChannel('whatsapp'); setContactError(''); }}
@@ -1475,6 +1481,7 @@ export function VehicleBookingModal({
                     </button>
                     <button
                       type="button"
+                      data-channel="telegram"
                       aria-pressed={channel === 'telegram'}
                       className={channel === 'telegram' ? 'is-active' : ''}
                       onClick={() => { setChannel('telegram'); setContactError(''); }}

@@ -1088,6 +1088,39 @@ describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-pu
       fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66912345678' } });
       expect(screen.queryByText(/Enter a phone number/)).toBeNull();
     });
+
+    it('accepts a valid Telegram username (no error) — including a short 4-char one', async () => {
+      await openManualForm(vi.fn(() =>
+        Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }))
+      ));
+
+      fireEvent.click(screen.getByRole('button', { name: /Telegram/ }));
+      // 4 chars, digit inside, leading @ — all valid per the relaxed rule
+      // (standard min is 5 but Fragment short usernames exist, so we don't
+      // hard-reject on length).
+      fireEvent.change(screen.getByLabelText('Telegram'), { target: { value: '@ki2t' } });
+      fireEvent.click(screen.getByText('Send request'));
+
+      await waitFor(() => expect(screen.queryByText(/Enter a Telegram username/)).toBeNull());
+    });
+
+    it('rejects a pure-digit value in the Telegram field (that is a phone, not a username)', async () => {
+      let called = false;
+      await openManualForm(vi.fn((url: string) => {
+        if (url.includes('/catalog/vehicles/')) {
+          return Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }));
+        }
+        called = true;
+        return Promise.resolve(new Response('{}', { status: 200 }));
+      }));
+
+      fireEvent.click(screen.getByRole('button', { name: /Telegram/ }));
+      fireEvent.change(screen.getByLabelText('Telegram'), { target: { value: '12345678' } });
+      fireEvent.click(screen.getByText('Send request'));
+
+      expect(await screen.findByText(/Enter a Telegram username/)).toBeTruthy();
+      expect(called).toBe(false);
+    });
   });
 });
 
