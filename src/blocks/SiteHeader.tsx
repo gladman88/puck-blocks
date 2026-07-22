@@ -189,49 +189,55 @@ export function SiteHeader({
       {/* Portaled to <body>: the header's `backdrop-filter` would otherwise make
           it the containing block for this fixed element, clipping the drawer to
           the header box instead of the viewport. `open` starts false, so this
-          only ever runs on the client (never during SSR). */}
+          only ever runs on the client (never during SSR).
+          The `.sb-root` wrapper re-establishes the design tokens (--sb-*) +
+          box-sizing/font reset inside the portal, which lives OUTSIDE the page's
+          .sb-root — without it `var(--sb-bg)` resolves to nothing and the drawer
+          renders transparent (mirrors VehicleBookingModal's portal wrapper). */}
       {open
         ? createPortal(
-            <div
-              ref={drawerRef}
-              className="sb-drawer"
-              role="dialog"
-              aria-modal="true"
-              aria-label={t.menu}
-            >
-              <div className="sb-drawer__head">
-                <span className="sb-drawer__brand">{logoNode}</span>
-                <button
-                  type="button"
-                  ref={closeRef}
-                  className="sb-drawer__close"
-                  aria-label={t.close}
-                  onClick={() => setOpen(false)}
-                >
-                  <CloseIcon />
-                </button>
-              </div>
+            <div className="sb-root">
+              <div
+                ref={drawerRef}
+                className="sb-drawer"
+                role="dialog"
+                aria-modal="true"
+                aria-label={t.menu}
+              >
+                <div className="sb-drawer__head">
+                  <span className="sb-drawer__brand">{logoNode}</span>
+                  <button
+                    type="button"
+                    ref={closeRef}
+                    className="sb-drawer__close"
+                    aria-label={t.close}
+                    onClick={() => setOpen(false)}
+                  >
+                    <CloseIcon />
+                  </button>
+                </div>
 
-              <nav className="sb-drawer__nav">
-                {navLinks.map((link, index) => (
-                  <a key={index} href={link.href} onClick={() => setOpen(false)}>
-                    {link.label}
-                  </a>
-                ))}
-              </nav>
+                <nav className="sb-drawer__nav">
+                  {navLinks.map((link, index) => (
+                    <a key={index} href={link.href} onClick={() => setOpen(false)}>
+                      {link.label}
+                    </a>
+                  ))}
+                </nav>
 
-              <LanguageSwitcher current={locale} className="sb-lang--drawer" />
+                <LanguageSwitcher current={locale} className="sb-lang--drawer" />
 
-              <div className="sb-drawer__contacts">
-                {phoneHref ? (
-                  <a className="sb-drawer__phone" href={phoneHref}>
-                    {phone}
-                  </a>
-                ) : null}
-                <div className="sb-drawer__socials">
-                  {ig ? iconLink('instagram', ig) : null}
-                  {wa ? iconLink('whatsapp', wa) : null}
-                  {tg ? iconLink('telegram', tg) : null}
+                <div className="sb-drawer__contacts">
+                  {phoneHref ? (
+                    <a className="sb-drawer__phone" href={phoneHref}>
+                      {phone}
+                    </a>
+                  ) : null}
+                  <div className="sb-drawer__socials">
+                    {ig ? iconLink('instagram', ig) : null}
+                    {wa ? iconLink('whatsapp', wa) : null}
+                    {tg ? iconLink('telegram', tg) : null}
+                  </div>
                 </div>
               </div>
             </div>,

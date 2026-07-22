@@ -505,7 +505,7 @@ function SiteHeader({
       ] })
     ] }),
     open ? createPortal(
-      /* @__PURE__ */ jsxs(
+      /* @__PURE__ */ jsx("div", { className: "sb-root", children: /* @__PURE__ */ jsxs(
         "div",
         {
           ref: drawerRef,
@@ -540,7 +540,7 @@ function SiteHeader({
             ] })
           ]
         }
-      ),
+      ) }),
       document.body
     ) : null
   ] });

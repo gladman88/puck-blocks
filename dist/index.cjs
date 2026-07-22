@@ -507,7 +507,7 @@ function SiteHeader({
       ] })
     ] }),
     open ? reactDom.createPortal(
-      /* @__PURE__ */ jsxRuntime.jsxs(
+      /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-root", children: /* @__PURE__ */ jsxRuntime.jsxs(
         "div",
         {
           ref: drawerRef,
@@ -542,7 +542,7 @@ function SiteHeader({
             ] })
           ]
         }
-      ),
+      ) }),
       document.body
     ) : null
   ] });
