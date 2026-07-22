@@ -118,6 +118,19 @@ interface ReviewsCarouselProps {
  */
 declare function ReviewsCarousel({ heading, anchorId, textReviews, mediaReviews }: ReviewsCarouselProps): react.JSX.Element;
 
+/**
+ * Language switcher — two circular flag links (RU / EN) in a glassy pill.
+ * Framework-neutral: no next/* — each flag is a plain <a> that swaps ONLY the
+ * locale prefix of the current path (`/ru/… ↔ /en/…`), preserving the subpath,
+ * query and hash. SSR renders `/${target}` (matches on both server and client
+ * so there is no hydration mismatch); a mount-time effect then refines the href
+ * from `window.location`.
+ *
+ * Inline SVG flags, NOT emoji: regional-indicator emoji render as bare letters
+ * ("RU"/"GB") on Windows, so SVG is the only crisp, cross-platform option.
+ */
+type SiteLocale = 'ru' | 'en';
+
 interface NavLink {
     label: string;
     href: string;
@@ -130,9 +143,23 @@ interface SiteHeaderProps {
     whatsapp?: string;
     telegram?: string;
     instagram?: string;
+    /** Override the Puck metadata locale (for non-Puck hosts). */
+    locale?: SiteLocale;
 }
-/** Sticky, blurred dark header: brand + anchor nav + contact icon links. */
-declare function SiteHeader({ logoText, logoImage, links, phone, whatsapp, telegram, instagram, }: SiteHeaderProps): react.JSX.Element;
+type PuckInjected$1 = {
+    puck?: {
+        metadata?: {
+            locale?: string;
+        };
+    };
+};
+/**
+ * Sticky, blurred dark header. Desktop: brand + anchor nav + language flags +
+ * contact icons + phone. Mobile (≤900px): brand + WhatsApp/Telegram/call icons +
+ * a hamburger that opens a full-screen drawer (nav + language flags + full
+ * contacts). Locale comes from Puck metadata (page locale).
+ */
+declare function SiteHeader({ logoText, logoImage, links, phone, whatsapp, telegram, instagram, locale: localeProp, puck, }: SiteHeaderProps & PuckInjected$1): react.JSX.Element;
 
 interface FooterColumn {
     title: string;

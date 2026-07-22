@@ -332,6 +332,87 @@ function BrandLogo({ text = "SHIBA CARS", className = "" }) {
     rest ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-logo__b", children: rest }) : null
   ] });
 }
+var KNOWN = ["ru", "en"];
+var ORDER = ["ru", "en"];
+function localeHref(target) {
+  if (typeof window === "undefined") return `/${target}`;
+  const { pathname, search, hash } = window.location;
+  const segs = pathname.split("/");
+  if (segs[1] && KNOWN.includes(segs[1])) {
+    segs[1] = target;
+    return segs.join("/") + search + hash;
+  }
+  return `/${target}`;
+}
+function FlagRU() {
+  return /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 9 6", preserveAspectRatio: "xMidYMid slice", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsxRuntime.jsx("rect", { width: "9", height: "6", fill: "#fff" }),
+    /* @__PURE__ */ jsxRuntime.jsx("rect", { width: "9", height: "4", y: "2", fill: "#0039A6" }),
+    /* @__PURE__ */ jsxRuntime.jsx("rect", { width: "9", height: "2", y: "4", fill: "#D52B1E" })
+  ] });
+}
+function FlagEN() {
+  const uid = react.useId().replace(/:/g, "");
+  const clipAll = `uk-s-${uid}`;
+  const clipDiag = `uk-t-${uid}`;
+  return /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 60 30", preserveAspectRatio: "xMidYMid slice", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsxRuntime.jsx("clipPath", { id: clipAll, children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M0,0 v30 h60 v-30 z" }) }),
+    /* @__PURE__ */ jsxRuntime.jsx("clipPath", { id: clipDiag, children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z" }) }),
+    /* @__PURE__ */ jsxRuntime.jsxs("g", { clipPath: `url(#${clipAll})`, children: [
+      /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M0,0 v30 h60 v-30 z", fill: "#012169" }),
+      /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M0,0 L60,30 M60,0 L0,30", stroke: "#fff", strokeWidth: "6" }),
+      /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M0,0 L60,30 M60,0 L0,30", clipPath: `url(#${clipDiag})`, stroke: "#C8102E", strokeWidth: "4" }),
+      /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M30,0 v30 M0,15 h60", stroke: "#fff", strokeWidth: "10" }),
+      /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M30,0 v30 M0,15 h60", stroke: "#C8102E", strokeWidth: "6" })
+    ] })
+  ] });
+}
+var FLAGS = {
+  ru: { node: /* @__PURE__ */ jsxRuntime.jsx(FlagRU, {}), label: "\u0420\u0443\u0441\u0441\u043A\u0438\u0439" },
+  en: { node: /* @__PURE__ */ jsxRuntime.jsx(FlagEN, {}), label: "English" }
+};
+function LanguageSwitcher({ current, className = "" }) {
+  const [hrefs, setHrefs] = react.useState({ ru: "/ru", en: "/en" });
+  react.useEffect(() => {
+    const sync = () => setHrefs({ ru: localeHref("ru"), en: localeHref("en") });
+    sync();
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
+  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: `sb-lang ${className}`.trim(), role: "group", "aria-label": "Language / \u042F\u0437\u044B\u043A", children: ORDER.map((loc) => {
+    const active = loc === current;
+    return /* @__PURE__ */ jsxRuntime.jsx(
+      "a",
+      {
+        className: `sb-lang__flag${active ? " is-active" : ""}`,
+        href: hrefs[loc],
+        hrefLang: loc,
+        "aria-label": FLAGS[loc].label,
+        "aria-current": active ? "true" : void 0,
+        title: FLAGS[loc].label,
+        children: FLAGS[loc].node
+      },
+      loc
+    );
+  }) });
+}
+var STRINGS = {
+  ru: { menu: "\u041C\u0435\u043D\u044E", close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C", call: "\u041F\u043E\u0437\u0432\u043E\u043D\u0438\u0442\u044C" },
+  en: { menu: "Menu", close: "Close", call: "Call" }
+};
+function BurgerIcon() {
+  return /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "6", x2: "21", y2: "6" }),
+    /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "12", x2: "21", y2: "12" }),
+    /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "18", x2: "21", y2: "18" })
+  ] });
+}
+function CloseIcon() {
+  return /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" }),
+    /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" })
+  ] });
+}
 function SiteHeader({
   logoText,
   logoImage,
@@ -339,39 +420,132 @@ function SiteHeader({
   phone,
   whatsapp,
   telegram,
-  instagram
+  instagram,
+  locale: localeProp,
+  puck
 }) {
+  const locale = localeProp ?? (puck?.metadata?.locale === "en" ? "en" : "ru");
+  const t = STRINGS[locale];
+  const [open, setOpen] = react.useState(false);
+  const drawerRef = react.useRef(null);
+  const closeRef = react.useRef(null);
+  react.useEffect(() => {
+    if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const opener = document.activeElement;
+    closeRef.current?.focus();
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const root = drawerRef.current;
+      if (!root) return;
+      const focusables = root.querySelectorAll("a[href], button:not([disabled])");
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+      opener?.focus?.();
+    };
+  }, [open]);
   const logoImg = safeImageUrl(logoImage);
-  const socials = [];
+  const logoNode = logoImg ? /* @__PURE__ */ jsxRuntime.jsx("img", { src: logoImg, alt: logoText || "logo" }) : /* @__PURE__ */ jsxRuntime.jsx(BrandLogo, { text: logoText || "SHIBA CARS" });
   const ig = safeHref(instagram);
-  if (ig) socials.push({ kind: "instagram", href: ig });
   const wa = safeHref(whatsapp);
-  if (wa) socials.push({ kind: "whatsapp", href: wa });
   const tg = safeHref(telegram);
-  if (tg) socials.push({ kind: "telegram", href: tg });
   const phoneHref = phone ? safeHref(phone.startsWith("tel:") ? phone : `tel:${phone.replace(/\s+/g, "")}`) : void 0;
-  return /* @__PURE__ */ jsxRuntime.jsx("header", { className: "sb-header", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-header__inner", children: [
-    /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-header__brand", href: "/", children: logoImg ? /* @__PURE__ */ jsxRuntime.jsx("img", { src: logoImg, alt: logoText || "logo" }) : /* @__PURE__ */ jsxRuntime.jsx(BrandLogo, { text: logoText || "SHIBA CARS" }) }),
-    /* @__PURE__ */ jsxRuntime.jsx("nav", { className: "sb-header__nav", children: (links ?? []).map((link, index) => {
-      const href = safeHref(link.href);
-      return href ? /* @__PURE__ */ jsxRuntime.jsx("a", { href, children: link.label }, index) : null;
-    }) }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-header__contacts", children: [
-      socials.map((contact, index) => /* @__PURE__ */ jsxRuntime.jsx(
-        "a",
+  const iconLink = (kind, href, extraClass = "") => /* @__PURE__ */ jsxRuntime.jsx(
+    "a",
+    {
+      className: `sb-icon-link ${extraClass}`.trim(),
+      href,
+      "aria-label": kind,
+      target: kind === "phone" ? void 0 : "_blank",
+      rel: kind === "phone" ? void 0 : "noopener noreferrer",
+      children: /* @__PURE__ */ jsxRuntime.jsx(ContactIcon, { kind })
+    }
+  );
+  const navLinks = (links ?? []).map((link) => ({ label: link.label, href: safeHref(link.href) })).filter((l) => Boolean(l.href));
+  return /* @__PURE__ */ jsxRuntime.jsxs("header", { className: "sb-header", children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-header__inner", children: [
+      /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-header__brand", href: "/", children: logoNode }),
+      /* @__PURE__ */ jsxRuntime.jsx("nav", { className: "sb-header__nav", children: navLinks.map((link, index) => /* @__PURE__ */ jsxRuntime.jsx("a", { href: link.href, children: link.label }, index)) }),
+      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-header__right", children: [
+        /* @__PURE__ */ jsxRuntime.jsx(LanguageSwitcher, { current: locale, className: "sb-lang--header sb-only-desktop" }),
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-header__contacts", children: [
+          ig ? iconLink("instagram", ig, "sb-only-desktop") : null,
+          wa ? iconLink("whatsapp", wa) : null,
+          tg ? iconLink("telegram", tg) : null,
+          phoneHref ? /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-header__phone sb-only-desktop", href: phoneHref, children: phone }) : null,
+          phoneHref ? iconLink("phone", phoneHref, "sb-only-mobile") : null
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsx(
+          "button",
+          {
+            type: "button",
+            className: "sb-header__burger sb-only-mobile",
+            "aria-label": t.menu,
+            "aria-expanded": open,
+            onClick: () => setOpen(true),
+            children: /* @__PURE__ */ jsxRuntime.jsx(BurgerIcon, {})
+          }
+        )
+      ] })
+    ] }),
+    open ? reactDom.createPortal(
+      /* @__PURE__ */ jsxRuntime.jsxs(
+        "div",
         {
-          className: "sb-icon-link",
-          href: contact.href,
-          "aria-label": contact.kind,
-          target: "_blank",
-          rel: "noopener noreferrer",
-          children: /* @__PURE__ */ jsxRuntime.jsx(ContactIcon, { kind: contact.kind })
-        },
-        index
-      )),
-      phoneHref ? /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-header__phone", href: phoneHref, children: phone }) : null
-    ] })
-  ] }) });
+          ref: drawerRef,
+          className: "sb-drawer",
+          role: "dialog",
+          "aria-modal": "true",
+          "aria-label": t.menu,
+          children: [
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-drawer__head", children: [
+              /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-drawer__brand", children: logoNode }),
+              /* @__PURE__ */ jsxRuntime.jsx(
+                "button",
+                {
+                  type: "button",
+                  ref: closeRef,
+                  className: "sb-drawer__close",
+                  "aria-label": t.close,
+                  onClick: () => setOpen(false),
+                  children: /* @__PURE__ */ jsxRuntime.jsx(CloseIcon, {})
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntime.jsx("nav", { className: "sb-drawer__nav", children: navLinks.map((link, index) => /* @__PURE__ */ jsxRuntime.jsx("a", { href: link.href, onClick: () => setOpen(false), children: link.label }, index)) }),
+            /* @__PURE__ */ jsxRuntime.jsx(LanguageSwitcher, { current: locale, className: "sb-lang--drawer" }),
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-drawer__contacts", children: [
+              phoneHref ? /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-drawer__phone", href: phoneHref, children: phone }) : null,
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-drawer__socials", children: [
+                ig ? iconLink("instagram", ig) : null,
+                wa ? iconLink("whatsapp", wa) : null,
+                tg ? iconLink("telegram", tg) : null
+              ] })
+            ] })
+          ]
+        }
+      ),
+      document.body
+    ) : null
+  ] });
 }
 function Footer({
   logoText,
@@ -2389,7 +2563,7 @@ function setVehicleParam(id) {
 function categoryLabel(category, locale) {
   return locale === "en" && category.name_en ? category.name_en : category.name;
 }
-var STRINGS = {
+var STRINGS2 = {
   ru: {
     all: "\u0412\u0441\u0435",
     from: "\u043E\u0442",
@@ -2514,7 +2688,7 @@ function VehicleCatalog({
   puck
 }) {
   const locale = localeProp ?? (puck?.metadata?.locale === "en" ? "en" : "ru");
-  const t = STRINGS[locale];
+  const t = STRINGS2[locale];
   const [categories, setCategories] = react.useState([]);
   const [vehicles, setVehicles] = react.useState([]);
   const [activeCat, setActiveCat] = react.useState(null);
