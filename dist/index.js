@@ -84,8 +84,16 @@ function Hero({
           subheading ? /* @__PURE__ */ jsx("p", { className: "sb-lead", children: subheading }) : null,
           hasCta || wa || tg ? /* @__PURE__ */ jsxs("div", { className: "sb-hero__cta", children: [
             hasCta ? /* @__PURE__ */ jsx("a", { className: "sb-btn", href, children: ctaLabel }) : null,
-            wa ? /* @__PURE__ */ jsx("a", { className: "sb-hero__social", href: wa, target: "_blank", rel: "noopener noreferrer", "aria-label": "WhatsApp", children: /* @__PURE__ */ jsx(ContactIcon, { kind: "whatsapp" }) }) : null,
-            tg ? /* @__PURE__ */ jsx("a", { className: "sb-hero__social", href: tg, target: "_blank", rel: "noopener noreferrer", "aria-label": "Telegram", children: /* @__PURE__ */ jsx(ContactIcon, { kind: "telegram" }) }) : null
+            wa || tg ? (
+              // WhatsApp + Telegram are one wrap unit: on a narrow phone the
+              // whole pair drops to the next line together (under the CTA)
+              // instead of WhatsApp sticking to the CTA and Telegram falling
+              // to a third line alone.
+              /* @__PURE__ */ jsxs("div", { className: "sb-hero__socials", children: [
+                wa ? /* @__PURE__ */ jsx("a", { className: "sb-hero__social", href: wa, target: "_blank", rel: "noopener noreferrer", "aria-label": "WhatsApp", children: /* @__PURE__ */ jsx(ContactIcon, { kind: "whatsapp" }) }) : null,
+                tg ? /* @__PURE__ */ jsx("a", { className: "sb-hero__social", href: tg, target: "_blank", rel: "noopener noreferrer", "aria-label": "Telegram", children: /* @__PURE__ */ jsx(ContactIcon, { kind: "telegram" }) }) : null
+              ] })
+            ) : null
           ] }) : null
         ] })
       ]

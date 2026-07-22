@@ -204,6 +204,14 @@
   align-items: center;
   gap: 0.75rem;
 }
+/* WhatsApp + Telegram form a single wrap unit — the pair never splits across
+   two lines; it either sits beside the CTA (wide) or drops together below it
+   (narrow). Same internal gap as the CTA row so the spacing is uniform. */
+.sb-hero__socials {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
 .sb-hero__social {
   display: inline-flex;
   align-items: center;

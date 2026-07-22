@@ -68,15 +68,23 @@ export function Hero({
                 {ctaLabel}
               </a>
             ) : null}
-            {wa ? (
-              <a className="sb-hero__social" href={wa} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
-                <ContactIcon kind="whatsapp" />
-              </a>
-            ) : null}
-            {tg ? (
-              <a className="sb-hero__social" href={tg} target="_blank" rel="noopener noreferrer" aria-label="Telegram">
-                <ContactIcon kind="telegram" />
-              </a>
+            {wa || tg ? (
+              // WhatsApp + Telegram are one wrap unit: on a narrow phone the
+              // whole pair drops to the next line together (under the CTA)
+              // instead of WhatsApp sticking to the CTA and Telegram falling
+              // to a third line alone.
+              <div className="sb-hero__socials">
+                {wa ? (
+                  <a className="sb-hero__social" href={wa} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+                    <ContactIcon kind="whatsapp" />
+                  </a>
+                ) : null}
+                {tg ? (
+                  <a className="sb-hero__social" href={tg} target="_blank" rel="noopener noreferrer" aria-label="Telegram">
+                    <ContactIcon kind="telegram" />
+                  </a>
+                ) : null}
+              </div>
             ) : null}
           </div>
         ) : null}
