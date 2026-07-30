@@ -38,11 +38,22 @@ function ImageInput({
         credentials: 'include',
         headers: csrf ? { 'X-CSRFToken': csrf } : undefined,
       });
-      if (!res.ok) throw new Error(String(res.status));
+      if (!res.ok) {
+        // The server explains WHY it refused («Недопустимый тип файла.
+        // Разрешены: …», «Файл слишком большой…»); a bare «не удалось»
+        // leaves the manager re-picking the same unsupported file.
+        const detail = await res
+          .json()
+          .then((body: { detail?: string }) => body?.detail)
+          .catch(() => undefined);
+        // No `detail` → empty message, and the catch falls back to the generic
+        // wording. Showing a bare status code would be worse than saying nothing.
+        throw new Error(detail || '');
+      }
       const data = (await res.json()) as { url: string };
       onChange(data.url);
-    } catch {
-      setError('Не удалось загрузить файл');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Не удалось загрузить файл');
     } finally {
       setBusy(false);
     }

@@ -66,7 +66,10 @@ const internalConfig: Config<Props, RootProps> = {
       title: { type: 'text', label: 'SEO title' },
       description: { type: 'textarea', label: 'SEO description' },
       ogImage: imageField('OG-картинка (для соцсетей)'),
-      favicon: imageField('Favicon (иконка вкладки — .png / .ico / .svg)'),
+      // .svg убран из подписи 2026-07-30 вместе с самим форматом: загрузка
+      // картинок сайта принимает JPEG/PNG/WebP/HEIC/ICO (решение владельца —
+      // SVG это исполняемая разметка). Уже стоящие svg-файлы работают дальше.
+      favicon: imageField('Favicon (иконка вкладки — .png / .ico)'),
     },
     // Wrap the whole tree in the design-system root so tokens + base styles
     // apply identically in the editor preview and on the live site.

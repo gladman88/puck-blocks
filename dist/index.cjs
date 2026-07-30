@@ -2965,11 +2965,14 @@ function ImageInput({
         credentials: "include",
         headers: csrf ? { "X-CSRFToken": csrf } : void 0
       });
-      if (!res.ok) throw new Error(String(res.status));
+      if (!res.ok) {
+        const detail = await res.json().then((body2) => body2?.detail).catch(() => void 0);
+        throw new Error(detail || "");
+      }
       const data = await res.json();
       onChange(data.url);
-    } catch {
-      setError("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0444\u0430\u0439\u043B");
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0444\u0430\u0439\u043B");
     } finally {
       setBusy(false);
     }
@@ -3047,7 +3050,10 @@ var internalConfig = {
       title: { type: "text", label: "SEO title" },
       description: { type: "textarea", label: "SEO description" },
       ogImage: imageField("OG-\u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0430 (\u0434\u043B\u044F \u0441\u043E\u0446\u0441\u0435\u0442\u0435\u0439)"),
-      favicon: imageField("Favicon (\u0438\u043A\u043E\u043D\u043A\u0430 \u0432\u043A\u043B\u0430\u0434\u043A\u0438 \u2014 .png / .ico / .svg)")
+      // .svg убран из подписи 2026-07-30 вместе с самим форматом: загрузка
+      // картинок сайта принимает JPEG/PNG/WebP/HEIC/ICO (решение владельца —
+      // SVG это исполняемая разметка). Уже стоящие svg-файлы работают дальше.
+      favicon: imageField("Favicon (\u0438\u043A\u043E\u043D\u043A\u0430 \u0432\u043A\u043B\u0430\u0434\u043A\u0438 \u2014 .png / .ico)")
     },
     // Wrap the whole tree in the design-system root so tokens + base styles
     // apply identically in the editor preview and on the live site.
