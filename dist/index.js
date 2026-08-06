@@ -2674,6 +2674,13 @@ function formatDate(iso, locale) {
     return iso;
   }
 }
+function defaultActiveCat(catList, vehList, defaultCategory) {
+  const want = (defaultCategory ?? "").trim().toLowerCase();
+  if (!want) return null;
+  const usedIds = new Set(vehList.map((v) => v.category?.id).filter(Boolean));
+  const def = catList.find((c) => usedIds.has(c.id) && c.name.trim().toLowerCase() === want);
+  return def ? def.id : null;
+}
 function VehicleCatalog({
   heading,
   anchorId,
@@ -2695,11 +2702,17 @@ function VehicleCatalog({
 }) {
   const locale = localeProp ?? (puck?.metadata?.locale === "en" ? "en" : "ru");
   const t = STRINGS2[locale];
-  const [categories, setCategories] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-  const [activeCat, setActiveCat] = useState(null);
-  const [state, setState] = useState("loading");
+  const preload = !showFilters ? puck?.metadata?.catalogPreload : void 0;
+  const preloadedVehicles = preload?.vehicles?.[vehicleType];
+  const hasPreload = Array.isArray(preloadedVehicles);
+  const [categories, setCategories] = useState(preload?.categories ?? []);
+  const [vehicles, setVehicles] = useState(preloadedVehicles ?? []);
+  const [activeCat, setActiveCat] = useState(
+    () => hasPreload ? defaultActiveCat(preload?.categories ?? [], preloadedVehicles ?? [], defaultCategory) : null
+  );
+  const [state, setState] = useState(hasPreload ? "ready" : "loading");
   const [selected, setSelected] = useState(null);
+  const refreshingPreloadRef = useRef(hasPreload);
   const [filters, setFilters] = useState(defaultFilterState);
   const [debouncedFilters, setDebouncedFilters] = useState(filters);
   const handleFiltersChange = (patch) => {
@@ -2721,8 +2734,12 @@ function VehicleCatalog({
   }, [filters]);
   useEffect(() => {
     let cancelled = false;
-    setState("loading");
-    setActiveCat(null);
+    const refreshingPreload = refreshingPreloadRef.current;
+    refreshingPreloadRef.current = false;
+    if (!refreshingPreload) {
+      setState("loading");
+      setActiveCat(null);
+    }
     const headers = { "ngrok-skip-browser-warning": "true" };
     const vehiclesUrl = showFilters ? buildFilteredVehiclesUrl(apiBase, debouncedFilters) : `${apiBase}/api/v1/catalog/vehicles/?vehicle_type=${vehicleType}`;
     Promise.all([
@@ -2740,14 +2757,16 @@ function VehicleCatalog({
       setCategories(catList);
       setVehicles(vehList);
       if (!showFilters) {
-        const want = (defaultCategory ?? "").trim().toLowerCase();
-        const usedIds = new Set(vehList.map((v) => v.category?.id).filter(Boolean));
-        const def = want ? catList.find((c) => usedIds.has(c.id) && c.name.trim().toLowerCase() === want) : void 0;
-        setActiveCat(def ? def.id : null);
+        if (refreshingPreload) {
+          const usedIds = new Set(vehList.map((v) => v.category?.id).filter(Boolean));
+          setActiveCat((cur) => cur && !usedIds.has(cur) ? null : cur);
+        } else {
+          setActiveCat(defaultActiveCat(catList, vehList, defaultCategory));
+        }
       }
       setState("ready");
     }).catch(() => {
-      if (!cancelled) setState("error");
+      if (!cancelled && !refreshingPreload) setState("error");
     });
     return () => {
       cancelled = true;

@@ -259,6 +259,19 @@ interface CatalogVehicle {
     free_from: string | null;
     free_from_time: string | null;
 }
+/**
+ * Server-prefetched catalog data the HOST app may pass via Puck render
+ * metadata (`metadata.catalogPreload`) so the vehicle grid is present in the
+ * initial HTML (SEO: without it search engines index "Загрузка…" instead of
+ * the cars). Shape mirrors the two public catalog endpoints; `vehicles` is
+ * keyed by vehicle type because the page renders one block per type.
+ * The block still refetches on mount — the preload may be minutes old (ISR),
+ * availability must end up live.
+ */
+interface CatalogPreload {
+    categories: CatalogCategory[];
+    vehicles: Partial<Record<'car' | 'motorcycle', CatalogVehicle[]>>;
+}
 interface VehicleCatalogProps {
     heading?: string;
     /** Section anchor id so the header nav can scroll here (e.g. "car"). */
@@ -325,6 +338,7 @@ type PuckInjected = {
     puck?: {
         metadata?: {
             locale?: string;
+            catalogPreload?: CatalogPreload;
         };
     };
 };
@@ -379,4 +393,4 @@ interface RootProps {
 }
 declare const puckConfig: Config;
 
-export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogFilterState, type CatalogSortOption, type CatalogVehicle, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, MapContacts, type MapContactsProps, type MediaReview, type NavLink, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, VehicleCatalog, type VehicleCatalogProps, categoryLabel, puckConfig };
+export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogFilterState, type CatalogPreload, type CatalogSortOption, type CatalogVehicle, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, MapContacts, type MapContactsProps, type MediaReview, type NavLink, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, VehicleCatalog, type VehicleCatalogProps, categoryLabel, puckConfig };

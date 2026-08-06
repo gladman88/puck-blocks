@@ -48,7 +48,7 @@ const vehicle = {
   model: 'Z4',
   color: 'black',
   photo_url: 'https://cdn.example/z4.jpg',
-  vehicle_type: 'car',
+  vehicle_type: 'car' as const,
   year: 2023,
   category: cat,
   min_price_per_day: 5000,
@@ -204,6 +204,80 @@ describe('VehicleCatalog', () => {
     // Translated name appears both as the tab label and the (locale=en → activeCat===null) card badge.
     const tab = container.querySelector('.sb-vcatalog__tab');
     expect(tab?.textContent).toBe('Premium');
+  });
+});
+
+describe('VehicleCatalog — SSR preload via puck metadata (catalogPreload)', () => {
+  const preload = {
+    categories: [cat],
+    vehicles: { car: [vehicle] },
+  };
+
+  it('server render (renderToString) emits the vehicle cards, not the loading state — the SEO contract', async () => {
+    const { renderToString } = await import('react-dom/server');
+    const html = renderToString(
+      <VehicleCatalog vehicleType="car" puck={{ metadata: { catalogPreload: preload } }} />,
+    );
+    expect(html).toContain('BMW Z4');
+    expect(html).toContain('5,000');
+    expect(html).not.toContain('Загрузка…');
+  });
+
+  it('seeds the grid synchronously and silently refreshes from the API in the background', async () => {
+    const refreshed = { ...vehicle, display_name: 'BMW Z4 Fresh' };
+    stubFetch([cat], [refreshed]);
+    const { container, findByText } = render(
+      <VehicleCatalog vehicleType="car" puck={{ metadata: { catalogPreload: preload } }} />,
+    );
+    // Preloaded card is there on the very first render — no loading state.
+    expect(container.textContent).toContain('BMW Z4');
+    expect(container.textContent).not.toContain('Загрузка…');
+    // The mount fetch still runs and swaps in fresh data.
+    await findByText('BMW Z4 Fresh');
+  });
+
+  it('preselects the configured default category from the preload (same rule as the fetch path)', () => {
+    stubFetch([cat], [vehicle]);
+    const { container } = render(
+      <VehicleCatalog
+        vehicleType="car"
+        defaultCategory="Премиум"
+        puck={{ metadata: { catalogPreload: preload } }}
+      />,
+    );
+    const active = container.querySelector('.sb-vcatalog__tab--active');
+    expect(active?.textContent).toBe('Премиум');
+  });
+
+  it('keeps the preloaded grid when the background refresh fails (no error flash over good content)', async () => {
+    stubFetch([], [], false);
+    const { container } = render(
+      <VehicleCatalog vehicleType="car" puck={{ metadata: { catalogPreload: preload } }} />,
+    );
+    expect(container.textContent).toContain('BMW Z4');
+    // Give the rejected fetch a tick to settle, then assert we did NOT flip to error.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container.textContent).not.toContain('Не удалось загрузить каталог');
+    expect(container.textContent).toContain('BMW Z4');
+  });
+
+  it('a block of another vehicle type does not seed from a preload that lacks its type', async () => {
+    stubFetch([cat], []);
+    const { container, findByText } = render(
+      <VehicleCatalog vehicleType="motorcycle" puck={{ metadata: { catalogPreload: preload } }} />,
+    );
+    // No motorcycle preload → normal loading → empty state from the API.
+    expect(container.textContent).toContain('Загрузка…');
+    await findByText('Нет доступных вариантов');
+  });
+
+  it('filter mode (standalone catalog) ignores the preload entirely', async () => {
+    stubFetch([cat], [vehicle]);
+    const { container, findByText } = render(
+      <VehicleCatalog showFilters locale="en" puck={{ metadata: { catalogPreload: preload } }} />,
+    );
+    expect(container.textContent).toContain('Loading…');
+    await findByText('BMW Z4');
   });
 });
 

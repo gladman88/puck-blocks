@@ -36,6 +36,7 @@ export type {
   VehicleCatalogProps,
   CatalogVehicle,
   CatalogCategory,
+  CatalogPreload,
   TelegramCatalogUser,
   CatalogFilterState,
   CatalogSortOption,

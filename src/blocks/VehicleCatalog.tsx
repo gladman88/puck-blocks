@@ -56,6 +56,20 @@ export interface CatalogVehicle {
   free_from_time: string | null;
 }
 
+/**
+ * Server-prefetched catalog data the HOST app may pass via Puck render
+ * metadata (`metadata.catalogPreload`) so the vehicle grid is present in the
+ * initial HTML (SEO: without it search engines index "Загрузка…" instead of
+ * the cars). Shape mirrors the two public catalog endpoints; `vehicles` is
+ * keyed by vehicle type because the page renders one block per type.
+ * The block still refetches on mount — the preload may be minutes old (ISR),
+ * availability must end up live.
+ */
+export interface CatalogPreload {
+  categories: CatalogCategory[];
+  vehicles: Partial<Record<'car' | 'motorcycle', CatalogVehicle[]>>;
+}
+
 export interface VehicleCatalogProps {
   heading?: string;
   /** Section anchor id so the header nav can scroll here (e.g. "car"). */
@@ -248,7 +262,24 @@ function formatDate(iso: string, locale: 'ru' | 'en'): string {
   }
 }
 
-type PuckInjected = { puck?: { metadata?: { locale?: string } } };
+type PuckInjected = {
+  puck?: { metadata?: { locale?: string; catalogPreload?: CatalogPreload } };
+};
+
+/** Preselected category tab for a fresh vehicle list (must be present AND
+ *  actually used by a vehicle); null = «Все». Shared by the preload seed and
+ *  the fetch handler so SSR and client agree on the initial tab. */
+function defaultActiveCat(
+  catList: CatalogCategory[],
+  vehList: CatalogVehicle[],
+  defaultCategory: string | undefined,
+): string | null {
+  const want = (defaultCategory ?? '').trim().toLowerCase();
+  if (!want) return null;
+  const usedIds = new Set(vehList.map((v) => v.category?.id).filter(Boolean));
+  const def = catList.find((c) => usedIds.has(c.id) && c.name.trim().toLowerCase() === want);
+  return def ? def.id : null;
+}
 
 /**
  * Live vehicle catalog section. Fetches vehicles + categories from the public
@@ -278,11 +309,27 @@ export function VehicleCatalog({
   const locale: 'ru' | 'en' = localeProp ?? (puck?.metadata?.locale === 'en' ? 'en' : 'ru');
   const t = STRINGS[locale];
 
-  const [categories, setCategories] = useState<CatalogCategory[]>([]);
-  const [vehicles, setVehicles] = useState<CatalogVehicle[]>([]);
-  const [activeCat, setActiveCat] = useState<string | null>(null);
-  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  // Host-provided SSR preload (see CatalogPreload). Filter mode ignores it —
+  // the filtered fetch is driven by client-side state by construction. Seeding
+  // is deterministic from props+metadata, so server and hydration renders agree.
+  const preload = !showFilters ? puck?.metadata?.catalogPreload : undefined;
+  const preloadedVehicles = preload?.vehicles?.[vehicleType];
+  const hasPreload = Array.isArray(preloadedVehicles);
+
+  const [categories, setCategories] = useState<CatalogCategory[]>(preload?.categories ?? []);
+  const [vehicles, setVehicles] = useState<CatalogVehicle[]>(preloadedVehicles ?? []);
+  const [activeCat, setActiveCat] = useState<string | null>(() =>
+    hasPreload
+      ? defaultActiveCat(preload?.categories ?? [], preloadedVehicles ?? [], defaultCategory)
+      : null,
+  );
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>(hasPreload ? 'ready' : 'loading');
   const [selected, setSelected] = useState<CatalogVehicle | null>(null);
+
+  // True only for the FIRST fetch after a preload seed: that fetch is a silent
+  // background refresh (no loading flash, no tab reset, and a failure keeps the
+  // preloaded grid instead of flipping to the error state).
+  const refreshingPreloadRef = useRef(hasPreload);
 
   // Filter-bar state (showFilters=true only — see FilterBar.tsx). `search` is
   // debounced 300ms before triggering a fetch; every other field is immediate
@@ -318,8 +365,12 @@ export function VehicleCatalog({
 
   useEffect(() => {
     let cancelled = false;
-    setState('loading');
-    setActiveCat(null);
+    const refreshingPreload = refreshingPreloadRef.current;
+    refreshingPreloadRef.current = false;
+    if (!refreshingPreload) {
+      setState('loading');
+      setActiveCat(null);
+    }
     const headers = { 'ngrok-skip-browser-warning': 'true' };
     const vehiclesUrl = showFilters
       ? buildFilteredVehiclesUrl(apiBase, debouncedFilters)
@@ -341,20 +392,21 @@ export function VehicleCatalog({
         setCategories(catList);
         setVehicles(vehList);
         if (!showFilters) {
-          // Preselect the configured default category (if present AND actually
-          // used by a vehicle); otherwise fall back to «Все» (null). Filter-bar
-          // mode drives category via `filters.category` instead — see below.
-          const want = (defaultCategory ?? '').trim().toLowerCase();
-          const usedIds = new Set(vehList.map((v) => v.category?.id).filter(Boolean));
-          const def = want
-            ? catList.find((c) => usedIds.has(c.id) && c.name.trim().toLowerCase() === want)
-            : undefined;
-          setActiveCat(def ? def.id : null);
+          if (refreshingPreload) {
+            // Silent refresh over a preload seed: keep whatever tab the visitor
+            // is on — only bail to «Все» if the fresh data no longer contains it.
+            const usedIds = new Set(vehList.map((v) => v.category?.id).filter(Boolean));
+            setActiveCat((cur) => (cur && !usedIds.has(cur) ? null : cur));
+          } else {
+            // Preselect the configured default category; «Все» (null) fallback.
+            // Filter-bar mode drives category via `filters.category` instead.
+            setActiveCat(defaultActiveCat(catList, vehList, defaultCategory));
+          }
         }
         setState('ready');
       })
       .catch(() => {
-        if (!cancelled) setState('error');
+        if (!cancelled && !refreshingPreload) setState('error');
       });
 
     return () => {
