@@ -238,7 +238,11 @@ interface CatalogCategory {
      *  falls back to `name` consistently. */
     name_en?: string;
     color: string;
-    vehicle_count: number;
+    /** Present on the /categories/ endpoint only — the nested `category` of a
+     *  vehicle omits it. Optional so one interface can truthfully describe both
+     *  shapes (no consumer reads it; frontend_site imports this type as the
+     *  single source for its SSR preload). */
+    vehicle_count?: number;
 }
 /** Locale-aware category display name — falls back to `name` (ru) when
  *  `name_en` is unset/blank, so an untranslated category never renders empty
