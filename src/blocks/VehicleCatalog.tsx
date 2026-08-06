@@ -253,9 +253,15 @@ function groupVehicles(vehicles: CatalogVehicle[]): VehicleGroup[] {
 
 function formatDate(iso: string, locale: 'ru' | 'en'): string {
   try {
+    // timeZone: 'UTC' is load-bearing: `free_from` is a date-only string, which
+    // ES parses as UTC midnight. Since the grid is server-rendered (SSR preload)
+    // the server and the visitor's browser MUST format it identically, or a
+    // visitor west of UTC gets a hydration mismatch (server «01 сент.», client
+    // «31 авг.»). UTC renders the literal date exactly as the backend wrote it.
     return new Date(iso).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-GB', {
       day: '2-digit',
       month: 'short',
+      timeZone: 'UTC',
     });
   } catch {
     return iso;
@@ -326,10 +332,15 @@ export function VehicleCatalog({
   const [state, setState] = useState<'loading' | 'ready' | 'error'>(hasPreload ? 'ready' : 'loading');
   const [selected, setSelected] = useState<CatalogVehicle | null>(null);
 
-  // True only for the FIRST fetch after a preload seed: that fetch is a silent
-  // background refresh (no loading flash, no tab reset, and a failure keeps the
-  // preloaded grid instead of flipping to the error state).
-  const refreshingPreloadRef = useRef(hasPreload);
+  // A fetch is a silent background refresh while we're showing the preload seed
+  // and no fresh API data has arrived yet: no loading flash, no tab reset, and
+  // a failure keeps the preloaded grid instead of flipping to the error state.
+  // Two refs instead of a consumed-on-first-run flag on purpose: StrictMode
+  // double-invokes effects in dev, and a one-shot flag would send the second
+  // invocation into the loading/tab-reset branch — exactly the flash the
+  // preload exists to avoid (same bug class as the 2026-07-15 double-fetch).
+  const preloadedRef = useRef(hasPreload);
+  const freshDataRef = useRef(false);
 
   // Filter-bar state (showFilters=true only — see FilterBar.tsx). `search` is
   // debounced 300ms before triggering a fetch; every other field is immediate
@@ -365,8 +376,7 @@ export function VehicleCatalog({
 
   useEffect(() => {
     let cancelled = false;
-    const refreshingPreload = refreshingPreloadRef.current;
-    refreshingPreloadRef.current = false;
+    const refreshingPreload = preloadedRef.current && !freshDataRef.current;
     if (!refreshingPreload) {
       setState('loading');
       setActiveCat(null);
@@ -387,6 +397,7 @@ export function VehicleCatalog({
     ])
       .then(([cats, list]) => {
         if (cancelled) return;
+        freshDataRef.current = true;
         const catList = Array.isArray(cats) ? cats : [];
         const vehList = Array.isArray(list) ? list : [];
         setCategories(catList);
@@ -397,6 +408,9 @@ export function VehicleCatalog({
             // is on — only bail to «Все» if the fresh data no longer contains it.
             const usedIds = new Set(vehList.map((v) => v.category?.id).filter(Boolean));
             setActiveCat((cur) => (cur && !usedIds.has(cur) ? null : cur));
+            // An open card (deep link) may hold a preload-snapshot row with
+            // stale availability — swap in the fresh one for the same vehicle.
+            setSelected((cur) => (cur ? vehList.find((v) => v.id === cur.id) ?? cur : cur));
           } else {
             // Preselect the configured default category; «Все» (null) fallback.
             // Filter-bar mode drives category via `filters.category` instead.
@@ -406,7 +420,13 @@ export function VehicleCatalog({
         setState('ready');
       })
       .catch(() => {
-        if (!cancelled && !refreshingPreload) setState('error');
+        if (cancelled) return;
+        if (refreshingPreload) {
+          // Keep the good preloaded grid — but don't fail silently either.
+          console.warn('VehicleCatalog: background catalog refresh failed; showing preloaded data');
+          return;
+        }
+        setState('error');
       });
 
     return () => {
@@ -420,12 +440,23 @@ export function VehicleCatalog({
   const didDeepLink = useRef(false);
   useEffect(() => {
     if (didDeepLink.current || state !== 'ready') return;
-    didDeepLink.current = true;
     if (typeof window === 'undefined') return;
     const id = new URLSearchParams(window.location.search).get('vehicle');
-    if (!id) return;
+    if (!id) {
+      didDeepLink.current = true;
+      return;
+    }
     const match = vehicles.find((v) => v.id === id);
-    if (!match) return;
+    if (!match) {
+      // A preload seed can lag a just-added vehicle (ISR snapshot). Don't burn
+      // the latch until fresh API data has been seen: the background refresh
+      // replaces `vehicles` (new identity), re-running this effect for a second
+      // chance to match. Without this, a share link to a new car never opened.
+      if (!freshDataRef.current) return;
+      didDeepLink.current = true;
+      return;
+    }
+    didDeepLink.current = true;
     setSelected(match);
     // Scroll this block's section into view (cars vs bikes) so closing the modal
     // leaves the visitor in the right section. Runs behind the modal overlay.

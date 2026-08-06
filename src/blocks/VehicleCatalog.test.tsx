@@ -101,6 +101,10 @@ describe('VehicleCatalog', () => {
     const status = container.querySelector('.sb-vcard__status');
     expect(status?.classList.contains('sb-vcard__status--free')).toBe(true);
     expect(status?.querySelector('.sb-vcard__status-dot')).not.toBeNull();
+    // Deterministic date rendering (timeZone: 'UTC'): the grid is now
+    // server-rendered, so server and client MUST produce the same string
+    // regardless of the runtime's timezone (hydration-mismatch guard).
+    expect(status?.textContent).toContain('01 авг.');
   });
 
   it('leaves a plain "busy" chip (no known return date) without the amber modifier', async () => {
@@ -259,6 +263,43 @@ describe('VehicleCatalog — SSR preload via puck metadata (catalogPreload)', ()
     await new Promise((r) => setTimeout(r, 0));
     expect(container.textContent).not.toContain('Не удалось загрузить каталог');
     expect(container.textContent).toContain('BMW Z4');
+  });
+
+  it('deep link to a vehicle MISSING from the preload still opens once the background refresh brings it (code review 2026-08-06: the latch must not burn on a stale snapshot)', async () => {
+    window.history.replaceState(null, '', '/?vehicle=v9');
+    const fresh = { ...vehicle, id: 'v9', display_name: 'BMW Z9', model: 'Z9' };
+    const detail = { ...fresh, gallery_images: [], advantages: [], pricing_table: [], deposits: [], options: [] };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const u = String(url);
+        const body = u.includes('/categories/')
+          ? [cat]
+          : /\/vehicles\/[^/]+\/$/.test(u)
+            ? detail
+            : [vehicle, fresh]; // refresh DOES contain v9; the preload does not
+        return Promise.resolve(
+          new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } }),
+        );
+      }),
+    );
+    const { findByText } = render(
+      <VehicleCatalog vehicleType="car" puck={{ metadata: { catalogPreload: preload } }} />,
+    );
+    // The booking modal opens for v9 → its «Поделиться» button appears.
+    await findByText('Поделиться');
+  });
+
+  it('StrictMode double-invoked effects do not burn the preload into a loading flash (dev parity with prod)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<never>(() => {}))); // fetch never settles
+    const { container } = render(
+      <StrictMode>
+        <VehicleCatalog vehicleType="car" puck={{ metadata: { catalogPreload: preload } }} />
+      </StrictMode>,
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container.textContent).toContain('BMW Z4');
+    expect(container.textContent).not.toContain('Загрузка…');
   });
 
   it('a block of another vehicle type does not seed from a preload that lacks its type', async () => {

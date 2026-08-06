@@ -2668,7 +2668,8 @@ function formatDate(iso, locale) {
   try {
     return new Date(iso).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-GB", {
       day: "2-digit",
-      month: "short"
+      month: "short",
+      timeZone: "UTC"
     });
   } catch {
     return iso;
@@ -2712,7 +2713,8 @@ function VehicleCatalog({
   );
   const [state, setState] = useState(hasPreload ? "ready" : "loading");
   const [selected, setSelected] = useState(null);
-  const refreshingPreloadRef = useRef(hasPreload);
+  const preloadedRef = useRef(hasPreload);
+  const freshDataRef = useRef(false);
   const [filters, setFilters] = useState(defaultFilterState);
   const [debouncedFilters, setDebouncedFilters] = useState(filters);
   const handleFiltersChange = (patch) => {
@@ -2734,8 +2736,7 @@ function VehicleCatalog({
   }, [filters]);
   useEffect(() => {
     let cancelled = false;
-    const refreshingPreload = refreshingPreloadRef.current;
-    refreshingPreloadRef.current = false;
+    const refreshingPreload = preloadedRef.current && !freshDataRef.current;
     if (!refreshingPreload) {
       setState("loading");
       setActiveCat(null);
@@ -2752,6 +2753,7 @@ function VehicleCatalog({
       })
     ]).then(([cats, list]) => {
       if (cancelled) return;
+      freshDataRef.current = true;
       const catList = Array.isArray(cats) ? cats : [];
       const vehList = Array.isArray(list) ? list : [];
       setCategories(catList);
@@ -2760,13 +2762,19 @@ function VehicleCatalog({
         if (refreshingPreload) {
           const usedIds = new Set(vehList.map((v) => v.category?.id).filter(Boolean));
           setActiveCat((cur) => cur && !usedIds.has(cur) ? null : cur);
+          setSelected((cur) => cur ? vehList.find((v) => v.id === cur.id) ?? cur : cur);
         } else {
           setActiveCat(defaultActiveCat(catList, vehList, defaultCategory));
         }
       }
       setState("ready");
     }).catch(() => {
-      if (!cancelled && !refreshingPreload) setState("error");
+      if (cancelled) return;
+      if (refreshingPreload) {
+        console.warn("VehicleCatalog: background catalog refresh failed; showing preloaded data");
+        return;
+      }
+      setState("error");
     });
     return () => {
       cancelled = true;
@@ -2775,12 +2783,19 @@ function VehicleCatalog({
   const didDeepLink = useRef(false);
   useEffect(() => {
     if (didDeepLink.current || state !== "ready") return;
-    didDeepLink.current = true;
     if (typeof window === "undefined") return;
     const id = new URLSearchParams(window.location.search).get("vehicle");
-    if (!id) return;
+    if (!id) {
+      didDeepLink.current = true;
+      return;
+    }
     const match = vehicles.find((v) => v.id === id);
-    if (!match) return;
+    if (!match) {
+      if (!freshDataRef.current) return;
+      didDeepLink.current = true;
+      return;
+    }
+    didDeepLink.current = true;
     setSelected(match);
     if (anchorId) {
       document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "start" });
