@@ -1,5 +1,6 @@
 'use strict';
 
+var simpleIcons = require('simple-icons');
 var jsxRuntime = require('react/jsx-runtime');
 var react = require('react');
 var reactDom = require('react-dom');
@@ -24,26 +25,19 @@ var base = {
   strokeLinecap: "round",
   strokeLinejoin: "round"
 };
+var brandPaths = {
+  instagram: simpleIcons.siInstagram.path,
+  whatsapp: simpleIcons.siWhatsapp.path,
+  telegram: simpleIcons.siTelegram.path
+};
 function ContactIcon({ kind }) {
+  const brandPath = brandPaths[kind];
+  if (brandPath) {
+    return /* @__PURE__ */ jsxRuntime.jsx("svg", { className: "sb-ico", viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: brandPath }) });
+  }
   switch (kind) {
     case "phone":
       return /* @__PURE__ */ jsxRuntime.jsx("svg", { ...base, children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" }) });
-    case "whatsapp":
-      return /* @__PURE__ */ jsxRuntime.jsxs("svg", { ...base, children: [
-        /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M21 11.5a8.5 8.5 0 0 1-12.6 7.5L3 21l2-5.4A8.5 8.5 0 1 1 21 11.5z" }),
-        /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M8.5 9c.4 3.2 3.3 6.1 6.5 6.5" })
-      ] });
-    case "telegram":
-      return /* @__PURE__ */ jsxRuntime.jsxs("svg", { ...base, children: [
-        /* @__PURE__ */ jsxRuntime.jsx("path", { d: "m22 3-9.5 18-2.8-6.7L3 11.5 22 3z" }),
-        /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M22 3 9.7 14.3" })
-      ] });
-    case "instagram":
-      return /* @__PURE__ */ jsxRuntime.jsxs("svg", { ...base, children: [
-        /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "3", width: "18", height: "18", rx: "5" }),
-        /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "12", cy: "12", r: "4" }),
-        /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "17.5", cy: "6.5", r: "0.6", fill: "currentColor", stroke: "none" })
-      ] });
     default:
       return null;
   }
