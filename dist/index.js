@@ -2410,7 +2410,7 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
     onChange({ sort: next });
   };
   const sortLabel = filters.sort === "price_asc" ? t.sortPriceAsc : filters.sort === "price_desc" ? t.sortPriceDesc : t.sortDefault;
-  return /* @__PURE__ */ jsxs("div", { className: "sb-filterbar", children: [
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsxs("section", { className: `sb-filterbar__availability ${hasCompleteDateRange ? "is-ready" : "is-pending"}`, "aria-label": t.availabilityTitle, children: [
       /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__availability-head", children: [
         /* @__PURE__ */ jsxs("div", { children: [
@@ -2473,113 +2473,115 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
         ] })
       ] })
     ] }),
-    /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__search", children: [
-      /* @__PURE__ */ jsxs("svg", { className: "sb-filterbar__search-ico", viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-        /* @__PURE__ */ jsx("circle", { cx: "11", cy: "11", r: "7" }),
-        /* @__PURE__ */ jsx("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" })
-      ] }),
-      /* @__PURE__ */ jsx(
-        "input",
-        {
-          type: "text",
-          className: "sb-input sb-filterbar__search-input",
-          value: filters.search || "",
-          onChange: (e) => onChange({ search: e.target.value || void 0 }),
-          placeholder: t.search,
-          "aria-label": t.search
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__row", children: [
-      /* @__PURE__ */ jsx(
-        "button",
-        {
-          type: "button",
-          className: `sb-filterbar__pill ${!filters.vehicleType && !filters.category ? "is-active" : ""}`,
-          onClick: () => onChange({ vehicleType: void 0, category: void 0 }),
-          children: t.all
-        }
-      ),
-      /* @__PURE__ */ jsx(
-        "button",
-        {
-          type: "button",
-          className: `sb-filterbar__pill ${filters.vehicleType === "car" && !filters.category ? "is-active" : ""}`,
-          onClick: () => onChange({ vehicleType: "car", category: void 0 }),
-          children: t.cars
-        }
-      ),
-      /* @__PURE__ */ jsx(
-        "button",
-        {
-          type: "button",
-          className: `sb-filterbar__pill ${filters.vehicleType === "motorcycle" && !filters.category ? "is-active" : ""}`,
-          onClick: () => onChange({ vehicleType: "motorcycle", category: void 0 }),
-          children: t.motorcycles
-        }
-      ),
-      categories.length > 0 ? /* @__PURE__ */ jsxs(
-        "button",
-        {
-          type: "button",
-          className: `sb-filterbar__pill ${filters.category ? "is-active" : ""}`,
-          style: activeCategory ? { backgroundColor: activeCategory.color, borderColor: "transparent" } : void 0,
-          onClick: () => setCategoryOpen((v) => !v),
-          children: [
-            /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-              /* @__PURE__ */ jsx("line", { x1: "4", y1: "6", x2: "20", y2: "6" }),
-              /* @__PURE__ */ jsx("line", { x1: "4", y1: "12", x2: "20", y2: "12" }),
-              /* @__PURE__ */ jsx("line", { x1: "4", y1: "18", x2: "20", y2: "18" }),
-              /* @__PURE__ */ jsx("circle", { cx: "8", cy: "6", r: "1.5", fill: "currentColor", stroke: "none" }),
-              /* @__PURE__ */ jsx("circle", { cx: "16", cy: "12", r: "1.5", fill: "currentColor", stroke: "none" }),
-              /* @__PURE__ */ jsx("circle", { cx: "10", cy: "18", r: "1.5", fill: "currentColor", stroke: "none" })
-            ] }),
-            activeCategory ? categoryLabel(activeCategory, locale) : t.category
-          ]
-        }
-      ) : null
-    ] }),
-    categoryOpen ? /* @__PURE__ */ jsx("div", { className: "sb-filterbar__categories", children: categories.map((cat) => /* @__PURE__ */ jsx(
-      "button",
-      {
-        type: "button",
-        className: `sb-filterbar__pill ${filters.category === cat.id ? "is-active" : ""}`,
-        style: filters.category === cat.id ? { backgroundColor: cat.color, borderColor: "transparent" } : { backgroundColor: `${cat.color}1f`, borderColor: `${cat.color}33` },
-        onClick: () => {
-          onChange({ category: filters.category === cat.id ? void 0 : cat.id, vehicleType: void 0 });
-          setCategoryOpen(false);
-        },
-        children: categoryLabel(cat, locale)
-      },
-      cat.id
-    )) }) : null,
-    /* @__PURE__ */ jsx("div", { className: "sb-filterbar__row sb-filterbar__row--utilities", children: /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__actions", children: [
-      /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-filterbar__sort", onClick: cycleSort, children: [
-        /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-          /* @__PURE__ */ jsx("line", { x1: "3", y1: "6", x2: "9", y2: "6" }),
-          /* @__PURE__ */ jsx("line", { x1: "3", y1: "12", x2: "7", y2: "12" }),
-          /* @__PURE__ */ jsx("line", { x1: "3", y1: "18", x2: "5", y2: "18" }),
-          /* @__PURE__ */ jsx("path", { d: "M17 4v16m0 0-4-4m4 4 4-4" })
+    /* @__PURE__ */ jsxs("div", { className: "sb-filterbar", children: [
+      /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__search", children: [
+        /* @__PURE__ */ jsxs("svg", { className: "sb-filterbar__search-ico", viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+          /* @__PURE__ */ jsx("circle", { cx: "11", cy: "11", r: "7" }),
+          /* @__PURE__ */ jsx("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" })
         ] }),
-        /* @__PURE__ */ jsx("span", { className: filters.sort !== "default" ? "sb-filterbar__sort-active" : "", children: sortLabel })
+        /* @__PURE__ */ jsx(
+          "input",
+          {
+            type: "text",
+            className: "sb-input sb-filterbar__search-input",
+            value: filters.search || "",
+            onChange: (e) => onChange({ search: e.target.value || void 0 }),
+            placeholder: t.search,
+            "aria-label": t.search
+          }
+        )
       ] }),
-      hasActiveFilters ? /* @__PURE__ */ jsx(
+      /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__row", children: [
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            type: "button",
+            className: `sb-filterbar__pill ${!filters.vehicleType && !filters.category ? "is-active" : ""}`,
+            onClick: () => onChange({ vehicleType: void 0, category: void 0 }),
+            children: t.all
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            type: "button",
+            className: `sb-filterbar__pill ${filters.vehicleType === "car" && !filters.category ? "is-active" : ""}`,
+            onClick: () => onChange({ vehicleType: "car", category: void 0 }),
+            children: t.cars
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            type: "button",
+            className: `sb-filterbar__pill ${filters.vehicleType === "motorcycle" && !filters.category ? "is-active" : ""}`,
+            onClick: () => onChange({ vehicleType: "motorcycle", category: void 0 }),
+            children: t.motorcycles
+          }
+        ),
+        categories.length > 0 ? /* @__PURE__ */ jsxs(
+          "button",
+          {
+            type: "button",
+            className: `sb-filterbar__pill ${filters.category ? "is-active" : ""}`,
+            style: activeCategory ? { backgroundColor: activeCategory.color, borderColor: "transparent" } : void 0,
+            onClick: () => setCategoryOpen((v) => !v),
+            children: [
+              /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+                /* @__PURE__ */ jsx("line", { x1: "4", y1: "6", x2: "20", y2: "6" }),
+                /* @__PURE__ */ jsx("line", { x1: "4", y1: "12", x2: "20", y2: "12" }),
+                /* @__PURE__ */ jsx("line", { x1: "4", y1: "18", x2: "20", y2: "18" }),
+                /* @__PURE__ */ jsx("circle", { cx: "8", cy: "6", r: "1.5", fill: "currentColor", stroke: "none" }),
+                /* @__PURE__ */ jsx("circle", { cx: "16", cy: "12", r: "1.5", fill: "currentColor", stroke: "none" }),
+                /* @__PURE__ */ jsx("circle", { cx: "10", cy: "18", r: "1.5", fill: "currentColor", stroke: "none" })
+              ] }),
+              activeCategory ? categoryLabel(activeCategory, locale) : t.category
+            ]
+          }
+        ) : null
+      ] }),
+      categoryOpen ? /* @__PURE__ */ jsx("div", { className: "sb-filterbar__categories", children: categories.map((cat) => /* @__PURE__ */ jsx(
         "button",
         {
           type: "button",
-          className: "sb-filterbar__clear",
+          className: `sb-filterbar__pill ${filters.category === cat.id ? "is-active" : ""}`,
+          style: filters.category === cat.id ? { backgroundColor: cat.color, borderColor: "transparent" } : { backgroundColor: `${cat.color}1f`, borderColor: `${cat.color}33` },
           onClick: () => {
-            onChange(defaultFilterState());
+            onChange({ category: filters.category === cat.id ? void 0 : cat.id, vehicleType: void 0 });
             setCategoryOpen(false);
           },
-          "aria-label": t.clearFilters,
-          children: /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-            /* @__PURE__ */ jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
-            /* @__PURE__ */ jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
-          ] })
-        }
-      ) : null
-    ] }) })
+          children: categoryLabel(cat, locale)
+        },
+        cat.id
+      )) }) : null,
+      /* @__PURE__ */ jsx("div", { className: "sb-filterbar__row sb-filterbar__row--utilities", children: /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__actions", children: [
+        /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-filterbar__sort", onClick: cycleSort, children: [
+          /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+            /* @__PURE__ */ jsx("line", { x1: "3", y1: "6", x2: "9", y2: "6" }),
+            /* @__PURE__ */ jsx("line", { x1: "3", y1: "12", x2: "7", y2: "12" }),
+            /* @__PURE__ */ jsx("line", { x1: "3", y1: "18", x2: "5", y2: "18" }),
+            /* @__PURE__ */ jsx("path", { d: "M17 4v16m0 0-4-4m4 4 4-4" })
+          ] }),
+          /* @__PURE__ */ jsx("span", { className: filters.sort !== "default" ? "sb-filterbar__sort-active" : "", children: sortLabel })
+        ] }),
+        hasActiveFilters ? /* @__PURE__ */ jsx(
+          "button",
+          {
+            type: "button",
+            className: "sb-filterbar__clear",
+            onClick: () => {
+              onChange(defaultFilterState());
+              setCategoryOpen(false);
+            },
+            "aria-label": t.clearFilters,
+            children: /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+              /* @__PURE__ */ jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
+              /* @__PURE__ */ jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
+            ] })
+          }
+        ) : null
+      ] }) })
+    ] })
   ] });
 }
 function setVehicleParam(id) {

@@ -423,12 +423,15 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
     );
     await findByText('BMW Z4');
 
+    const availabilityPanel = container.querySelector('.sb-filterbar__availability');
     const availableOnly = getByLabelText('Available only') as HTMLInputElement;
+    expect(availabilityPanel?.classList.contains('is-pending')).toBe(true);
     expect(availableOnly.disabled).toBe(true);
 
     fireEvent.change(getByLabelText('Start date'), { target: { value: '2026-08-20' } });
     fireEvent.change(getByLabelText('End date'), { target: { value: '2026-08-25' } });
     await waitFor(() => expect(availableOnly.disabled).toBe(false));
+    expect(availabilityPanel?.classList.contains('is-ready')).toBe(true);
 
     fireEvent.click(availableOnly);
     await waitFor(() => {
