@@ -1574,12 +1574,18 @@ a.sb-map__line:hover {
   border-radius: var(--sb-radius);
   background: var(--sb-surface);
 }
-.sb-filterbar__availability.is-pending {
+.sb-filterbar__availability.is-pending,
+.sb-filterbar__availability.is-editing {
   position: sticky;
   top: var(--sb-availability-sticky-top);
   z-index: 20;
+}
+.sb-filterbar__availability.is-pending {
   border-color: rgba(255, 204, 51, 0.58);
   box-shadow: 0 0 0 1px rgba(255, 204, 51, 0.12);
+}
+.sb-filterbar__availability.is-editing {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
 }
 .sb-filterbar__availability.is-compact {
   position: sticky;
