@@ -440,7 +440,12 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
     expect(availabilityPanel?.querySelector('.sb-filterbar__availability-range')?.textContent).toContain('20.08.2026');
     fireEvent.click(getByText('Change'));
     expect(availabilityPanel?.classList.contains('is-compact')).toBe(false);
+    expect(getByText('Availability is calculated for your dates')).toBeTruthy();
     expect(getByLabelText('Start date')).toBeTruthy();
+    fireEvent.change(getByLabelText('End date'), { target: { value: '2026-08-27' } });
+    fireEvent.click(getByText('Done'));
+    expect(availabilityPanel?.classList.contains('is-compact')).toBe(true);
+    expect(availabilityPanel?.querySelector('.sb-filterbar__availability-range')?.textContent).toContain('27.08.2026');
     await waitFor(() => {
       expect(container.querySelectorAll('.sb-vcard')).toHaveLength(2);
       expect(container.textContent).not.toContain('Audi A6');

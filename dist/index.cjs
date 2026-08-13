@@ -2436,7 +2436,7 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
   };
   const sortLabel = filters.sort === "price_asc" ? t.sortPriceAsc : filters.sort === "price_desc" ? t.sortPriceDesc : t.sortDefault;
   return /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
-    /* @__PURE__ */ jsxRuntime.jsx("section", { className: `sb-filterbar__availability ${hasCompleteDateRange && !editingDates ? "is-ready is-compact" : "is-pending"}`, "aria-label": t.availabilityTitle, children: hasCompleteDateRange && !editingDates ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__availability-compact", children: [
+    /* @__PURE__ */ jsxRuntime.jsx("section", { className: `sb-filterbar__availability ${hasCompleteDateRange ? editingDates ? "is-ready is-editing" : "is-ready is-compact" : "is-pending"}`, "aria-label": t.availabilityTitle, children: hasCompleteDateRange && !editingDates ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__availability-compact", children: [
       /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__availability-summary", children: [
         /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", width: "18", height: "18", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
           /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
@@ -2476,9 +2476,17 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
             ] }),
             /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.availabilityTitle })
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-filterbar__availability-copy", children: t.availabilityPrompt })
+          /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-filterbar__availability-copy", children: hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs(
+        hasCompleteDateRange ? /* @__PURE__ */ jsxRuntime.jsx(
+          "button",
+          {
+            type: "button",
+            className: "sb-filterbar__availability-action is-complete",
+            onClick: () => setEditingDates(false),
+            children: t.doneDates
+          }
+        ) : /* @__PURE__ */ jsxRuntime.jsxs(
           "button",
           {
             type: "button",
@@ -2682,6 +2690,7 @@ var STRINGS2 = {
     availabilityAction: "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0441\u0432\u043E\u0431\u043E\u0434\u043D\u044B\u0435",
     availabilityActionPending: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0430\u0442\u044B",
     editDates: "\u0418\u0437\u043C\u0435\u043D\u0438\u0442\u044C",
+    doneDates: "\u0413\u043E\u0442\u043E\u0432\u043E",
     availableOnly: "\u0422\u043E\u043B\u044C\u043A\u043E \u0441\u0432\u043E\u0431\u043E\u0434\u043D\u044B\u0435",
     availableToday: "\u0421\u0432\u043E\u0431\u043E\u0434\u043D\u0430 \u0441\u0435\u0433\u043E\u0434\u043D\u044F",
     availableSelected: "\u0421\u0432\u043E\u0431\u043E\u0434\u043D\u0430",
@@ -2715,6 +2724,7 @@ var STRINGS2 = {
     availabilityAction: "Show available",
     availabilityActionPending: "Choose dates",
     editDates: "Change",
+    doneDates: "Done",
     availableOnly: "Available only",
     availableToday: "Available today",
     availableSelected: "Available",
