@@ -1634,9 +1634,10 @@ a.sb-map__line:hover {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
 }
 .sb-filterbar__availability-compact {
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content max-content minmax(1rem, 1fr) max-content;
   align-items: center;
-  gap: 0.85rem;
+  column-gap: 0.85rem;
   min-height: 2.25rem;
 }
 .sb-filterbar__availability-summary {
@@ -1644,7 +1645,6 @@ a.sb-map__line:hover {
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
-  margin-right: auto;
 }
 .sb-filterbar__availability-summary > svg {
   flex: 0 0 auto;
@@ -1657,7 +1657,6 @@ a.sb-map__line:hover {
   white-space: nowrap;
 }
 .sb-filterbar__availability-edit {
-  flex: 0 0 auto;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1900,6 +1899,7 @@ a.sb-map__line:hover {
     padding: 0.65rem 0.75rem;
   }
   .sb-filterbar__availability-compact {
+    display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
     gap: 0.35rem 0.7rem;
