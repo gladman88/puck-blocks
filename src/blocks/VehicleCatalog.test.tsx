@@ -69,6 +69,7 @@ describe('VehicleCatalog', () => {
     expect(container.querySelector('button.sb-vcard')).not.toBeNull();
     expect(container.querySelector('a.sb-vcard')).toBeNull();
     expect(container.textContent).toContain('5,000');
+    expect(container.querySelector('.sb-vcard__status--available')?.textContent).toContain('Свободна сегодня');
   });
 
   it('deep link ?vehicle=<id> opens that card on load', async () => {
@@ -424,16 +425,17 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
     await findByText('BMW Z4');
 
     const availabilityPanel = container.querySelector('.sb-filterbar__availability');
-    const availableOnly = getByLabelText('Available only') as HTMLInputElement;
     expect(availabilityPanel?.classList.contains('is-pending')).toBe(true);
-    expect(availableOnly.disabled).toBe(true);
+    expect(getByText('Without dates, availability is shown for today')).toBeTruthy();
+    fireEvent.click(getByText('Show available for my dates'));
+    expect(document.activeElement).toBe(getByLabelText('Start date'));
+    expect(getByText('Choose dates')).toBeTruthy();
 
     fireEvent.change(getByLabelText('Start date'), { target: { value: '2026-08-20' } });
     fireEvent.change(getByLabelText('End date'), { target: { value: '2026-08-25' } });
-    await waitFor(() => expect(availableOnly.disabled).toBe(false));
+    const availableOnly = await waitFor(() => getByLabelText('Available only')) as HTMLInputElement;
+    await waitFor(() => expect(availableOnly.checked).toBe(true));
     expect(availabilityPanel?.classList.contains('is-ready')).toBe(true);
-
-    fireEvent.click(availableOnly);
     await waitFor(() => {
       expect(container.querySelectorAll('.sb-vcard')).toHaveLength(2);
       expect(container.textContent).not.toContain('Audi A6');

@@ -2391,19 +2391,41 @@ function defaultFilterState() {
 }
 function FilterBar({ filters, categories, onChange, strings: t, locale }) {
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [availableOnlyIntent, setAvailableOnlyIntent] = useState(false);
+  const availableFromRef = useRef(null);
   const today = todayISO();
+  const applyDatePatch = (patch) => {
+    const nextFrom = Object.prototype.hasOwnProperty.call(patch, "availableFrom") ? patch.availableFrom : filters.availableFrom;
+    const nextTo = Object.prototype.hasOwnProperty.call(patch, "availableTo") ? patch.availableTo : filters.availableTo;
+    if (!nextFrom || !nextTo) {
+      onChange({ ...patch, availableOnly: false });
+      return;
+    }
+    if (availableOnlyIntent) {
+      setAvailableOnlyIntent(false);
+      onChange({ ...patch, availableOnly: true });
+      return;
+    }
+    onChange(patch);
+  };
   const handleFromChange = (value) => {
     const patch = { availableFrom: value || void 0 };
     if (filters.availableTo && value && filters.availableTo <= value) {
       patch.availableTo = nextDay(value);
     }
-    onChange(patch);
+    applyDatePatch(patch);
   };
   const hasActiveFilters = Boolean(
     filters.search || filters.vehicleType || filters.category || filters.availableFrom || filters.availableTo || filters.availableOnly || filters.sort && filters.sort !== "default"
   );
   const activeCategory = categories.find((c) => c.id === filters.category);
   const hasCompleteDateRange = Boolean(filters.availableFrom && filters.availableTo);
+  const requestAvailableOnly = () => {
+    setAvailableOnlyIntent(true);
+    const input = availableFromRef.current;
+    input?.focus();
+    if (input) openNativeDatePicker(input);
+  };
   const cycleSort = () => {
     const order = ["default", "price_asc", "price_desc"];
     const next = order[(order.indexOf(filters.sort) + 1) % order.length];
@@ -2425,19 +2447,34 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
           ] }),
           /* @__PURE__ */ jsx("p", { className: "sb-filterbar__availability-copy", children: hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt })
         ] }),
-        /* @__PURE__ */ jsxs("label", { className: `sb-filterbar__availability-toggle${hasCompleteDateRange ? "" : " is-disabled"}`, children: [
+        hasCompleteDateRange ? /* @__PURE__ */ jsxs("label", { className: "sb-filterbar__availability-toggle", children: [
           /* @__PURE__ */ jsx(
             "input",
             {
               type: "checkbox",
               checked: filters.availableOnly,
-              disabled: !hasCompleteDateRange,
               onChange: (e) => onChange({ availableOnly: e.target.checked })
             }
           ),
           /* @__PURE__ */ jsx("span", { className: "sb-filterbar__availability-switch", "aria-hidden": true }),
           /* @__PURE__ */ jsx("span", { children: t.availableOnly })
-        ] })
+        ] }) : /* @__PURE__ */ jsxs(
+          "button",
+          {
+            type: "button",
+            className: "sb-filterbar__availability-action",
+            onClick: requestAvailableOnly,
+            children: [
+              /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "15", height: "15", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+                /* @__PURE__ */ jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
+                /* @__PURE__ */ jsx("line", { x1: "16", y1: "2", x2: "16", y2: "6" }),
+                /* @__PURE__ */ jsx("line", { x1: "8", y1: "2", x2: "8", y2: "6" }),
+                /* @__PURE__ */ jsx("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
+              ] }),
+              availableOnlyIntent ? t.availabilityActionPending : t.availabilityAction
+            ]
+          }
+        )
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__daterange", children: [
         /* @__PURE__ */ jsxs("label", { className: "sb-filterbar__datechip", children: [
@@ -2445,6 +2482,7 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
           /* @__PURE__ */ jsx(
             "input",
             {
+              ref: availableFromRef,
               type: "date",
               className: "sb-filterbar__datechip-input",
               "aria-label": t.dateFrom,
@@ -2467,7 +2505,7 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
               value: filters.availableTo || "",
               min: filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
               onClick: (e) => openNativeDatePicker(e.currentTarget),
-              onChange: (e) => onChange({ availableTo: e.target.value || void 0 })
+              onChange: (e) => applyDatePatch({ availableTo: e.target.value || void 0 })
             }
           )
         ] })
@@ -2619,9 +2657,13 @@ var STRINGS2 = {
     dateFrom: "\u041D\u0430\u0447\u0430\u043B\u043E",
     dateTo: "\u041E\u043A\u043E\u043D\u0447\u0430\u043D\u0438\u0435",
     availabilityTitle: "\u0414\u0430\u0442\u044B \u0430\u0440\u0435\u043D\u0434\u044B",
-    availabilityPrompt: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0430\u0442\u044B, \u0447\u0442\u043E\u0431\u044B \u0443\u0432\u0438\u0434\u0435\u0442\u044C \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E\u0441\u0442\u044C \u043C\u0430\u0448\u0438\u043D",
+    availabilityPrompt: "\u0411\u0435\u0437 \u0434\u0430\u0442 \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u043C \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E\u0441\u0442\u044C \u043D\u0430 \u0441\u0435\u0433\u043E\u0434\u043D\u044F",
     availabilityReady: "\u0414\u043E\u0441\u0442\u0443\u043F\u043D\u043E\u0441\u0442\u044C \u0440\u0430\u0441\u0441\u0447\u0438\u0442\u0430\u043D\u0430 \u043D\u0430 \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u0439 \u043F\u0435\u0440\u0438\u043E\u0434",
+    availabilityAction: "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0441\u0432\u043E\u0431\u043E\u0434\u043D\u044B\u0435 \u043D\u0430 \u0434\u0430\u0442\u044B",
+    availabilityActionPending: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0430\u0442\u044B",
     availableOnly: "\u0422\u043E\u043B\u044C\u043A\u043E \u0441\u0432\u043E\u0431\u043E\u0434\u043D\u044B\u0435",
+    availableToday: "\u0421\u0432\u043E\u0431\u043E\u0434\u043D\u0430 \u0441\u0435\u0433\u043E\u0434\u043D\u044F",
+    availableSelected: "\u0421\u0432\u043E\u0431\u043E\u0434\u043D\u0430",
     clearFilters: "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0444\u0438\u043B\u044C\u0442\u0440\u044B"
   },
   en: {
@@ -2647,9 +2689,13 @@ var STRINGS2 = {
     dateFrom: "Start date",
     dateTo: "End date",
     availabilityTitle: "Rental dates",
-    availabilityPrompt: "Choose dates to see vehicle availability",
+    availabilityPrompt: "Without dates, availability is shown for today",
     availabilityReady: "Availability is calculated for your dates",
+    availabilityAction: "Show available for my dates",
+    availabilityActionPending: "Choose dates",
     availableOnly: "Available only",
+    availableToday: "Available today",
+    availableSelected: "Available",
     clearFilters: "Clear filters"
   }
 };
@@ -2750,6 +2796,7 @@ function VehicleCatalog({
   const freshDataRef = useRef(false);
   const [filters, setFilters] = useState(defaultFilterState);
   const [debouncedFilters, setDebouncedFilters] = useState(filters);
+  const hasCompleteDateRange = Boolean(filters.availableFrom && filters.availableTo);
   const handleFiltersChange = (patch) => {
     setFilters((prev) => ({ ...prev, ...patch }));
   };
@@ -2921,10 +2968,10 @@ function VehicleCatalog({
         ) : null,
         countLabel ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__count", children: countLabel }) : null,
         /* @__PURE__ */ jsxs("div", { className: "sb-vcard__overlay", children: [
-          !v.is_available ? /* @__PURE__ */ jsxs("span", { className: `sb-vcard__status ${v.free_from ? "sb-vcard__status--free" : ""}`, children: [
+          /* @__PURE__ */ jsxs("span", { className: `sb-vcard__status ${v.is_available ? "sb-vcard__status--available" : v.free_from ? "sb-vcard__status--free" : ""}`, children: [
             /* @__PURE__ */ jsx("span", { className: "sb-vcard__status-dot", "aria-hidden": true }),
-            v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy
-          ] }) : null,
+            v.is_available ? hasCompleteDateRange ? t.availableSelected : t.availableToday : v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy
+          ] }),
           /* @__PURE__ */ jsx("h3", { className: "sb-vcard__name", children: v.display_name }),
           /* @__PURE__ */ jsxs("div", { className: "sb-vcard__meta", children: [
             /* @__PURE__ */ jsxs("span", { className: "sb-vcard__year", children: [

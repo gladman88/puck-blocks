@@ -162,9 +162,13 @@ const STRINGS = {
     dateFrom: 'Начало',
     dateTo: 'Окончание',
     availabilityTitle: 'Даты аренды',
-    availabilityPrompt: 'Выберите даты, чтобы увидеть доступность машин',
+    availabilityPrompt: 'Без дат показываем доступность на сегодня',
     availabilityReady: 'Доступность рассчитана на выбранный период',
+    availabilityAction: 'Показать свободные на даты',
+    availabilityActionPending: 'Выберите даты',
     availableOnly: 'Только свободные',
+    availableToday: 'Свободна сегодня',
+    availableSelected: 'Свободна',
     clearFilters: 'Сбросить фильтры',
   },
   en: {
@@ -190,9 +194,13 @@ const STRINGS = {
     dateFrom: 'Start date',
     dateTo: 'End date',
     availabilityTitle: 'Rental dates',
-    availabilityPrompt: 'Choose dates to see vehicle availability',
+    availabilityPrompt: 'Without dates, availability is shown for today',
     availabilityReady: 'Availability is calculated for your dates',
+    availabilityAction: 'Show available for my dates',
+    availabilityActionPending: 'Choose dates',
     availableOnly: 'Available only',
+    availableToday: 'Available today',
+    availableSelected: 'Available',
     clearFilters: 'Clear filters',
   },
 } as const;
@@ -359,6 +367,7 @@ export function VehicleCatalog({
   // (mirrors frontend_catalog/App.tsx's apiFilters/handleFiltersChange).
   const [filters, setFilters] = useState<CatalogFilterState>(defaultFilterState);
   const [debouncedFilters, setDebouncedFilters] = useState<CatalogFilterState>(filters);
+  const hasCompleteDateRange = Boolean(filters.availableFrom && filters.availableTo);
 
   const handleFiltersChange = (patch: Partial<CatalogFilterState>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
@@ -598,12 +607,12 @@ export function VehicleCatalog({
                   ) : null}
                   {countLabel ? <span className="sb-vcard__count">{countLabel}</span> : null}
                   <div className="sb-vcard__overlay">
-                    {!v.is_available ? (
-                      <span className={`sb-vcard__status ${v.free_from ? 'sb-vcard__status--free' : ''}`}>
-                        <span className="sb-vcard__status-dot" aria-hidden />
-                        {v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy}
-                      </span>
-                    ) : null}
+                    <span className={`sb-vcard__status ${v.is_available ? 'sb-vcard__status--available' : v.free_from ? 'sb-vcard__status--free' : ''}`}>
+                      <span className="sb-vcard__status-dot" aria-hidden />
+                      {v.is_available
+                        ? hasCompleteDateRange ? t.availableSelected : t.availableToday
+                        : v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy}
+                    </span>
                     <h3 className="sb-vcard__name">{v.display_name}</h3>
                     <div className="sb-vcard__meta">
                       <span className="sb-vcard__year">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { categoryLabel, type CatalogCategory } from '../VehicleCatalog';
 import { formatDDMMYYYY, nextDay, openNativeDatePicker, todayISO } from './dates';
 
@@ -50,6 +50,8 @@ export interface FilterBarStrings {
   availabilityTitle: string;
   availabilityPrompt: string;
   availabilityReady: string;
+  availabilityAction: string;
+  availabilityActionPending: string;
   availableOnly: string;
   clearFilters: string;
 }
@@ -72,7 +74,27 @@ interface Props {
  */
 export function FilterBar({ filters, categories, onChange, strings: t, locale }: Props) {
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [availableOnlyIntent, setAvailableOnlyIntent] = useState(false);
+  const availableFromRef = useRef<HTMLInputElement>(null);
   const today = todayISO();
+
+  const applyDatePatch = (patch: Partial<CatalogFilterState>) => {
+    const nextFrom = Object.prototype.hasOwnProperty.call(patch, 'availableFrom') ? patch.availableFrom : filters.availableFrom;
+    const nextTo = Object.prototype.hasOwnProperty.call(patch, 'availableTo') ? patch.availableTo : filters.availableTo;
+
+    if (!nextFrom || !nextTo) {
+      onChange({ ...patch, availableOnly: false });
+      return;
+    }
+
+    if (availableOnlyIntent) {
+      setAvailableOnlyIntent(false);
+      onChange({ ...patch, availableOnly: true });
+      return;
+    }
+
+    onChange(patch);
+  };
 
   const handleFromChange = (value: string) => {
     // Auto-adjust "to" if it's on or before the new "from" (parity with the
@@ -82,7 +104,7 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
     if (filters.availableTo && value && filters.availableTo <= value) {
       patch.availableTo = nextDay(value);
     }
-    onChange(patch);
+    applyDatePatch(patch);
   };
 
   const hasActiveFilters = Boolean(
@@ -93,6 +115,13 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
 
   const activeCategory = categories.find((c) => c.id === filters.category);
   const hasCompleteDateRange = Boolean(filters.availableFrom && filters.availableTo);
+
+  const requestAvailableOnly = () => {
+    setAvailableOnlyIntent(true);
+    const input = availableFromRef.current;
+    input?.focus();
+    if (input) openNativeDatePicker(input);
+  };
 
   const cycleSort = () => {
     const order: CatalogSortOption[] = ['default', 'price_asc', 'price_desc'];
@@ -120,16 +149,31 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
               {hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt}
             </p>
           </div>
-          <label className={`sb-filterbar__availability-toggle${hasCompleteDateRange ? '' : ' is-disabled'}`}>
-            <input
-              type="checkbox"
-              checked={filters.availableOnly}
-              disabled={!hasCompleteDateRange}
-              onChange={(e) => onChange({ availableOnly: e.target.checked })}
-            />
-            <span className="sb-filterbar__availability-switch" aria-hidden />
-            <span>{t.availableOnly}</span>
-          </label>
+          {hasCompleteDateRange ? (
+            <label className="sb-filterbar__availability-toggle">
+              <input
+                type="checkbox"
+                checked={filters.availableOnly}
+                onChange={(e) => onChange({ availableOnly: e.target.checked })}
+              />
+              <span className="sb-filterbar__availability-switch" aria-hidden />
+              <span>{t.availableOnly}</span>
+            </label>
+          ) : (
+            <button
+              type="button"
+              className="sb-filterbar__availability-action"
+              onClick={requestAvailableOnly}
+            >
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              {availableOnlyIntent ? t.availabilityActionPending : t.availabilityAction}
+            </button>
+          )}
         </div>
 
         <div className="sb-filterbar__daterange">
@@ -140,6 +184,7 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
               {filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom}
             </span>
             <input
+              ref={availableFromRef}
               type="date"
               className="sb-filterbar__datechip-input"
               aria-label={t.dateFrom}
@@ -161,7 +206,7 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
               value={filters.availableTo || ''}
               min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
               onClick={(e) => openNativeDatePicker(e.currentTarget)}
-              onChange={(e) => onChange({ availableTo: e.target.value || undefined })}
+              onChange={(e) => applyDatePatch({ availableTo: e.target.value || undefined })}
             />
           </label>
         </div>
