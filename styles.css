@@ -1666,6 +1666,9 @@ a.sb-map__line:hover {
   font-weight: 700;
   cursor: pointer;
 }
+.sb-filterbar__availability-compact .sb-filterbar__availability-toggle {
+  grid-column: 4;
+}
 .sb-filterbar__availability-edit:hover {
   color: var(--sb-text-strong);
 }
@@ -1908,6 +1911,7 @@ a.sb-map__line:hover {
     flex: 1 1 100%;
   }
   .sb-filterbar__availability-compact .sb-filterbar__availability-toggle {
+    grid-column: auto;
     margin-left: auto;
   }
   .sb-filterbar__availability-range {
