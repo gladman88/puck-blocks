@@ -32,6 +32,21 @@ describe('SiteHeader', () => {
     expect(container.querySelector('a.sb-header__phone')?.getAttribute('href')).toBe('tel:+66959657805');
   });
 
+  it('adds a channel class to header social links for brand styling', () => {
+    const { container } = render(
+      <SiteHeader
+        logoText="X"
+        links={[]}
+        instagram="https://instagram.com/x"
+        whatsapp="https://wa.me/1"
+        telegram="https://t.me/x"
+      />,
+    );
+    expect(container.querySelector('.sb-header__contacts .sb-icon-link--instagram')).not.toBeNull();
+    expect(container.querySelector('.sb-header__contacts .sb-icon-link--whatsapp')).not.toBeNull();
+    expect(container.querySelector('.sb-header__contacts .sb-icon-link--telegram')).not.toBeNull();
+  });
+
   it('renders a call icon (tel:) for the mobile bar alongside the desktop text phone', () => {
     const { container } = render(<SiteHeader logoText="X" links={[]} phone="+66 95 965 7805" locale="en" />);
     const iconPhone = container.querySelector('.sb-header__contacts .sb-icon-link.sb-only-mobile');

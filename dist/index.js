@@ -477,7 +477,7 @@ function SiteHeader({
   const iconLink = (kind, href, extraClass = "") => /* @__PURE__ */ jsx(
     "a",
     {
-      className: `sb-icon-link ${extraClass}`.trim(),
+      className: `sb-icon-link sb-icon-link--${kind} ${extraClass}`.trim(),
       href,
       "aria-label": kind,
       target: kind === "phone" ? void 0 : "_blank",

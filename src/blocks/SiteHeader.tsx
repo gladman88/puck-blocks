@@ -128,7 +128,7 @@ export function SiteHeader({
 
   const iconLink = (kind: ContactKind, href: string, extraClass = '') => (
     <a
-      className={`sb-icon-link ${extraClass}`.trim()}
+      className={`sb-icon-link sb-icon-link--${kind} ${extraClass}`.trim()}
       href={href}
       aria-label={kind}
       target={kind === 'phone' ? undefined : '_blank'}
