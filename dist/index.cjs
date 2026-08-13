@@ -27,10 +27,12 @@ var base = {
 };
 var brandPaths = {
   instagram: simpleIcons.siInstagram.path,
-  whatsapp: simpleIcons.siWhatsapp.path,
-  telegram: simpleIcons.siTelegram.path
+  whatsapp: simpleIcons.siWhatsapp.path
 };
 function ContactIcon({ kind }) {
+  if (kind === "telegram") {
+    return /* @__PURE__ */ jsxRuntime.jsx("svg", { className: "sb-ico", viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "m22 3-9.5 18-2.8-6.7L3 11.5 22 3z" }) });
+  }
   const brandPath = brandPaths[kind];
   if (brandPath) {
     return /* @__PURE__ */ jsxRuntime.jsx("svg", { className: "sb-ico", viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: brandPath }) });

@@ -1,5 +1,5 @@
 import type { SVGProps } from 'react';
-import { siInstagram, siTelegram, siWhatsapp } from 'simple-icons';
+import { siInstagram, siWhatsapp } from 'simple-icons';
 
 export type ContactKind = 'phone' | 'whatsapp' | 'telegram' | 'instagram';
 
@@ -16,11 +16,18 @@ const base: SVGProps<SVGSVGElement> = {
 const brandPaths: Partial<Record<ContactKind, string>> = {
   instagram: siInstagram.path,
   whatsapp: siWhatsapp.path,
-  telegram: siTelegram.path,
 };
 
 /** Compact inline icon for a contact channel. */
 export function ContactIcon({ kind }: { kind: ContactKind }) {
+  if (kind === 'telegram') {
+    return (
+      <svg className="sb-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="m22 3-9.5 18-2.8-6.7L3 11.5 22 3z" />
+      </svg>
+    );
+  }
+
   const brandPath = brandPaths[kind];
 
   if (brandPath) {
