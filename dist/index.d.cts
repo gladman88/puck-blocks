@@ -399,4 +399,12 @@ interface RootProps {
 }
 declare const puckConfig: Config;
 
-export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogFilterState, type CatalogPreload, type CatalogSortOption, type CatalogVehicle, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, MapContacts, type MapContactsProps, type MediaReview, type NavLink, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, VehicleCatalog, type VehicleCatalogProps, categoryLabel, puckConfig };
+type ContactKind = 'phone' | 'whatsapp' | 'telegram' | 'instagram';
+interface ContactIconProps {
+    kind: ContactKind;
+    className?: string;
+}
+/** Compact inline icon for a contact channel. */
+declare function ContactIcon({ kind, className }: ContactIconProps): react.JSX.Element;
+
+export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogFilterState, type CatalogPreload, type CatalogSortOption, type CatalogVehicle, ContactIcon, type ContactKind, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, MapContacts, type MapContactsProps, type MediaReview, type NavLink, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, VehicleCatalog, type VehicleCatalogProps, categoryLabel, puckConfig };

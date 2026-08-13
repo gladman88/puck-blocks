@@ -17,7 +17,6 @@ function safeImageUrl(url) {
   return value && SAFE_IMAGE.test(value) ? value : void 0;
 }
 var base = {
-  className: "sb-ico",
   viewBox: "0 0 24 24",
   fill: "none",
   stroke: "currentColor",
@@ -25,24 +24,27 @@ var base = {
   strokeLinecap: "round",
   strokeLinejoin: "round"
 };
-var brandPaths = {
-  instagram: simpleIcons.siInstagram.path,
-  whatsapp: simpleIcons.siWhatsapp.path
-};
-function ContactIcon({ kind }) {
+var whatsappPath = simpleIcons.siWhatsapp.path;
+var telegramPlanePath = "M16.906 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z";
+function iconClassName(className) {
+  return ["sb-ico", className].filter(Boolean).join(" ");
+}
+function ContactIcon({ kind, className }) {
+  const iconClass = iconClassName(className);
+  if (kind === "instagram") {
+    return /* @__PURE__ */ jsxRuntime.jsxs("svg", { ...base, className: iconClass, "aria-hidden": "true", children: [
+      /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "3", width: "18", height: "18", rx: "5" }),
+      /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "12", cy: "12", r: "4" }),
+      /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "17.5", cy: "6.5", r: "0.65", fill: "currentColor", stroke: "none" })
+    ] });
+  }
   if (kind === "telegram") {
-    return /* @__PURE__ */ jsxRuntime.jsx("svg", { className: "sb-ico", viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "m22 3-9.5 18-2.8-6.7L3 11.5 22 3z" }) });
+    return /* @__PURE__ */ jsxRuntime.jsx("svg", { className: iconClass, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: telegramPlanePath }) });
   }
-  const brandPath = brandPaths[kind];
-  if (brandPath) {
-    return /* @__PURE__ */ jsxRuntime.jsx("svg", { className: "sb-ico", viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: brandPath }) });
+  if (kind === "whatsapp") {
+    return /* @__PURE__ */ jsxRuntime.jsx("svg", { className: iconClass, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: whatsappPath }) });
   }
-  switch (kind) {
-    case "phone":
-      return /* @__PURE__ */ jsxRuntime.jsx("svg", { ...base, children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" }) });
-    default:
-      return null;
-  }
+  return /* @__PURE__ */ jsxRuntime.jsx("svg", { ...base, className: iconClass, "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" }) });
 }
 function renderHeading(heading, accent) {
   const word = accent?.trim();
@@ -3601,6 +3603,7 @@ var internalConfig = {
 var puckConfig = internalConfig;
 
 exports.AboutPromo = AboutPromo;
+exports.ContactIcon = ContactIcon;
 exports.FeatureCards = FeatureCards;
 exports.Footer = Footer;
 exports.Hero = Hero;

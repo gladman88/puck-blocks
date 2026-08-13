@@ -1,6 +1,9 @@
 export { puckConfig } from './config';
 export type { Props, RootProps } from './config';
 
+export { ContactIcon } from './components/ContactIcon';
+export type { ContactKind } from './components/ContactIcon';
+
 export { Hero } from './blocks/Hero';
 export type { HeroProps } from './blocks/Hero';
 

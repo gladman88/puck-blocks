@@ -47,6 +47,22 @@ describe('SiteHeader', () => {
     expect(container.querySelector('.sb-header__contacts .sb-icon-link--telegram')).not.toBeNull();
   });
 
+  it('uses a clean Instagram outline and Telegram plane without nested circles', () => {
+    const { container } = render(
+      <SiteHeader
+        logoText="X"
+        links={[]}
+        instagram="https://instagram.com/x"
+        telegram="https://t.me/x"
+      />,
+    );
+    const instagram = container.querySelector('.sb-icon-link--instagram svg');
+    const telegramPath = container.querySelector('.sb-icon-link--telegram svg path');
+
+    expect(instagram?.getAttribute('fill')).toBe('none');
+    expect(telegramPath?.getAttribute('d')).not.toContain('A12 12');
+  });
+
   it('renders a call icon (tel:) for the mobile bar alongside the desktop text phone', () => {
     const { container } = render(<SiteHeader logoText="X" links={[]} phone="+66 95 965 7805" locale="en" />);
     const iconPhone = container.querySelector('.sb-header__contacts .sb-icon-link.sb-only-mobile');
