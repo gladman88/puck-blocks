@@ -15,6 +15,8 @@ export interface CatalogFilterState {
   search?: string;
   availableFrom?: string;
   availableTo?: string;
+  /** Applied after the API has evaluated availability for the selected dates. */
+  availableOnly: boolean;
   sort: CatalogSortOption;
 }
 
@@ -28,6 +30,7 @@ export function defaultFilterState(): CatalogFilterState {
     search: undefined,
     availableFrom: undefined,
     availableTo: undefined,
+    availableOnly: false,
     sort: 'default',
   };
 }
@@ -44,6 +47,10 @@ export interface FilterBarStrings {
   sortPriceDesc: string;
   dateFrom: string;
   dateTo: string;
+  availabilityTitle: string;
+  availabilityPrompt: string;
+  availabilityReady: string;
+  availableOnly: string;
   clearFilters: string;
 }
 
@@ -80,10 +87,12 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
 
   const hasActiveFilters = Boolean(
     filters.search || filters.vehicleType || filters.category ||
-    filters.availableFrom || filters.availableTo || (filters.sort && filters.sort !== 'default'),
+    filters.availableFrom || filters.availableTo || filters.availableOnly ||
+    (filters.sort && filters.sort !== 'default'),
   );
 
   const activeCategory = categories.find((c) => c.id === filters.category);
+  const hasCompleteDateRange = Boolean(filters.availableFrom && filters.availableTo);
 
   const cycleSort = () => {
     const order: CatalogSortOption[] = ['default', 'price_asc', 'price_desc'];
@@ -95,6 +104,69 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
 
   return (
     <div className="sb-filterbar">
+      <section className={`sb-filterbar__availability ${hasCompleteDateRange ? 'is-ready' : 'is-pending'}`} aria-label={t.availabilityTitle}>
+        <div className="sb-filterbar__availability-head">
+          <div>
+            <div className="sb-filterbar__availability-title">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              <span>{t.availabilityTitle}</span>
+            </div>
+            <p className="sb-filterbar__availability-copy">
+              {hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt}
+            </p>
+          </div>
+          <label className={`sb-filterbar__availability-toggle${hasCompleteDateRange ? '' : ' is-disabled'}`}>
+            <input
+              type="checkbox"
+              checked={filters.availableOnly}
+              disabled={!hasCompleteDateRange}
+              onChange={(e) => onChange({ availableOnly: e.target.checked })}
+            />
+            <span className="sb-filterbar__availability-switch" aria-hidden />
+            <span>{t.availableOnly}</span>
+          </label>
+        </div>
+
+        <div className="sb-filterbar__daterange">
+          {/* Date values are rendered by us at a stable width while the overlaid
+              native inputs retain the platform date picker and keyboard support. */}
+          <label className="sb-filterbar__datechip">
+            <span className={`sb-filterbar__datechip-val${filters.availableFrom ? '' : ' sb-filterbar__datechip-val--ph'}`}>
+              {filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom}
+            </span>
+            <input
+              type="date"
+              className="sb-filterbar__datechip-input"
+              aria-label={t.dateFrom}
+              value={filters.availableFrom || ''}
+              min={today}
+              onClick={(e) => openNativeDatePicker(e.currentTarget)}
+              onChange={(e) => handleFromChange(e.target.value)}
+            />
+          </label>
+          <span className="sb-filterbar__date-sep">—</span>
+          <label className="sb-filterbar__datechip">
+            <span className={`sb-filterbar__datechip-val${filters.availableTo ? '' : ' sb-filterbar__datechip-val--ph'}`}>
+              {filters.availableTo ? formatDDMMYYYY(filters.availableTo) : t.dateTo}
+            </span>
+            <input
+              type="date"
+              className="sb-filterbar__datechip-input"
+              aria-label={t.dateTo}
+              value={filters.availableTo || ''}
+              min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
+              onClick={(e) => openNativeDatePicker(e.currentTarget)}
+              onChange={(e) => onChange({ availableTo: e.target.value || undefined })}
+            />
+          </label>
+        </div>
+      </section>
+
       <div className="sb-filterbar__search">
         <svg className="sb-filterbar__search-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <circle cx="11" cy="11" r="7" />
@@ -177,53 +249,7 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
         </div>
       ) : null}
 
-      <div className="sb-filterbar__row">
-        {/* Date range is one flex unit that GROWS to fill the row (no empty
-            gap); sort + clear are a second unit that wraps together as a tidy
-            block instead of each control dangling on its own line. */}
-        <div className="sb-filterbar__daterange">
-          <svg className="sb-filterbar__cal-ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          {/* Date "chip": our own numeric ДД.ММ.ГГГГ label at a stable width,
-              with a transparent native <input type="date"> overlaid so a tap
-              still opens the OS picker — iOS otherwise paints the value in an
-              uncontrollable "17 Jul 2026" format that wraps and breaks the row.
-              Empty → a muted placeholder of the same width. */}
-          <label className="sb-filterbar__datechip">
-            <span className={`sb-filterbar__datechip-val${filters.availableFrom ? '' : ' sb-filterbar__datechip-val--ph'}`}>
-              {filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom}
-            </span>
-            <input
-              type="date"
-              className="sb-filterbar__datechip-input"
-              aria-label={t.dateFrom}
-              value={filters.availableFrom || ''}
-              min={today}
-              onClick={(e) => openNativeDatePicker(e.currentTarget)}
-              onChange={(e) => handleFromChange(e.target.value)}
-            />
-          </label>
-          <span className="sb-filterbar__date-sep">—</span>
-          <label className="sb-filterbar__datechip">
-            <span className={`sb-filterbar__datechip-val${filters.availableTo ? '' : ' sb-filterbar__datechip-val--ph'}`}>
-              {filters.availableTo ? formatDDMMYYYY(filters.availableTo) : t.dateTo}
-            </span>
-            <input
-              type="date"
-              className="sb-filterbar__datechip-input"
-              aria-label={t.dateTo}
-              value={filters.availableTo || ''}
-              min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
-              onClick={(e) => openNativeDatePicker(e.currentTarget)}
-              onChange={(e) => onChange({ availableTo: e.target.value || undefined })}
-            />
-          </label>
-        </div>
-
+      <div className="sb-filterbar__row sb-filterbar__row--utilities">
         <div className="sb-filterbar__actions">
           <button type="button" className="sb-filterbar__sort" onClick={cycleSort}>
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

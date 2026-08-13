@@ -383,10 +383,65 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
 
     // Custom chip label renders the placeholder; the native picker input is
     // still reachable by its accessible name for a11y / date entry.
-    expect(getByText('From date')).toBeTruthy();
-    expect(getByText('To date')).toBeTruthy();
-    expect(getByLabelText('From date')).toBeTruthy();
-    expect(getByLabelText('To date')).toBeTruthy();
+    expect(getByText('Start date')).toBeTruthy();
+    expect(getByText('End date')).toBeTruthy();
+    expect(getByLabelText('Start date')).toBeTruthy();
+    expect(getByLabelText('End date')).toBeTruthy();
+  });
+
+  it('makes dates the availability step and combines available-only with price sorting', async () => {
+    const cheapAvailable = {
+      ...vehicle,
+      id: 'v2',
+      display_name: 'Honda PCX',
+      brand: 'Honda',
+      model: 'PCX',
+      min_price_per_day: 3000,
+    };
+    const busyCheapest = {
+      ...vehicle,
+      id: 'v3',
+      display_name: 'Audi A6',
+      brand: 'Audi',
+      model: 'A6',
+      min_price_per_day: 1000,
+      is_available: false,
+      free_from: '2026-09-01',
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => Promise.resolve(
+        new Response(JSON.stringify(String(url).includes('/categories/') ? [cat] : [vehicle, cheapAvailable, busyCheapest]), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )),
+    );
+
+    const { container, findByText, getByLabelText, getByText } = render(
+      <VehicleCatalog showFilters apiBase="" locale="en" />,
+    );
+    await findByText('BMW Z4');
+
+    const availableOnly = getByLabelText('Available only') as HTMLInputElement;
+    expect(availableOnly.disabled).toBe(true);
+
+    fireEvent.change(getByLabelText('Start date'), { target: { value: '2026-08-20' } });
+    fireEvent.change(getByLabelText('End date'), { target: { value: '2026-08-25' } });
+    await waitFor(() => expect(availableOnly.disabled).toBe(false));
+
+    fireEvent.click(availableOnly);
+    await waitFor(() => {
+      expect(container.querySelectorAll('.sb-vcard')).toHaveLength(2);
+      expect(container.textContent).not.toContain('Audi A6');
+    });
+
+    fireEvent.click(getByText('Sort'));
+    await waitFor(() => {
+      const cards = Array.from(container.querySelectorAll('.sb-vcard'));
+      expect(cards[0]?.textContent).toContain('Honda PCX');
+      expect(cards[1]?.textContent).toContain('BMW Z4');
+    });
   });
 
   it('clearing filters also resets the date range (regression: dates survived reset)', async () => {
@@ -399,7 +454,7 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
       return urls[urls.length - 1];
     };
 
-    fireEvent.change(getByLabelText('From date'), { target: { value: '2026-08-01' } });
+    fireEvent.change(getByLabelText('Start date'), { target: { value: '2026-08-01' } });
     await waitFor(() => expect(lastVehiclesUrl()).toContain('available_from=2026-08-01'));
 
     fireEvent.click(getByLabelText('Clear filters'));

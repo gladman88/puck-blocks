@@ -1558,27 +1558,107 @@ a.sb-map__line:hover {
   flex-wrap: wrap;
   gap: 0.4rem;
 }
-.sb-filterbar__cal-ico {
+.sb-filterbar__availability {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--sb-border);
+  border-left: 3px solid var(--sb-accent);
+  border-radius: var(--sb-radius);
+  background: var(--sb-surface);
+}
+.sb-filterbar__availability.is-pending {
+  border-color: rgba(255, 204, 51, 0.58);
+  box-shadow: 0 0 0 1px rgba(255, 204, 51, 0.12);
+}
+.sb-filterbar__availability.is-ready {
+  border-left-color: #4ade80;
+}
+.sb-filterbar__availability-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.sb-filterbar__availability-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--sb-text-strong);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.sb-filterbar__availability-title svg {
+  color: var(--sb-accent);
+}
+.sb-filterbar__availability-copy {
+  margin: 0.2rem 0 0;
   color: var(--sb-text-muted);
+  font-size: 0.78rem;
+}
+.sb-filterbar__availability-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+  color: var(--sb-text-strong);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sb-filterbar__availability-toggle.is-disabled {
+  color: var(--sb-text-muted);
+  cursor: not-allowed;
+}
+.sb-filterbar__availability-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.sb-filterbar__availability-switch {
+  position: relative;
+  width: 2.25rem;
+  height: 1.25rem;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius-pill);
+  background: var(--sb-bg);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.sb-filterbar__availability-switch::after {
+  position: absolute;
+  top: 50%;
+  left: 0.18rem;
+  width: 0.82rem;
+  height: 0.82rem;
+  border-radius: 50%;
+  background: var(--sb-text-muted);
+  content: '';
+  transform: translateY(-50%);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.sb-filterbar__availability-toggle input:checked + .sb-filterbar__availability-switch {
+  border-color: var(--sb-accent);
+  background: var(--sb-accent);
+}
+.sb-filterbar__availability-toggle input:checked + .sb-filterbar__availability-switch::after {
+  background: var(--sb-accent-ink);
+  transform: translate(calc(2.25rem - 0.82rem - 0.36rem), -50%);
+}
+.sb-filterbar__availability-toggle input:focus-visible + .sb-filterbar__availability-switch {
+  outline: 2px solid var(--sb-text-strong);
+  outline-offset: 2px;
+}
+.sb-filterbar__cal-ico {
+  color: var(--sb-accent);
   flex-shrink: 0;
 }
-/* Date range grows to fill the row (its chips grow inside it → no empty gap);
-   the sort+clear actions group wraps as ONE tidy block below on narrow screens,
-   instead of each control dangling on its own line. */
 .sb-filterbar__daterange {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  flex: 1 1 16rem;
+  gap: 0.5rem;
+  width: 100%;
   min-width: 0;
-}
-/* On desktop don't stretch the dates across the whole row — cap them at a
-   sensible width (controls then left-pack). On mobile (≤640px) they keep
-   filling, so there's no empty gap on the narrow date row. */
-@media (min-width: 641px) {
-  .sb-filterbar__daterange {
-    max-width: 22rem;
-  }
 }
 .sb-filterbar__actions {
   display: flex;
@@ -1586,30 +1666,31 @@ a.sb-map__line:hover {
   gap: 0.4rem;
   flex: 0 0 auto;
 }
-/* Date chip: a real-looking, stable-width field whose label WE render (so the
-   format is ДД.ММ.ГГГГ everywhere, not iOS's "17 Jul 2026" that wraps). The
-   native date <input> is overlaid transparently so a tap still opens the OS
-   picker. min-width keeps empty and filled states the same size — no reflow. */
+.sb-filterbar__row--utilities {
+  justify-content: flex-end;
+}
+/* Numeric labels stay stable while the native date input remains the real,
+   accessible control layered over the entire field. */
 .sb-filterbar__datechip {
   position: relative;
   display: inline-flex;
   align-items: center;
-  flex: 1 1 0; /* grow to fill the date-range group → no empty gap */
-  min-width: 6.6rem;
-  height: var(--sb-fbar-h);
-  padding: 0 0.7rem;
+  flex: 1 1 0;
+  min-width: 7.1rem;
+  height: 2.75rem;
+  padding: 0 0.85rem;
   border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius);
+  border-radius: 10px;
   background: var(--sb-bg);
   color: var(--sb-text-strong);
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   cursor: pointer;
 }
 .sb-filterbar__datechip-val {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-variant-numeric: tabular-nums; /* stable digit width */
+  font-variant-numeric: tabular-nums;
 }
 .sb-filterbar__datechip-val--ph {
   color: var(--sb-text-muted);
@@ -1622,7 +1703,7 @@ a.sb-map__line:hover {
   margin: 0;
   padding: 0;
   border: 0;
-  opacity: 0; /* invisible but tappable → opens the native picker */
+  opacity: 0;
   background: transparent;
   color: transparent;
   cursor: pointer;
@@ -1630,8 +1711,8 @@ a.sb-map__line:hover {
   appearance: none;
 }
 .sb-filterbar__date-sep {
-  color: var(--sb-text-muted);
-  font-size: 0.8rem;
+  color: var(--sb-accent);
+  font-size: 1rem;
 }
 .sb-filterbar__sort {
   display: inline-flex;
@@ -1655,6 +1736,13 @@ a.sb-map__line:hover {
 @media (max-width: 640px) {
   .sb-filterbar__row {
     gap: 0.4rem;
+  }
+  .sb-filterbar__availability-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .sb-filterbar__availability-toggle {
+    min-height: 2.125rem;
   }
 }
 

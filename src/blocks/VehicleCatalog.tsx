@@ -159,8 +159,12 @@ const STRINGS = {
     sortDefault: 'Сортировка',
     sortPriceAsc: 'Дешевле',
     sortPriceDesc: 'Дороже',
-    dateFrom: 'Дата с',
-    dateTo: 'Дата по',
+    dateFrom: 'Начало',
+    dateTo: 'Окончание',
+    availabilityTitle: 'Даты аренды',
+    availabilityPrompt: 'Выберите даты, чтобы увидеть доступность машин',
+    availabilityReady: 'Доступность рассчитана на выбранный период',
+    availableOnly: 'Только свободные',
     clearFilters: 'Сбросить фильтры',
   },
   en: {
@@ -183,8 +187,12 @@ const STRINGS = {
     sortDefault: 'Sort',
     sortPriceAsc: 'Cheapest',
     sortPriceDesc: 'Priciest',
-    dateFrom: 'From date',
-    dateTo: 'To date',
+    dateFrom: 'Start date',
+    dateTo: 'End date',
+    availabilityTitle: 'Rental dates',
+    availabilityPrompt: 'Choose dates to see vehicle availability',
+    availabilityReady: 'Availability is calculated for your dates',
+    availableOnly: 'Available only',
     clearFilters: 'Clear filters',
   },
 } as const;
@@ -511,14 +519,19 @@ export function VehicleCatalog({
   // Client-side price sort (filter mode only) — the backend catalog endpoint
   // has no `sort` param, mirrors frontend_catalog's VehicleGrid sort.
   const displayGroups = useMemo(() => {
-    if (!showFilters || filters.sort === 'default') return groups;
+    // The API evaluates each physical unit for the selected dates. Filtering
+    // after grouping keeps a model visible whenever at least one unit is free.
+    const filtered = showFilters && filters.availableOnly && filters.availableFrom && filters.availableTo
+      ? groups.filter((group) => group.availableCount > 0)
+      : groups;
+    if (!showFilters || filters.sort === 'default') return filtered;
     const dir = filters.sort === 'price_asc' ? 1 : -1;
-    return [...groups].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       const pa = a.vehicle.min_price_per_day ?? Infinity;
       const pb = b.vehicle.min_price_per_day ?? Infinity;
       return (pa - pb) * dir;
     });
-  }, [groups, showFilters, filters.sort]);
+  }, [groups, showFilters, filters.availableOnly, filters.availableFrom, filters.availableTo, filters.sort]);
 
   return (
     <Section className="sb-vcatalog" id={anchorId || undefined}>

@@ -2387,6 +2387,7 @@ function defaultFilterState() {
     search: void 0,
     availableFrom: void 0,
     availableTo: void 0,
+    availableOnly: false,
     sort: "default"
   };
 }
@@ -2401,9 +2402,10 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
     onChange(patch);
   };
   const hasActiveFilters = Boolean(
-    filters.search || filters.vehicleType || filters.category || filters.availableFrom || filters.availableTo || filters.sort && filters.sort !== "default"
+    filters.search || filters.vehicleType || filters.category || filters.availableFrom || filters.availableTo || filters.availableOnly || filters.sort && filters.sort !== "default"
   );
   const activeCategory = categories.find((c) => c.id === filters.category);
+  const hasCompleteDateRange = Boolean(filters.availableFrom && filters.availableTo);
   const cycleSort = () => {
     const order = ["default", "price_asc", "price_desc"];
     const next = order[(order.indexOf(filters.sort) + 1) % order.length];
@@ -2411,6 +2413,68 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
   };
   const sortLabel = filters.sort === "price_asc" ? t.sortPriceAsc : filters.sort === "price_desc" ? t.sortPriceDesc : t.sortDefault;
   return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar", children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("section", { className: `sb-filterbar__availability ${hasCompleteDateRange ? "is-ready" : "is-pending"}`, "aria-label": t.availabilityTitle, children: [
+      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__availability-head", children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__availability-title", children: [
+            /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", width: "18", height: "18", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+              /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
+              /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "16", y1: "2", x2: "16", y2: "6" }),
+              /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "8", y1: "2", x2: "8", y2: "6" }),
+              /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
+            ] }),
+            /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.availabilityTitle })
+          ] }),
+          /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-filterbar__availability-copy", children: hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt })
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsxs("label", { className: `sb-filterbar__availability-toggle${hasCompleteDateRange ? "" : " is-disabled"}`, children: [
+          /* @__PURE__ */ jsxRuntime.jsx(
+            "input",
+            {
+              type: "checkbox",
+              checked: filters.availableOnly,
+              disabled: !hasCompleteDateRange,
+              onChange: (e) => onChange({ availableOnly: e.target.checked })
+            }
+          ),
+          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-filterbar__availability-switch", "aria-hidden": true }),
+          /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.availableOnly })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__daterange", children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "sb-filterbar__datechip", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("span", { className: `sb-filterbar__datechip-val${filters.availableFrom ? "" : " sb-filterbar__datechip-val--ph"}`, children: filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom }),
+          /* @__PURE__ */ jsxRuntime.jsx(
+            "input",
+            {
+              type: "date",
+              className: "sb-filterbar__datechip-input",
+              "aria-label": t.dateFrom,
+              value: filters.availableFrom || "",
+              min: today,
+              onClick: (e) => openNativeDatePicker(e.currentTarget),
+              onChange: (e) => handleFromChange(e.target.value)
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-filterbar__date-sep", children: "\u2014" }),
+        /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "sb-filterbar__datechip", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("span", { className: `sb-filterbar__datechip-val${filters.availableTo ? "" : " sb-filterbar__datechip-val--ph"}`, children: filters.availableTo ? formatDDMMYYYY(filters.availableTo) : t.dateTo }),
+          /* @__PURE__ */ jsxRuntime.jsx(
+            "input",
+            {
+              type: "date",
+              className: "sb-filterbar__datechip-input",
+              "aria-label": t.dateTo,
+              value: filters.availableTo || "",
+              min: filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
+              onClick: (e) => openNativeDatePicker(e.currentTarget),
+              onChange: (e) => onChange({ availableTo: e.target.value || void 0 })
+            }
+          )
+        ] })
+      ] })
+    ] }),
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__search", children: [
       /* @__PURE__ */ jsxRuntime.jsxs("svg", { className: "sb-filterbar__search-ico", viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
         /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "11", cy: "11", r: "7" }),
@@ -2491,74 +2555,33 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
       },
       cat.id
     )) }) : null,
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__row", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__daterange", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("svg", { className: "sb-filterbar__cal-ico", viewBox: "0 0 24 24", width: "14", height: "14", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-          /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
-          /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "16", y1: "2", x2: "16", y2: "6" }),
-          /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "8", y1: "2", x2: "8", y2: "6" }),
-          /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-filterbar__row sb-filterbar__row--utilities", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__actions", children: [
+      /* @__PURE__ */ jsxRuntime.jsxs("button", { type: "button", className: "sb-filterbar__sort", onClick: cycleSort, children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+          /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "6", x2: "9", y2: "6" }),
+          /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "12", x2: "7", y2: "12" }),
+          /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "18", x2: "5", y2: "18" }),
+          /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M17 4v16m0 0-4-4m4 4 4-4" })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "sb-filterbar__datechip", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: `sb-filterbar__datechip-val${filters.availableFrom ? "" : " sb-filterbar__datechip-val--ph"}`, children: filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom }),
-          /* @__PURE__ */ jsxRuntime.jsx(
-            "input",
-            {
-              type: "date",
-              className: "sb-filterbar__datechip-input",
-              "aria-label": t.dateFrom,
-              value: filters.availableFrom || "",
-              min: today,
-              onClick: (e) => openNativeDatePicker(e.currentTarget),
-              onChange: (e) => handleFromChange(e.target.value)
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-filterbar__date-sep", children: "\u2014" }),
-        /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "sb-filterbar__datechip", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: `sb-filterbar__datechip-val${filters.availableTo ? "" : " sb-filterbar__datechip-val--ph"}`, children: filters.availableTo ? formatDDMMYYYY(filters.availableTo) : t.dateTo }),
-          /* @__PURE__ */ jsxRuntime.jsx(
-            "input",
-            {
-              type: "date",
-              className: "sb-filterbar__datechip-input",
-              "aria-label": t.dateTo,
-              value: filters.availableTo || "",
-              min: filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
-              onClick: (e) => openNativeDatePicker(e.currentTarget),
-              onChange: (e) => onChange({ availableTo: e.target.value || void 0 })
-            }
-          )
-        ] })
+        /* @__PURE__ */ jsxRuntime.jsx("span", { className: filters.sort !== "default" ? "sb-filterbar__sort-active" : "", children: sortLabel })
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__actions", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("button", { type: "button", className: "sb-filterbar__sort", onClick: cycleSort, children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-            /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "6", x2: "9", y2: "6" }),
-            /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "12", x2: "7", y2: "12" }),
-            /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "18", x2: "5", y2: "18" }),
-            /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M17 4v16m0 0-4-4m4 4 4-4" })
-          ] }),
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: filters.sort !== "default" ? "sb-filterbar__sort-active" : "", children: sortLabel })
-        ] }),
-        hasActiveFilters ? /* @__PURE__ */ jsxRuntime.jsx(
-          "button",
-          {
-            type: "button",
-            className: "sb-filterbar__clear",
-            onClick: () => {
-              onChange(defaultFilterState());
-              setCategoryOpen(false);
-            },
-            "aria-label": t.clearFilters,
-            children: /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-              /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
-              /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
-            ] })
-          }
-        ) : null
-      ] })
-    ] })
+      hasActiveFilters ? /* @__PURE__ */ jsxRuntime.jsx(
+        "button",
+        {
+          type: "button",
+          className: "sb-filterbar__clear",
+          onClick: () => {
+            onChange(defaultFilterState());
+            setCategoryOpen(false);
+          },
+          "aria-label": t.clearFilters,
+          children: /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+            /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
+            /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
+          ] })
+        }
+      ) : null
+    ] }) })
   ] });
 }
 function setVehicleParam(id) {
@@ -2593,8 +2616,12 @@ var STRINGS2 = {
     sortDefault: "\u0421\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u043A\u0430",
     sortPriceAsc: "\u0414\u0435\u0448\u0435\u0432\u043B\u0435",
     sortPriceDesc: "\u0414\u043E\u0440\u043E\u0436\u0435",
-    dateFrom: "\u0414\u0430\u0442\u0430 \u0441",
-    dateTo: "\u0414\u0430\u0442\u0430 \u043F\u043E",
+    dateFrom: "\u041D\u0430\u0447\u0430\u043B\u043E",
+    dateTo: "\u041E\u043A\u043E\u043D\u0447\u0430\u043D\u0438\u0435",
+    availabilityTitle: "\u0414\u0430\u0442\u044B \u0430\u0440\u0435\u043D\u0434\u044B",
+    availabilityPrompt: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0430\u0442\u044B, \u0447\u0442\u043E\u0431\u044B \u0443\u0432\u0438\u0434\u0435\u0442\u044C \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E\u0441\u0442\u044C \u043C\u0430\u0448\u0438\u043D",
+    availabilityReady: "\u0414\u043E\u0441\u0442\u0443\u043F\u043D\u043E\u0441\u0442\u044C \u0440\u0430\u0441\u0441\u0447\u0438\u0442\u0430\u043D\u0430 \u043D\u0430 \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u0439 \u043F\u0435\u0440\u0438\u043E\u0434",
+    availableOnly: "\u0422\u043E\u043B\u044C\u043A\u043E \u0441\u0432\u043E\u0431\u043E\u0434\u043D\u044B\u0435",
     clearFilters: "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0444\u0438\u043B\u044C\u0442\u0440\u044B"
   },
   en: {
@@ -2617,8 +2644,12 @@ var STRINGS2 = {
     sortDefault: "Sort",
     sortPriceAsc: "Cheapest",
     sortPriceDesc: "Priciest",
-    dateFrom: "From date",
-    dateTo: "To date",
+    dateFrom: "Start date",
+    dateTo: "End date",
+    availabilityTitle: "Rental dates",
+    availabilityPrompt: "Choose dates to see vehicle availability",
+    availabilityReady: "Availability is calculated for your dates",
+    availableOnly: "Available only",
     clearFilters: "Clear filters"
   }
 };
@@ -2833,14 +2864,15 @@ function VehicleCatalog({
     return groupVehicles(list);
   }, [vehicles, activeCat, showFilters]);
   const displayGroups = react.useMemo(() => {
-    if (!showFilters || filters.sort === "default") return groups;
+    const filtered = showFilters && filters.availableOnly && filters.availableFrom && filters.availableTo ? groups.filter((group) => group.availableCount > 0) : groups;
+    if (!showFilters || filters.sort === "default") return filtered;
     const dir = filters.sort === "price_asc" ? 1 : -1;
-    return [...groups].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       const pa = a.vehicle.min_price_per_day ?? Infinity;
       const pb = b.vehicle.min_price_per_day ?? Infinity;
       return (pa - pb) * dir;
     });
-  }, [groups, showFilters, filters.sort]);
+  }, [groups, showFilters, filters.availableOnly, filters.availableFrom, filters.availableTo, filters.sort]);
   return /* @__PURE__ */ jsxRuntime.jsxs(Section, { className: "sb-vcatalog", id: anchorId || void 0, children: [
     heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: heading }) : null,
     showFilters ? /* @__PURE__ */ jsxRuntime.jsx(

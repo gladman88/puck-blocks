@@ -226,6 +226,8 @@ interface CatalogFilterState {
     search?: string;
     availableFrom?: string;
     availableTo?: string;
+    /** Applied after the API has evaluated availability for the selected dates. */
+    availableOnly: boolean;
     sort: CatalogSortOption;
 }
 
