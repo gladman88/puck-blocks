@@ -2466,18 +2466,15 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
       ] })
     ] }) : /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
       /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__availability-head", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__availability-title", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", width: "18", height: "18", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-              /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
-              /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "16", y1: "2", x2: "16", y2: "6" }),
-              /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "8", y1: "2", x2: "8", y2: "6" }),
-              /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
-            ] }),
-            /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.availabilityTitle })
+        /* @__PURE__ */ jsxRuntime.jsx("div", { children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__availability-title", children: [
+          /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", width: "18", height: "18", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+            /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
+            /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "16", y1: "2", x2: "16", y2: "6" }),
+            /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "8", y1: "2", x2: "8", y2: "6" }),
+            /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-filterbar__availability-copy", children: hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt })
-        ] }),
+          /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.availabilityTitle })
+        ] }) }),
         hasCompleteDateRange ? /* @__PURE__ */ jsxRuntime.jsx(
           "button",
           {
@@ -2537,7 +2534,8 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
             }
           )
         ] })
-      ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-filterbar__availability-copy", children: hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt })
     ] }) }),
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar", children: [
       /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__search", children: [

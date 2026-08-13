@@ -177,9 +177,6 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                   </svg>
                   <span>{t.availabilityTitle}</span>
                 </div>
-                <p className="sb-filterbar__availability-copy">
-                  {hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt}
-                </p>
               </div>
               {hasCompleteDateRange ? (
                 <button
@@ -238,6 +235,9 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                 />
               </label>
             </div>
+            <p className="sb-filterbar__availability-copy">
+              {hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt}
+            </p>
           </>
         )}
       </section>

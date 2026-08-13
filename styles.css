@@ -1583,7 +1583,7 @@ a.sb-map__line:hover {
   box-shadow: 0 0 0 1px rgba(255, 204, 51, 0.12);
 }
 .sb-filterbar__availability.is-ready {
-  border-left-color: #4ade80;
+  border-left-color: var(--sb-accent);
 }
 .sb-filterbar__availability.is-compact {
   position: sticky;
@@ -1591,8 +1591,8 @@ a.sb-map__line:hover {
   z-index: 20;
   display: block;
   padding: 0.7rem 1rem;
-  border-left-color: #4ade80;
-  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.1);
+  border-left-color: var(--sb-accent);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
 }
 .sb-filterbar__availability-compact {
   display: flex;
@@ -1609,7 +1609,7 @@ a.sb-map__line:hover {
 }
 .sb-filterbar__availability-summary > svg {
   flex: 0 0 auto;
-  color: #4ade80;
+  color: var(--sb-accent);
 }
 .sb-filterbar__availability-range {
   color: var(--sb-text-strong);
@@ -1727,11 +1727,11 @@ a.sb-map__line:hover {
   background: rgba(255, 204, 51, 0.18);
 }
 .sb-filterbar__availability-action.is-complete {
-  border-color: rgba(74, 222, 128, 0.6);
-  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(255, 204, 51, 0.62);
+  background: rgba(255, 204, 51, 0.14);
 }
 .sb-filterbar__availability-action.is-complete:hover {
-  background: rgba(74, 222, 128, 0.2);
+  background: rgba(255, 204, 51, 0.22);
 }
 .sb-filterbar__availability-action:focus-visible {
   outline: 2px solid var(--sb-text-strong);
@@ -1825,12 +1825,37 @@ a.sb-map__line:hover {
   .sb-filterbar__row {
     gap: 0.4rem;
   }
+  .sb-filterbar__availability.is-pending,
+  .sb-filterbar__availability.is-editing {
+    gap: 0.6rem;
+    padding: 0.75rem;
+  }
   .sb-filterbar__availability-head {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .sb-filterbar__availability-title {
+    font-size: 0.9rem;
+  }
+  .sb-filterbar__availability-action {
+    min-height: 2rem;
+    padding: 0.25rem 0.55rem;
+    font-size: 0.75rem;
   }
   .sb-filterbar__availability-toggle {
     min-height: 2.125rem;
+  }
+  .sb-filterbar__daterange {
+    gap: 0.35rem;
+  }
+  .sb-filterbar__datechip {
+    min-width: 0;
+    height: 2.5rem;
+    padding-inline: 0.7rem;
+  }
+  .sb-filterbar__availability-copy {
+    margin: 0;
+    font-size: 0.72rem;
   }
   .sb-filterbar__availability.is-compact {
     padding: 0.65rem 0.75rem;
