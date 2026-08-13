@@ -39,8 +39,8 @@ function InstagramMark({ className }: { className: string }) {
         </radialGradient>
       </defs>
       <circle cx="16" cy="16" r="16" fill={`url(#${gradientId})`} />
-      <rect x="7" y="7" width="18" height="18" rx="5.5" fill="none" stroke="#fff" strokeWidth="2.6" />
-      <circle cx="16" cy="16" r="4.1" fill="none" stroke="#fff" strokeWidth="2.6" />
+      <rect x="7" y="7" width="18" height="18" rx="5.5" fill="none" stroke="#fff" strokeWidth="2.25" />
+      <circle cx="16" cy="16" r="4.1" fill="none" stroke="#fff" strokeWidth="2.25" />
       <circle cx="21.7" cy="10.4" r="1.45" fill="#fff" />
     </svg>
   );
