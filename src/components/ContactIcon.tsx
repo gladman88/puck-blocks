@@ -1,4 +1,4 @@
-import type { SVGProps } from 'react';
+import { useId, type SVGProps } from 'react';
 import { siWhatsapp } from 'simple-icons';
 
 export type ContactKind = 'phone' | 'whatsapp' | 'telegram' | 'instagram';
@@ -24,18 +24,34 @@ function iconClassName(className?: string) {
   return ['sb-ico', className].filter(Boolean).join(' ');
 }
 
+function InstagramMark({ className }: { className: string }) {
+  const gradientId = useId();
+
+  return (
+    <svg className={`${className} sb-ico--instagram`} viewBox="0 0 32 32" aria-hidden="true">
+      <defs>
+        <radialGradient id={gradientId} cx="30%" cy="107%" r="150%">
+          <stop offset="0%" stopColor="#fdf497" />
+          <stop offset="18%" stopColor="#fd5949" />
+          <stop offset="48%" stopColor="#d6249f" />
+          <stop offset="78%" stopColor="#285aeb" />
+          <stop offset="100%" stopColor="#833ab4" />
+        </radialGradient>
+      </defs>
+      <circle cx="16" cy="16" r="16" fill={`url(#${gradientId})`} />
+      <rect x="7" y="7" width="18" height="18" rx="5.5" fill="none" stroke="#fff" strokeWidth="2.6" />
+      <circle cx="16" cy="16" r="4.1" fill="none" stroke="#fff" strokeWidth="2.6" />
+      <circle cx="21.7" cy="10.4" r="1.45" fill="#fff" />
+    </svg>
+  );
+}
+
 /** Compact inline icon for a contact channel. */
 export function ContactIcon({ kind, className }: ContactIconProps) {
   const iconClass = iconClassName(className);
 
   if (kind === 'instagram') {
-    return (
-      <svg {...base} className={iconClass} aria-hidden="true">
-        <rect x="3" y="3" width="18" height="18" rx="5" />
-        <circle cx="12" cy="12" r="4" />
-        <circle cx="17.5" cy="6.5" r="0.65" fill="currentColor" stroke="none" />
-      </svg>
-    );
+    return <InstagramMark className={iconClass} />;
   }
 
   if (kind === 'telegram') {

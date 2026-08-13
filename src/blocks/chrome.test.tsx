@@ -59,7 +59,7 @@ describe('SiteHeader', () => {
     const instagram = container.querySelector('.sb-icon-link--instagram svg');
     const telegramPath = container.querySelector('.sb-icon-link--telegram svg path');
 
-    expect(instagram?.getAttribute('fill')).toBe('none');
+    expect(instagram?.classList.contains('sb-ico--instagram')).toBe(true);
     expect(telegramPath?.getAttribute('d')).not.toContain('A12 12');
     expect(telegramPath?.getAttribute('transform')).toBe('translate(-9 -9) scale(1.75)');
   });

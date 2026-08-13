@@ -1,8 +1,8 @@
 'use strict';
 
+var react = require('react');
 var simpleIcons = require('simple-icons');
 var jsxRuntime = require('react/jsx-runtime');
-var react = require('react');
 var reactDom = require('react-dom');
 
 // src/sanitize.ts
@@ -29,14 +29,26 @@ var telegramPlanePath = "M16.906 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .17
 function iconClassName(className) {
   return ["sb-ico", className].filter(Boolean).join(" ");
 }
+function InstagramMark({ className }) {
+  const gradientId = react.useId();
+  return /* @__PURE__ */ jsxRuntime.jsxs("svg", { className: `${className} sb-ico--instagram`, viewBox: "0 0 32 32", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsxRuntime.jsx("defs", { children: /* @__PURE__ */ jsxRuntime.jsxs("radialGradient", { id: gradientId, cx: "30%", cy: "107%", r: "150%", children: [
+      /* @__PURE__ */ jsxRuntime.jsx("stop", { offset: "0%", stopColor: "#fdf497" }),
+      /* @__PURE__ */ jsxRuntime.jsx("stop", { offset: "18%", stopColor: "#fd5949" }),
+      /* @__PURE__ */ jsxRuntime.jsx("stop", { offset: "48%", stopColor: "#d6249f" }),
+      /* @__PURE__ */ jsxRuntime.jsx("stop", { offset: "78%", stopColor: "#285aeb" }),
+      /* @__PURE__ */ jsxRuntime.jsx("stop", { offset: "100%", stopColor: "#833ab4" })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "16", cy: "16", r: "16", fill: `url(#${gradientId})` }),
+    /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "7", y: "7", width: "18", height: "18", rx: "5.5", fill: "none", stroke: "#fff", strokeWidth: "2.6" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "16", cy: "16", r: "4.1", fill: "none", stroke: "#fff", strokeWidth: "2.6" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "21.7", cy: "10.4", r: "1.45", fill: "#fff" })
+  ] });
+}
 function ContactIcon({ kind, className }) {
   const iconClass = iconClassName(className);
   if (kind === "instagram") {
-    return /* @__PURE__ */ jsxRuntime.jsxs("svg", { ...base, className: iconClass, "aria-hidden": "true", children: [
-      /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "3", width: "18", height: "18", rx: "5" }),
-      /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "12", cy: "12", r: "4" }),
-      /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "17.5", cy: "6.5", r: "0.65", fill: "currentColor", stroke: "none" })
-    ] });
+    return /* @__PURE__ */ jsxRuntime.jsx(InstagramMark, { className: iconClass });
   }
   if (kind === "telegram") {
     return /* @__PURE__ */ jsxRuntime.jsx("svg", { className: iconClass, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: telegramPlanePath, transform: "translate(-9 -9) scale(1.75)" }) });
