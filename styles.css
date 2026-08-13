@@ -1571,7 +1571,6 @@ a.sb-map__line:hover {
   margin-bottom: 0.6rem;
   padding: 1rem;
   border: 1px solid var(--sb-border);
-  border-left: 3px solid var(--sb-accent);
   border-radius: var(--sb-radius);
   background: var(--sb-surface);
 }
@@ -1582,16 +1581,12 @@ a.sb-map__line:hover {
   border-color: rgba(255, 204, 51, 0.58);
   box-shadow: 0 0 0 1px rgba(255, 204, 51, 0.12);
 }
-.sb-filterbar__availability.is-ready {
-  border-left-color: var(--sb-accent);
-}
 .sb-filterbar__availability.is-compact {
   position: sticky;
   top: var(--sb-availability-sticky-top);
   z-index: 20;
   display: block;
   padding: 0.7rem 1rem;
-  border-left-color: var(--sb-accent);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
 }
 .sb-filterbar__availability-compact {
