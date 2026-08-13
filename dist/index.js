@@ -37,7 +37,7 @@ function ContactIcon({ kind, className }) {
     ] });
   }
   if (kind === "telegram") {
-    return /* @__PURE__ */ jsx("svg", { className: iconClass, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: telegramPlanePath }) });
+    return /* @__PURE__ */ jsx("svg", { className: iconClass, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: telegramPlanePath, transform: "translate(-9 -9) scale(1.75)" }) });
   }
   if (kind === "whatsapp") {
     return /* @__PURE__ */ jsx("svg", { className: iconClass, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: whatsappPath }) });

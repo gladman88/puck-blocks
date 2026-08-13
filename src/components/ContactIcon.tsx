@@ -41,7 +41,7 @@ export function ContactIcon({ kind, className }: ContactIconProps) {
   if (kind === 'telegram') {
     return (
       <svg className={iconClass} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d={telegramPlanePath} />
+        <path d={telegramPlanePath} transform="translate(-9 -9) scale(1.75)" />
       </svg>
     );
   }

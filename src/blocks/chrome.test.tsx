@@ -61,6 +61,7 @@ describe('SiteHeader', () => {
 
     expect(instagram?.getAttribute('fill')).toBe('none');
     expect(telegramPath?.getAttribute('d')).not.toContain('A12 12');
+    expect(telegramPath?.getAttribute('transform')).toBe('translate(-9 -9) scale(1.75)');
   });
 
   it('renders a call icon (tel:) for the mobile bar alongside the desktop text phone', () => {
