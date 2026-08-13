@@ -1585,6 +1585,52 @@ a.sb-map__line:hover {
 .sb-filterbar__availability.is-ready {
   border-left-color: #4ade80;
 }
+.sb-filterbar__availability.is-compact {
+  display: block;
+  padding: 0.7rem 1rem;
+  border-left-color: #4ade80;
+}
+.sb-filterbar__availability-compact {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-height: 2.25rem;
+}
+.sb-filterbar__availability-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  margin-right: auto;
+}
+.sb-filterbar__availability-summary > svg {
+  flex: 0 0 auto;
+  color: #4ade80;
+}
+.sb-filterbar__availability-range {
+  color: var(--sb-text-strong);
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sb-filterbar__availability-edit {
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sb-accent);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sb-filterbar__availability-edit:hover {
+  color: var(--sb-text-strong);
+}
+.sb-filterbar__availability-edit:focus-visible {
+  outline: 2px solid var(--sb-text-strong);
+  outline-offset: 2px;
+}
 .sb-filterbar__availability-head {
   display: flex;
   align-items: center;
@@ -1774,6 +1820,19 @@ a.sb-map__line:hover {
   }
   .sb-filterbar__availability-toggle {
     min-height: 2.125rem;
+  }
+  .sb-filterbar__availability.is-compact {
+    padding: 0.65rem 0.75rem;
+  }
+  .sb-filterbar__availability-compact {
+    flex-wrap: wrap;
+    gap: 0.35rem 0.7rem;
+  }
+  .sb-filterbar__availability-summary {
+    flex: 1 1 100%;
+  }
+  .sb-filterbar__availability-range {
+    font-size: 0.82rem;
   }
 }
 

@@ -427,7 +427,7 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
     const availabilityPanel = container.querySelector('.sb-filterbar__availability');
     expect(availabilityPanel?.classList.contains('is-pending')).toBe(true);
     expect(getByText('Without dates, availability is shown for today')).toBeTruthy();
-    fireEvent.click(getByText('Show available for my dates'));
+    fireEvent.click(getByText('Show available'));
     expect(document.activeElement).toBe(getByLabelText('Start date'));
     expect(getByText('Choose dates')).toBeTruthy();
 
@@ -436,6 +436,11 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
     const availableOnly = await waitFor(() => getByLabelText('Available only')) as HTMLInputElement;
     await waitFor(() => expect(availableOnly.checked).toBe(true));
     expect(availabilityPanel?.classList.contains('is-ready')).toBe(true);
+    expect(availabilityPanel?.classList.contains('is-compact')).toBe(true);
+    expect(availabilityPanel?.querySelector('.sb-filterbar__availability-range')?.textContent).toContain('20.08.2026');
+    fireEvent.click(getByText('Change'));
+    expect(availabilityPanel?.classList.contains('is-compact')).toBe(false);
+    expect(getByLabelText('Start date')).toBeTruthy();
     await waitFor(() => {
       expect(container.querySelectorAll('.sb-vcard')).toHaveLength(2);
       expect(container.textContent).not.toContain('Audi A6');

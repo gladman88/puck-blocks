@@ -52,6 +52,7 @@ export interface FilterBarStrings {
   availabilityReady: string;
   availabilityAction: string;
   availabilityActionPending: string;
+  editDates: string;
   availableOnly: string;
   clearFilters: string;
 }
@@ -75,6 +76,7 @@ interface Props {
 export function FilterBar({ filters, categories, onChange, strings: t, locale }: Props) {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [availableOnlyIntent, setAvailableOnlyIntent] = useState(false);
+  const [editingDates, setEditingDates] = useState(false);
   const availableFromRef = useRef<HTMLInputElement>(null);
   const today = todayISO();
 
@@ -133,23 +135,24 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
 
   return (
     <>
-      <section className={`sb-filterbar__availability ${hasCompleteDateRange ? 'is-ready' : 'is-pending'}`} aria-label={t.availabilityTitle}>
-        <div className="sb-filterbar__availability-head">
-          <div>
-            <div className="sb-filterbar__availability-title">
+      <section className={`sb-filterbar__availability ${hasCompleteDateRange && !editingDates ? 'is-ready is-compact' : 'is-pending'}`} aria-label={t.availabilityTitle}>
+        {hasCompleteDateRange && !editingDates ? (
+          <div className="sb-filterbar__availability-compact">
+            <div className="sb-filterbar__availability-summary">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <rect x="3" y="4" width="18" height="18" rx="2" />
                 <line x1="16" y1="2" x2="16" y2="6" />
                 <line x1="8" y1="2" x2="8" y2="6" />
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
-              <span>{t.availabilityTitle}</span>
+              <span className="sb-filterbar__availability-title">{t.availabilityTitle}</span>
+              <span className="sb-filterbar__availability-range">
+                {formatDDMMYYYY(filters.availableFrom!)} — {formatDDMMYYYY(filters.availableTo!)}
+              </span>
             </div>
-            <p className="sb-filterbar__availability-copy">
-              {hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt}
-            </p>
-          </div>
-          {hasCompleteDateRange ? (
+            <button type="button" className="sb-filterbar__availability-edit" onClick={() => setEditingDates(true)}>
+              {t.editDates}
+            </button>
             <label className="sb-filterbar__availability-toggle">
               <input
                 type="checkbox"
@@ -159,57 +162,71 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
               <span className="sb-filterbar__availability-switch" aria-hidden />
               <span>{t.availableOnly}</span>
             </label>
-          ) : (
-            <button
-              type="button"
-              className="sb-filterbar__availability-action"
-              onClick={requestAvailableOnly}
-            >
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              {availableOnlyIntent ? t.availabilityActionPending : t.availabilityAction}
-            </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <>
+            <div className="sb-filterbar__availability-head">
+              <div>
+                <div className="sb-filterbar__availability-title">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <span>{t.availabilityTitle}</span>
+                </div>
+                <p className="sb-filterbar__availability-copy">{t.availabilityPrompt}</p>
+              </div>
+              <button
+                type="button"
+                className="sb-filterbar__availability-action"
+                onClick={requestAvailableOnly}
+              >
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                {availableOnlyIntent ? t.availabilityActionPending : t.availabilityAction}
+              </button>
+            </div>
 
-        <div className="sb-filterbar__daterange">
-          {/* Date values are rendered by us at a stable width while the overlaid
-              native inputs retain the platform date picker and keyboard support. */}
-          <label className="sb-filterbar__datechip">
-            <span className={`sb-filterbar__datechip-val${filters.availableFrom ? '' : ' sb-filterbar__datechip-val--ph'}`}>
-              {filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom}
-            </span>
-            <input
-              ref={availableFromRef}
-              type="date"
-              className="sb-filterbar__datechip-input"
-              aria-label={t.dateFrom}
-              value={filters.availableFrom || ''}
-              min={today}
-              onClick={(e) => openNativeDatePicker(e.currentTarget)}
-              onChange={(e) => handleFromChange(e.target.value)}
-            />
-          </label>
-          <span className="sb-filterbar__date-sep">—</span>
-          <label className="sb-filterbar__datechip">
-            <span className={`sb-filterbar__datechip-val${filters.availableTo ? '' : ' sb-filterbar__datechip-val--ph'}`}>
-              {filters.availableTo ? formatDDMMYYYY(filters.availableTo) : t.dateTo}
-            </span>
-            <input
-              type="date"
-              className="sb-filterbar__datechip-input"
-              aria-label={t.dateTo}
-              value={filters.availableTo || ''}
-              min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
-              onClick={(e) => openNativeDatePicker(e.currentTarget)}
-              onChange={(e) => applyDatePatch({ availableTo: e.target.value || undefined })}
-            />
-          </label>
-        </div>
+            <div className="sb-filterbar__daterange">
+              <label className="sb-filterbar__datechip">
+                <span className={`sb-filterbar__datechip-val${filters.availableFrom ? '' : ' sb-filterbar__datechip-val--ph'}`}>
+                  {filters.availableFrom ? formatDDMMYYYY(filters.availableFrom) : t.dateFrom}
+                </span>
+                <input
+                  ref={availableFromRef}
+                  type="date"
+                  className="sb-filterbar__datechip-input"
+                  aria-label={t.dateFrom}
+                  value={filters.availableFrom || ''}
+                  min={today}
+                  onClick={(e) => openNativeDatePicker(e.currentTarget)}
+                  onChange={(e) => handleFromChange(e.target.value)}
+                />
+              </label>
+              <span className="sb-filterbar__date-sep">—</span>
+              <label className="sb-filterbar__datechip">
+                <span className={`sb-filterbar__datechip-val${filters.availableTo ? '' : ' sb-filterbar__datechip-val--ph'}`}>
+                  {filters.availableTo ? formatDDMMYYYY(filters.availableTo) : t.dateTo}
+                </span>
+                <input
+                  type="date"
+                  className="sb-filterbar__datechip-input"
+                  aria-label={t.dateTo}
+                  value={filters.availableTo || ''}
+                  min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
+                  onClick={(e) => openNativeDatePicker(e.currentTarget)}
+                  onChange={(e) => applyDatePatch({ availableTo: e.target.value || undefined })}
+                />
+              </label>
+            </div>
+          </>
+        )}
       </section>
 
       <div className="sb-filterbar">
