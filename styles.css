@@ -839,13 +839,36 @@ a.sb-map__line:hover {
   border-color: transparent;
 }
 
-/* Brand colors apply only to social icons in the header and mobile drawer. */
-.sb-header .sb-icon-link--instagram { color: #e4405f; }
-.sb-header .sb-icon-link--whatsapp { color: #25d366; }
-.sb-header .sb-icon-link--telegram { color: #229ed9; }
-.sb-header .sb-icon-link--instagram:hover { background: #e4405f; border-color: #e4405f; color: #fff; }
-.sb-header .sb-icon-link--whatsapp:hover { background: #25d366; border-color: #25d366; color: #fff; }
-.sb-header .sb-icon-link--telegram:hover { background: #229ed9; border-color: #229ed9; color: #fff; }
+/* Header and drawer use the recognizable service marks: a filled brand circle
+   with a white glyph stays legible over any hero image. */
+.sb-header .sb-icon-link--instagram,
+.sb-drawer .sb-icon-link--instagram {
+  border-color: transparent;
+  background: linear-gradient(135deg, #833ab4 0%, #e1306c 48%, #fcb045 100%);
+  color: #fff;
+}
+.sb-header .sb-icon-link--whatsapp,
+.sb-drawer .sb-icon-link--whatsapp {
+  border-color: transparent;
+  background: #25d366;
+  color: #fff;
+}
+.sb-header .sb-icon-link--telegram,
+.sb-drawer .sb-icon-link--telegram {
+  border-color: transparent;
+  background: #2aabee;
+  color: #fff;
+}
+.sb-header .sb-icon-link--instagram:hover,
+.sb-drawer .sb-icon-link--instagram:hover,
+.sb-header .sb-icon-link--whatsapp:hover,
+.sb-drawer .sb-icon-link--whatsapp:hover,
+.sb-header .sb-icon-link--telegram:hover,
+.sb-drawer .sb-icon-link--telegram:hover {
+  color: #fff;
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
 /* ---- Language switcher (flags) ---- */
 .sb-lang {
   display: inline-flex;

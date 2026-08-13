@@ -69,7 +69,7 @@ describe('VehicleCatalog', () => {
     expect(container.querySelector('button.sb-vcard')).not.toBeNull();
     expect(container.querySelector('a.sb-vcard')).toBeNull();
     expect(container.textContent).toContain('5,000');
-    expect(container.querySelector('.sb-vcard__status--available')?.textContent).toContain('Свободна сегодня');
+    expect(container.querySelector('.sb-vcard__status--available')?.textContent).toContain('Свободно сегодня');
   });
 
   it('deep link ?vehicle=<id> opens that card on load', async () => {
