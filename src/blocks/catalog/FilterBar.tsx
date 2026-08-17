@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { categoryLabel, type CatalogCategory } from '../VehicleCatalog';
-import { formatDDMMYYYY, nextDay, todayISO } from './dates';
+import { formatDDMMYYYY, nextDay, openNativeDatePicker, todayISO } from './dates';
 
 export type CatalogSortOption = 'default' | 'price_asc' | 'price_desc';
 
@@ -119,10 +119,20 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
   const activeCategory = categories.find((c) => c.id === filters.category);
   const hasCompleteDateRange = Boolean(filters.availableFrom && filters.availableTo);
 
+  const openDesktopDatePicker = (input: HTMLInputElement) => {
+    // The visually hidden native control only exposes its calendar indicator
+    // on desktop. Open it for a precise pointer, but preserve the mobile
+    // WebView's native tap flow where showPicker() can commit early.
+    if (typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches) {
+      openNativeDatePicker(input);
+    }
+  };
+
   const focusStartDate = () => {
-    // Let the browser open its own native picker. Calling showPicker() during a
-    // click is unreliable in mobile WebViews and was committing a date early.
-    availableFromRef.current?.focus();
+    const input = availableFromRef.current;
+    if (!input) return;
+    input.focus();
+    openDesktopDatePicker(input);
   };
 
   const cycleSort = () => {
@@ -214,6 +224,7 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                   aria-label={t.dateFrom}
                   value={filters.availableFrom || ''}
                   min={today}
+                  onClick={(e) => openDesktopDatePicker(e.currentTarget)}
                   onChange={(e) => handleFromChange(e.target.value)}
                 />
               </label>
@@ -228,6 +239,7 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                   aria-label={t.dateTo}
                   value={filters.availableTo || ''}
                   min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
+                  onClick={(e) => openDesktopDatePicker(e.currentTarget)}
                   onChange={(e) => applyDatePatch({ availableTo: e.target.value || undefined })}
                 />
               </label>

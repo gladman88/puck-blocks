@@ -2428,8 +2428,16 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
   );
   const activeCategory = categories.find((c) => c.id === filters.category);
   const hasCompleteDateRange = Boolean(filters.availableFrom && filters.availableTo);
+  const openDesktopDatePicker = (input) => {
+    if (typeof window !== "undefined" && window.matchMedia?.("(pointer: fine)").matches) {
+      openNativeDatePicker(input);
+    }
+  };
   const focusStartDate = () => {
-    availableFromRef.current?.focus();
+    const input = availableFromRef.current;
+    if (!input) return;
+    input.focus();
+    openDesktopDatePicker(input);
   };
   const cycleSort = () => {
     const order = ["default", "price_asc", "price_desc"];
@@ -2515,6 +2523,7 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
               "aria-label": t.dateFrom,
               value: filters.availableFrom || "",
               min: today,
+              onClick: (e) => openDesktopDatePicker(e.currentTarget),
               onChange: (e) => handleFromChange(e.target.value)
             }
           )
@@ -2530,6 +2539,7 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
               "aria-label": t.dateTo,
               value: filters.availableTo || "",
               min: filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
+              onClick: (e) => openDesktopDatePicker(e.currentTarget),
               onChange: (e) => applyDatePatch({ availableTo: e.target.value || void 0 })
             }
           )
