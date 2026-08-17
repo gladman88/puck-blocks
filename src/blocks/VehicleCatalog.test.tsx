@@ -461,6 +461,17 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
       expect(cards[0]?.textContent).toContain('Honda PCX');
       expect(cards[1]?.textContent).toContain('BMW Z4');
     });
+
+    // Busy transport returns when the filter is disabled, but never jumps ahead
+    // of free models even when its price would normally sort first.
+    fireEvent.click(getByLabelText('Available only'));
+    await waitFor(() => {
+      const cards = Array.from(container.querySelectorAll('.sb-vcard'));
+      expect(cards).toHaveLength(3);
+      expect(cards[0]?.textContent).toContain('Honda PCX');
+      expect(cards[1]?.textContent).toContain('BMW Z4');
+      expect(cards[2]?.textContent).toContain('Audi A6');
+    });
   });
 
   it('clearing filters also resets the date range (regression: dates survived reset)', async () => {

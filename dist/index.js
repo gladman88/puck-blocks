@@ -2939,14 +2939,16 @@ function VehicleCatalog({
     return groupVehicles(list);
   }, [vehicles, activeCat, showFilters]);
   const displayGroups = useMemo(() => {
-    const filtered = showFilters && filters.availableOnly && filters.availableFrom && filters.availableTo ? groups.filter((group) => group.availableCount > 0) : groups;
-    if (!showFilters || filters.sort === "default") return filtered;
-    const dir = filters.sort === "price_asc" ? 1 : -1;
-    return [...filtered].sort((a, b) => {
+    const availableOnly = showFilters && filters.availableOnly && filters.availableFrom && filters.availableTo;
+    const filtered = availableOnly ? groups.filter((group) => group.availableCount > 0) : groups;
+    const regularOrder = !showFilters || filters.sort === "default" ? filtered : [...filtered].sort((a, b) => {
       const pa = a.vehicle.min_price_per_day ?? Infinity;
       const pb = b.vehicle.min_price_per_day ?? Infinity;
+      const dir = filters.sort === "price_asc" ? 1 : -1;
       return (pa - pb) * dir;
     });
+    if (!showFilters || availableOnly) return regularOrder;
+    return [...regularOrder].sort((a, b) => Number(b.availableCount > 0) - Number(a.availableCount > 0));
   }, [groups, showFilters, filters.availableOnly, filters.availableFrom, filters.availableTo, filters.sort]);
   return /* @__PURE__ */ jsxs(Section, { className: "sb-vcatalog", id: anchorId || void 0, children: [
     heading ? /* @__PURE__ */ jsx("h2", { className: "sb-h2", children: heading }) : null,

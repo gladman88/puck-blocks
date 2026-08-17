@@ -529,21 +529,25 @@ export function VehicleCatalog({
     return groupVehicles(list);
   }, [vehicles, activeCat, showFilters]);
 
-  // Client-side price sort (filter mode only) — the backend catalog endpoint
-  // has no `sort` param, mirrors frontend_catalog's VehicleGrid sort.
+  // Keep available transport ahead of unavailable transport for every
+  // availability context: today without dates, or the selected range. This is
+  // a stable partition performed after the regular catalog/price order, so the
+  // existing category and price order remains intact inside each section.
   const displayGroups = useMemo(() => {
-    // The API evaluates each physical unit for the selected dates. Filtering
-    // after grouping keeps a model visible whenever at least one unit is free.
-    const filtered = showFilters && filters.availableOnly && filters.availableFrom && filters.availableTo
-      ? groups.filter((group) => group.availableCount > 0)
-      : groups;
-    if (!showFilters || filters.sort === 'default') return filtered;
-    const dir = filters.sort === 'price_asc' ? 1 : -1;
-    return [...filtered].sort((a, b) => {
-      const pa = a.vehicle.min_price_per_day ?? Infinity;
-      const pb = b.vehicle.min_price_per_day ?? Infinity;
-      return (pa - pb) * dir;
-    });
+    const availableOnly = showFilters && filters.availableOnly && filters.availableFrom && filters.availableTo;
+    const filtered = availableOnly ? groups.filter((group) => group.availableCount > 0) : groups;
+
+    const regularOrder = !showFilters || filters.sort === 'default'
+      ? filtered
+      : [...filtered].sort((a, b) => {
+        const pa = a.vehicle.min_price_per_day ?? Infinity;
+        const pb = b.vehicle.min_price_per_day ?? Infinity;
+        const dir = filters.sort === 'price_asc' ? 1 : -1;
+        return (pa - pb) * dir;
+      });
+
+    if (!showFilters || availableOnly) return regularOrder;
+    return [...regularOrder].sort((a, b) => Number(b.availableCount > 0) - Number(a.availableCount > 0));
   }, [groups, showFilters, filters.availableOnly, filters.availableFrom, filters.availableTo, filters.sort]);
 
   return (
