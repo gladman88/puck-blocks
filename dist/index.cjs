@@ -2404,6 +2404,7 @@ function defaultFilterState() {
 function FilterBar({ filters, categories, onChange, strings: t, locale }) {
   const [categoryOpen, setCategoryOpen] = react.useState(false);
   const [editingDates, setEditingDates] = react.useState(false);
+  const [dateRangeError, setDateRangeError] = react.useState("");
   const availableFromRef = react.useRef(null);
   const today = todayISO();
   const applyDatePatch = (patch) => {
@@ -2438,6 +2439,27 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
     if (!input) return;
     input.focus();
     openDesktopDatePicker(input);
+  };
+  const closeTouchDatePicker = (input) => {
+    if (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches) {
+      window.setTimeout(() => input.blur(), 0);
+    }
+  };
+  const handleFromInputChange = (input) => {
+    setDateRangeError("");
+    handleFromChange(input.value);
+    closeTouchDatePicker(input);
+  };
+  const handleToInputChange = (input) => {
+    const value = input.value;
+    if (filters.availableFrom && value && value <= filters.availableFrom) {
+      setDateRangeError(t.dateRangeInvalid);
+      closeTouchDatePicker(input);
+      return;
+    }
+    setDateRangeError("");
+    applyDatePatch({ availableTo: value || void 0 });
+    closeTouchDatePicker(input);
   };
   const cycleSort = () => {
     const order = ["default", "price_asc", "price_desc"];
@@ -2524,7 +2546,7 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
               value: filters.availableFrom || "",
               min: today,
               onClick: (e) => openDesktopDatePicker(e.currentTarget),
-              onChange: (e) => handleFromChange(e.target.value)
+              onChange: (e) => handleFromInputChange(e.currentTarget)
             }
           )
         ] }),
@@ -2540,12 +2562,12 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
               value: filters.availableTo || "",
               min: filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
               onClick: (e) => openDesktopDatePicker(e.currentTarget),
-              onChange: (e) => applyDatePatch({ availableTo: e.target.value || void 0 })
+              onChange: (e) => handleToInputChange(e.currentTarget)
             }
           )
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-filterbar__availability-copy", children: hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt })
+      /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-filterbar__availability-copy" + (dateRangeError ? " is-error" : ""), children: dateRangeError || (hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt) })
     ] }) }),
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar", children: [
       /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__search", children: [
@@ -2700,6 +2722,7 @@ var STRINGS2 = {
     editDates: "\u0418\u0437\u043C\u0435\u043D\u0438\u0442\u044C",
     doneDates: "\u0413\u043E\u0442\u043E\u0432\u043E",
     availableOnly: "\u0422\u043E\u043B\u044C\u043A\u043E \u0441\u0432\u043E\u0431\u043E\u0434\u043D\u044B\u0435",
+    dateRangeInvalid: "\u0414\u0430\u0442\u0430 \u043E\u043A\u043E\u043D\u0447\u0430\u043D\u0438\u044F \u0434\u043E\u043B\u0436\u043D\u0430 \u0431\u044B\u0442\u044C \u043F\u043E\u0437\u0436\u0435 \u0434\u0430\u0442\u044B \u043D\u0430\u0447\u0430\u043B\u0430",
     availableToday: "\u0421\u0432\u043E\u0431\u043E\u0434\u043D\u043E \u0441\u0435\u0433\u043E\u0434\u043D\u044F",
     availableSelected: "\u0421\u0432\u043E\u0431\u043E\u0434\u043D\u043E",
     clearFilters: "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0444\u0438\u043B\u044C\u0442\u0440\u044B"
@@ -2734,6 +2757,7 @@ var STRINGS2 = {
     editDates: "Change",
     doneDates: "Done",
     availableOnly: "Available only",
+    dateRangeInvalid: "End date must be after start date",
     availableToday: "Available today",
     availableSelected: "Available",
     clearFilters: "Clear filters"

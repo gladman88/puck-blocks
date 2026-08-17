@@ -1698,6 +1698,9 @@ a.sb-map__line:hover {
   color: var(--sb-text-muted);
   font-size: 0.78rem;
 }
+.sb-filterbar__availability-copy.is-error {
+  color: var(--sb-danger, #dc2626);
+}
 .sb-filterbar__availability-toggle {
   display: inline-flex;
   align-items: center;

@@ -55,6 +55,7 @@ export interface FilterBarStrings {
   editDates: string;
   doneDates: string;
   availableOnly: string;
+  dateRangeInvalid: string;
   clearFilters: string;
 }
 
@@ -77,6 +78,7 @@ interface Props {
 export function FilterBar({ filters, categories, onChange, strings: t, locale }: Props) {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [editingDates, setEditingDates] = useState(false);
+  const [dateRangeError, setDateRangeError] = useState('');
   const availableFromRef = useRef<HTMLInputElement>(null);
   const today = todayISO();
 
@@ -133,6 +135,31 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
     if (!input) return;
     input.focus();
     openDesktopDatePicker(input);
+  };
+
+  const closeTouchDatePicker = (input: HTMLInputElement) => {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches) {
+      window.setTimeout(() => input.blur(), 0);
+    }
+  };
+
+  const handleFromInputChange = (input: HTMLInputElement) => {
+    setDateRangeError('');
+    handleFromChange(input.value);
+    closeTouchDatePicker(input);
+  };
+
+  const handleToInputChange = (input: HTMLInputElement) => {
+    const value = input.value;
+    if (filters.availableFrom && value && value <= filters.availableFrom) {
+      setDateRangeError(t.dateRangeInvalid);
+      closeTouchDatePicker(input);
+      return;
+    }
+
+    setDateRangeError('');
+    applyDatePatch({ availableTo: value || undefined });
+    closeTouchDatePicker(input);
   };
 
   const cycleSort = () => {
@@ -225,7 +252,7 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                   value={filters.availableFrom || ''}
                   min={today}
                   onClick={(e) => openDesktopDatePicker(e.currentTarget)}
-                  onChange={(e) => handleFromChange(e.target.value)}
+                  onChange={(e) => handleFromInputChange(e.currentTarget)}
                 />
               </label>
               <span className="sb-filterbar__date-sep">—</span>
@@ -240,12 +267,12 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                   value={filters.availableTo || ''}
                   min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
                   onClick={(e) => openDesktopDatePicker(e.currentTarget)}
-                  onChange={(e) => applyDatePatch({ availableTo: e.target.value || undefined })}
+                  onChange={(e) => handleToInputChange(e.currentTarget)}
                 />
               </label>
             </div>
-            <p className="sb-filterbar__availability-copy">
-              {hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt}
+            <p className={'sb-filterbar__availability-copy' + (dateRangeError ? ' is-error' : '')}>
+              {dateRangeError || (hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt)}
             </p>
           </>
         )}
