@@ -2401,7 +2401,6 @@ function defaultFilterState() {
 }
 function FilterBar({ filters, categories, onChange, strings: t, locale }) {
   const [categoryOpen, setCategoryOpen] = useState(false);
-  const [availableOnlyIntent, setAvailableOnlyIntent] = useState(false);
   const [editingDates, setEditingDates] = useState(false);
   const availableFromRef = useRef(null);
   const today = todayISO();
@@ -2412,12 +2411,8 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
       onChange({ ...patch, availableOnly: false });
       return;
     }
-    if (availableOnlyIntent) {
-      setAvailableOnlyIntent(false);
-      onChange({ ...patch, availableOnly: true });
-      return;
-    }
-    onChange(patch);
+    if (nextTo <= nextFrom) return;
+    onChange({ ...patch, availableOnly: true });
   };
   const handleFromChange = (value) => {
     const patch = { availableFrom: value || void 0 };
@@ -2431,11 +2426,8 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
   );
   const activeCategory = categories.find((c) => c.id === filters.category);
   const hasCompleteDateRange = Boolean(filters.availableFrom && filters.availableTo);
-  const requestAvailableOnly = () => {
-    setAvailableOnlyIntent(true);
-    const input = availableFromRef.current;
-    input?.focus();
-    if (input) openNativeDatePicker(input);
+  const focusStartDate = () => {
+    availableFromRef.current?.focus();
   };
   const cycleSort = () => {
     const order = ["default", "price_asc", "price_desc"];
@@ -2496,7 +2488,7 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
           {
             type: "button",
             className: "sb-filterbar__availability-action",
-            onClick: requestAvailableOnly,
+            onClick: focusStartDate,
             children: [
               /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "15", height: "15", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
                 /* @__PURE__ */ jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
@@ -2504,7 +2496,7 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
                 /* @__PURE__ */ jsx("line", { x1: "8", y1: "2", x2: "8", y2: "6" }),
                 /* @__PURE__ */ jsx("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
               ] }),
-              availableOnlyIntent ? t.availabilityActionPending : t.availabilityAction
+              t.availabilityActionPending
             ]
           }
         )
@@ -2521,7 +2513,6 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
               "aria-label": t.dateFrom,
               value: filters.availableFrom || "",
               min: today,
-              onClick: (e) => openNativeDatePicker(e.currentTarget),
               onChange: (e) => handleFromChange(e.target.value)
             }
           )
@@ -2537,7 +2528,6 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
               "aria-label": t.dateTo,
               value: filters.availableTo || "",
               min: filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
-              onClick: (e) => openNativeDatePicker(e.currentTarget),
               onChange: (e) => applyDatePatch({ availableTo: e.target.value || void 0 })
             }
           )

@@ -37,18 +37,16 @@ export function money(value: string | number | null | undefined): string {
  * Input is an ISO `YYYY-MM-DD` string (already zero-padded).
  */
 /**
- * Open a native `<input type="date">` picker on demand. A desktop click only
- * focuses a date input (its picker opens from the calendar indicator, which
- * isn't obvious — and on the filter chip it's hidden); calling showPicker() on
- * click opens the picker on both desktop and mobile, while keyboard entry still
- * works. Guarded for browsers without showPicker (Safari < 16) — there the
- * native mobile tap still opens it.
+ * Opens the native date picker where a custom date-chip hides the browser's
+ * calendar indicator. Callers must opt in: the catalog filter relies on the
+ * browser's default click behavior because mobile WebViews can commit a value
+ * early when showPicker() is invoked from its click handler.
  */
 export function openNativeDatePicker(el: HTMLInputElement): void {
   try {
     (el as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
   } catch {
-    /* older browser / not user-activated — native mobile tap still opens it */
+    // Older browsers still open their native picker from the input's own tap.
   }
 }
 

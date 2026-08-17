@@ -427,12 +427,16 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
     const availabilityPanel = container.querySelector('.sb-filterbar__availability');
     expect(availabilityPanel?.classList.contains('is-pending')).toBe(true);
     expect(getByText('Without dates, availability is shown for today')).toBeTruthy();
-    fireEvent.click(getByText('Show available'));
+    fireEvent.click(getByText('Choose dates'));
     expect(document.activeElement).toBe(getByLabelText('Start date'));
-    expect(getByText('Choose dates')).toBeTruthy();
 
     fireEvent.change(getByLabelText('Start date'), { target: { value: '2026-08-20' } });
-    fireEvent.change(getByLabelText('End date'), { target: { value: '2026-08-25' } });
+    const endDate = getByLabelText('End date') as HTMLInputElement;
+    expect(endDate.min).toBe('2026-08-21');
+    fireEvent.change(endDate, { target: { value: '2026-08-19' } });
+    expect((getByLabelText('Start date') as HTMLInputElement).value).toBe('2026-08-20');
+    expect((getByLabelText('End date') as HTMLInputElement).value).toBe('');
+    fireEvent.change(endDate, { target: { value: '2026-08-25' } });
     const availableOnly = await waitFor(() => getByLabelText('Available only')) as HTMLInputElement;
     await waitFor(() => expect(availableOnly.checked).toBe(true));
     expect(availabilityPanel?.classList.contains('is-ready')).toBe(true);

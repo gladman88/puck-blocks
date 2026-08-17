@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { categoryLabel, type CatalogCategory } from '../VehicleCatalog';
-import { formatDDMMYYYY, nextDay, openNativeDatePicker, todayISO } from './dates';
+import { formatDDMMYYYY, nextDay, todayISO } from './dates';
 
 export type CatalogSortOption = 'default' | 'price_asc' | 'price_desc';
 
@@ -76,7 +76,6 @@ interface Props {
  */
 export function FilterBar({ filters, categories, onChange, strings: t, locale }: Props) {
   const [categoryOpen, setCategoryOpen] = useState(false);
-  const [availableOnlyIntent, setAvailableOnlyIntent] = useState(false);
   const [editingDates, setEditingDates] = useState(false);
   const availableFromRef = useRef<HTMLInputElement>(null);
   const today = todayISO();
@@ -90,13 +89,14 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
       return;
     }
 
-    if (availableOnlyIntent) {
-      setAvailableOnlyIntent(false);
-      onChange({ ...patch, availableOnly: true });
-      return;
-    }
+    // Native date inputs enforce their minimum in the picker, but keyboard entry and
+    // programmatic events can still deliver an invalid range. Keep the previous
+    // valid state rather than sending a reversed interval to the availability API.
+    if (nextTo <= nextFrom) return;
 
-    onChange(patch);
+    // A complete, valid interval is an explicit availability query. Keep the
+    // result focused on rentable transport without making visitors toggle twice.
+    onChange({ ...patch, availableOnly: true });
   };
 
   const handleFromChange = (value: string) => {
@@ -119,11 +119,10 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
   const activeCategory = categories.find((c) => c.id === filters.category);
   const hasCompleteDateRange = Boolean(filters.availableFrom && filters.availableTo);
 
-  const requestAvailableOnly = () => {
-    setAvailableOnlyIntent(true);
-    const input = availableFromRef.current;
-    input?.focus();
-    if (input) openNativeDatePicker(input);
+  const focusStartDate = () => {
+    // Let the browser open its own native picker. Calling showPicker() during a
+    // click is unreliable in mobile WebViews and was committing a date early.
+    availableFromRef.current?.focus();
   };
 
   const cycleSort = () => {
@@ -190,7 +189,7 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                 <button
                   type="button"
                   className="sb-filterbar__availability-action"
-                  onClick={requestAvailableOnly}
+                  onClick={focusStartDate}
                 >
                   <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -198,7 +197,7 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                     <line x1="8" y1="2" x2="8" y2="6" />
                     <line x1="3" y1="10" x2="21" y2="10" />
                   </svg>
-                  {availableOnlyIntent ? t.availabilityActionPending : t.availabilityAction}
+                  {t.availabilityActionPending}
                 </button>
               )}
             </div>
@@ -215,7 +214,6 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                   aria-label={t.dateFrom}
                   value={filters.availableFrom || ''}
                   min={today}
-                  onClick={(e) => openNativeDatePicker(e.currentTarget)}
                   onChange={(e) => handleFromChange(e.target.value)}
                 />
               </label>
@@ -230,7 +228,6 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                   aria-label={t.dateTo}
                   value={filters.availableTo || ''}
                   min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
-                  onClick={(e) => openNativeDatePicker(e.currentTarget)}
                   onChange={(e) => applyDatePatch({ availableTo: e.target.value || undefined })}
                 />
               </label>
