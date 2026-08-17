@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { categoryLabel, type CatalogCategory } from '../VehicleCatalog';
 import { formatDDMMYYYY, nextDay, openNativeDatePicker, todayISO } from './dates';
+import { MobileDatePicker } from './MobileDatePicker';
 
 export type CatalogSortOption = 'default' | 'price_asc' | 'price_desc';
 
@@ -54,8 +55,8 @@ export interface FilterBarStrings {
   availabilityActionPending: string;
   editDates: string;
   doneDates: string;
+  closeDatePicker: string;
   availableOnly: string;
-  dateRangeInvalid: string;
   clearFilters: string;
 }
 
@@ -78,8 +79,9 @@ interface Props {
 export function FilterBar({ filters, categories, onChange, strings: t, locale }: Props) {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [editingDates, setEditingDates] = useState(false);
-  const [dateRangeError, setDateRangeError] = useState('');
+  const [mobileDateField, setMobileDateField] = useState<'from' | 'to' | null>(null);
   const availableFromRef = useRef<HTMLInputElement>(null);
+  const suppressNativePickerRef = useRef(false);
   const today = todayISO();
 
   const applyDatePatch = (patch: Partial<CatalogFilterState>) => {
@@ -130,36 +132,45 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
     }
   };
 
-  const focusStartDate = () => {
+  const requestStartDate = () => {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches) {
+      setMobileDateField('from');
+      return;
+    }
+
     const input = availableFromRef.current;
     if (!input) return;
     input.focus();
     openDesktopDatePicker(input);
   };
 
-  const closeTouchDatePicker = (input: HTMLInputElement) => {
-    if (typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches) {
-      window.setTimeout(() => input.blur(), 0);
-    }
+  const openMobileDatePicker = (
+    event: ReactPointerEvent<HTMLInputElement>,
+    field: 'from' | 'to',
+  ) => {
+    if (event.pointerType !== 'touch') return;
+    // A touch pointer can emit click after pointerdown. Suppress that follow-up
+    // click so a hybrid device never opens the native picker behind the sheet.
+    suppressNativePickerRef.current = true;
+    event.preventDefault();
+    setMobileDateField(field);
   };
 
-  const handleFromInputChange = (input: HTMLInputElement) => {
-    setDateRangeError('');
-    handleFromChange(input.value);
-    closeTouchDatePicker(input);
-  };
-
-  const handleToInputChange = (input: HTMLInputElement) => {
-    const value = input.value;
-    if (filters.availableFrom && value && value <= filters.availableFrom) {
-      setDateRangeError(t.dateRangeInvalid);
-      closeTouchDatePicker(input);
+  const handleNativeDateClick = (input: HTMLInputElement) => {
+    if (suppressNativePickerRef.current) {
+      suppressNativePickerRef.current = false;
       return;
     }
+    openDesktopDatePicker(input);
+  };
 
-    setDateRangeError('');
-    applyDatePatch({ availableTo: value || undefined });
-    closeTouchDatePicker(input);
+  const handleMobileDateSelect = (value: string) => {
+    if (mobileDateField === 'from') {
+      handleFromChange(value);
+    } else if (mobileDateField === 'to') {
+      applyDatePatch({ availableTo: value });
+    }
+    setMobileDateField(null);
   };
 
   const cycleSort = () => {
@@ -226,7 +237,7 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                 <button
                   type="button"
                   className="sb-filterbar__availability-action"
-                  onClick={focusStartDate}
+                  onClick={requestStartDate}
                 >
                   <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -251,8 +262,9 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                   aria-label={t.dateFrom}
                   value={filters.availableFrom || ''}
                   min={today}
-                  onClick={(e) => openDesktopDatePicker(e.currentTarget)}
-                  onChange={(e) => handleFromInputChange(e.currentTarget)}
+                  onPointerDown={(e) => openMobileDatePicker(e, 'from')}
+                  onClick={(e) => handleNativeDateClick(e.currentTarget)}
+                  onChange={(e) => handleFromChange(e.currentTarget.value)}
                 />
               </label>
               <span className="sb-filterbar__date-sep">—</span>
@@ -266,17 +278,34 @@ export function FilterBar({ filters, categories, onChange, strings: t, locale }:
                   aria-label={t.dateTo}
                   value={filters.availableTo || ''}
                   min={filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today)}
-                  onClick={(e) => openDesktopDatePicker(e.currentTarget)}
-                  onChange={(e) => handleToInputChange(e.currentTarget)}
+                  onPointerDown={(e) => openMobileDatePicker(e, 'to')}
+                  onClick={(e) => handleNativeDateClick(e.currentTarget)}
+                  onChange={(e) => applyDatePatch({ availableTo: e.currentTarget.value || undefined })}
                 />
               </label>
             </div>
-            <p className={'sb-filterbar__availability-copy' + (dateRangeError ? ' is-error' : '')}>
-              {dateRangeError || (hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt)}
+            <p className="sb-filterbar__availability-copy">
+              {hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt}
             </p>
           </>
         )}
       </section>
+
+      <MobileDatePicker
+        field={mobileDateField}
+        locale={locale}
+        selected={mobileDateField === 'from' ? filters.availableFrom : filters.availableTo}
+        minDate={mobileDateField === 'from'
+          ? today
+          : filters.availableFrom
+            ? nextDay(filters.availableFrom)
+            : nextDay(today)}
+        dateFromLabel={t.dateFrom}
+        dateToLabel={t.dateTo}
+        onSelect={handleMobileDateSelect}
+        onClose={() => setMobileDateField(null)}
+        closeLabel={t.closeDatePicker}
+      />
 
       <div className="sb-filterbar">
         <div className="sb-filterbar__search">

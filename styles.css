@@ -1698,9 +1698,6 @@ a.sb-map__line:hover {
   color: var(--sb-text-muted);
   font-size: 0.78rem;
 }
-.sb-filterbar__availability-copy.is-error {
-  color: var(--sb-danger, #dc2626);
-}
 .sb-filterbar__availability-toggle {
   display: inline-flex;
   align-items: center;
@@ -3131,5 +3128,147 @@ a.sb-map__line:hover {
      drop to one); desktop stays 170px so its wider modal doesn't over-reflow. */
   .sb-vd__prices-grid {
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+}
+
+/* Touch-only catalog date sheet. react-day-picker supplies the selection and
+   disabled-day semantics; these classes integrate it with the shared theme. */
+.sb-date-sheet {
+  position: fixed;
+  z-index: 10050;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.58);
+}
+.sb-date-sheet__dialog {
+  width: min(100%, 27rem);
+  border: 1px solid var(--sb-border);
+  border-radius: 12px;
+  background: var(--sb-surface);
+  color: var(--sb-text);
+  box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.28);
+}
+.sb-date-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3.25rem;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--sb-border);
+}
+.sb-date-sheet__head h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.sb-date-sheet__close,
+.sb-date-sheet__nav-button {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--sb-text-strong);
+  cursor: pointer;
+}
+.sb-date-sheet__close {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 8px;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.sb-date-sheet__calendar {
+  padding: 0.75rem 0.9rem 1rem;
+}
+.sb-date-sheet__months,
+.sb-date-sheet__month {
+  width: 100%;
+}
+.sb-date-sheet__caption {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  margin-bottom: 0.35rem;
+}
+.sb-date-sheet__caption-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.sb-date-sheet__nav {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.sb-date-sheet__nav-button {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 8px;
+  pointer-events: auto;
+}
+.sb-date-sheet__nav-button:hover,
+.sb-date-sheet__close:hover {
+  background: var(--sb-bg);
+}
+.sb-date-sheet__grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.sb-date-sheet__weekdays {
+  height: 2rem;
+}
+.sb-date-sheet__weekday {
+  color: var(--sb-text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-align: center;
+}
+.sb-date-sheet__day {
+  width: 14.285%;
+  height: 2.7rem;
+  text-align: center;
+}
+.sb-date-sheet__day-button {
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--sb-text-strong);
+  font: inherit;
+  cursor: pointer;
+}
+.sb-date-sheet__day-button:hover {
+  background: color-mix(in srgb, var(--sb-accent) 18%, transparent);
+}
+.sb-date-sheet__day.is-selected .sb-date-sheet__day-button {
+  background: var(--sb-accent);
+  color: var(--sb-accent-contrast, #111);
+  font-weight: 700;
+}
+.sb-date-sheet__day.is-today .sb-date-sheet__day-button {
+  outline: 1px solid var(--sb-accent);
+  outline-offset: -1px;
+}
+.sb-date-sheet__day.is-disabled .sb-date-sheet__day-button {
+  color: var(--sb-text-muted);
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+.sb-date-sheet__day.is-outside .sb-date-sheet__day-button {
+  visibility: hidden;
+}
+@media (min-width: 641px) {
+  .sb-date-sheet {
+    align-items: center;
   }
 }

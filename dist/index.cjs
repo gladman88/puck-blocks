@@ -4,6 +4,8 @@ var react = require('react');
 var simpleIcons = require('simple-icons');
 var jsxRuntime = require('react/jsx-runtime');
 var reactDom = require('react-dom');
+var reactDayPicker = require('react-day-picker');
+var locale = require('react-day-picker/locale');
 
 // src/sanitize.ts
 var SAFE_HREF = /^(https?:\/\/|\/|#|mailto:|tel:)/i;
@@ -2390,6 +2392,111 @@ function VehicleBookingModal({
     document.body
   );
 }
+function parseISODate(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day, 12);
+}
+function toISODate(value) {
+  return String(value.getFullYear()) + "-" + String(value.getMonth() + 1).padStart(2, "0") + "-" + String(value.getDate()).padStart(2, "0");
+}
+function MobileDatePicker({
+  field,
+  locale: locale$1,
+  selected,
+  minDate,
+  dateFromLabel,
+  dateToLabel,
+  onSelect,
+  onClose,
+  closeLabel
+}) {
+  const titleId = react.useId();
+  const closeRef = react.useRef(null);
+  const isOpen = field !== null;
+  const fieldLabel = field === "from" ? dateFromLabel : dateToLabel;
+  const min = parseISODate(minDate);
+  const selectedDate = selected ? parseISODate(selected) : void 0;
+  react.useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    closeRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isOpen, onClose]);
+  if (!isOpen || typeof document === "undefined") return null;
+  return reactDom.createPortal(
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-root", children: /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-date-sheet", role: "presentation", onPointerDown: onClose, children: /* @__PURE__ */ jsxRuntime.jsxs(
+      "section",
+      {
+        className: "sb-date-sheet__dialog",
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-labelledby": titleId,
+        onPointerDown: (event) => event.stopPropagation(),
+        children: [
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-date-sheet__head", children: [
+            /* @__PURE__ */ jsxRuntime.jsx("h3", { id: titleId, children: fieldLabel }),
+            /* @__PURE__ */ jsxRuntime.jsx(
+              "button",
+              {
+                ref: closeRef,
+                type: "button",
+                className: "sb-date-sheet__close",
+                "aria-label": closeLabel,
+                onClick: onClose,
+                children: "\xD7"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntime.jsx(
+            reactDayPicker.DayPicker,
+            {
+              mode: "single",
+              locale: locale$1 === "ru" ? locale.ru : locale.enGB,
+              selected: selectedDate,
+              defaultMonth: selectedDate ?? min,
+              startMonth: min,
+              disabled: { before: min },
+              fixedWeeks: true,
+              autoFocus: true,
+              onSelect: (date) => {
+                if (date) onSelect(toISODate(date));
+              },
+              classNames: {
+                root: "sb-date-sheet__calendar",
+                months: "sb-date-sheet__months",
+                month: "sb-date-sheet__month",
+                month_caption: "sb-date-sheet__caption",
+                caption_label: "sb-date-sheet__caption-label",
+                nav: "sb-date-sheet__nav",
+                button_previous: "sb-date-sheet__nav-button",
+                button_next: "sb-date-sheet__nav-button",
+                weekdays: "sb-date-sheet__weekdays",
+                weekday: "sb-date-sheet__weekday",
+                month_grid: "sb-date-sheet__grid",
+                week: "sb-date-sheet__week",
+                day: "sb-date-sheet__day",
+                day_button: "sb-date-sheet__day-button",
+                selected: "is-selected",
+                disabled: "is-disabled",
+                today: "is-today",
+                outside: "is-outside"
+              }
+            }
+          )
+        ]
+      }
+    ) }) }),
+    document.body
+  );
+}
 function defaultFilterState() {
   return {
     vehicleType: void 0,
@@ -2404,8 +2511,9 @@ function defaultFilterState() {
 function FilterBar({ filters, categories, onChange, strings: t, locale }) {
   const [categoryOpen, setCategoryOpen] = react.useState(false);
   const [editingDates, setEditingDates] = react.useState(false);
-  const [dateRangeError, setDateRangeError] = react.useState("");
+  const [mobileDateField, setMobileDateField] = react.useState(null);
   const availableFromRef = react.useRef(null);
+  const suppressNativePickerRef = react.useRef(false);
   const today = todayISO();
   const applyDatePatch = (patch) => {
     const nextFrom = Object.prototype.hasOwnProperty.call(patch, "availableFrom") ? patch.availableFrom : filters.availableFrom;
@@ -2434,32 +2542,36 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
       openNativeDatePicker(input);
     }
   };
-  const focusStartDate = () => {
+  const requestStartDate = () => {
+    if (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches) {
+      setMobileDateField("from");
+      return;
+    }
     const input = availableFromRef.current;
     if (!input) return;
     input.focus();
     openDesktopDatePicker(input);
   };
-  const closeTouchDatePicker = (input) => {
-    if (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches) {
-      window.setTimeout(() => input.blur(), 0);
-    }
+  const openMobileDatePicker = (event, field) => {
+    if (event.pointerType !== "touch") return;
+    suppressNativePickerRef.current = true;
+    event.preventDefault();
+    setMobileDateField(field);
   };
-  const handleFromInputChange = (input) => {
-    setDateRangeError("");
-    handleFromChange(input.value);
-    closeTouchDatePicker(input);
-  };
-  const handleToInputChange = (input) => {
-    const value = input.value;
-    if (filters.availableFrom && value && value <= filters.availableFrom) {
-      setDateRangeError(t.dateRangeInvalid);
-      closeTouchDatePicker(input);
+  const handleNativeDateClick = (input) => {
+    if (suppressNativePickerRef.current) {
+      suppressNativePickerRef.current = false;
       return;
     }
-    setDateRangeError("");
-    applyDatePatch({ availableTo: value || void 0 });
-    closeTouchDatePicker(input);
+    openDesktopDatePicker(input);
+  };
+  const handleMobileDateSelect = (value) => {
+    if (mobileDateField === "from") {
+      handleFromChange(value);
+    } else if (mobileDateField === "to") {
+      applyDatePatch({ availableTo: value });
+    }
+    setMobileDateField(null);
   };
   const cycleSort = () => {
     const order = ["default", "price_asc", "price_desc"];
@@ -2520,7 +2632,7 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
           {
             type: "button",
             className: "sb-filterbar__availability-action",
-            onClick: focusStartDate,
+            onClick: requestStartDate,
             children: [
               /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", width: "15", height: "15", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
                 /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
@@ -2545,8 +2657,9 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
               "aria-label": t.dateFrom,
               value: filters.availableFrom || "",
               min: today,
-              onClick: (e) => openDesktopDatePicker(e.currentTarget),
-              onChange: (e) => handleFromInputChange(e.currentTarget)
+              onPointerDown: (e) => openMobileDatePicker(e, "from"),
+              onClick: (e) => handleNativeDateClick(e.currentTarget),
+              onChange: (e) => handleFromChange(e.currentTarget.value)
             }
           )
         ] }),
@@ -2561,14 +2674,29 @@ function FilterBar({ filters, categories, onChange, strings: t, locale }) {
               "aria-label": t.dateTo,
               value: filters.availableTo || "",
               min: filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
-              onClick: (e) => openDesktopDatePicker(e.currentTarget),
-              onChange: (e) => handleToInputChange(e.currentTarget)
+              onPointerDown: (e) => openMobileDatePicker(e, "to"),
+              onClick: (e) => handleNativeDateClick(e.currentTarget),
+              onChange: (e) => applyDatePatch({ availableTo: e.currentTarget.value || void 0 })
             }
           )
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-filterbar__availability-copy" + (dateRangeError ? " is-error" : ""), children: dateRangeError || (hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt) })
+      /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-filterbar__availability-copy", children: hasCompleteDateRange ? t.availabilityReady : t.availabilityPrompt })
     ] }) }),
+    /* @__PURE__ */ jsxRuntime.jsx(
+      MobileDatePicker,
+      {
+        field: mobileDateField,
+        locale,
+        selected: mobileDateField === "from" ? filters.availableFrom : filters.availableTo,
+        minDate: mobileDateField === "from" ? today : filters.availableFrom ? nextDay(filters.availableFrom) : nextDay(today),
+        dateFromLabel: t.dateFrom,
+        dateToLabel: t.dateTo,
+        onSelect: handleMobileDateSelect,
+        onClose: () => setMobileDateField(null),
+        closeLabel: t.closeDatePicker
+      }
+    ),
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar", children: [
       /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__search", children: [
         /* @__PURE__ */ jsxRuntime.jsxs("svg", { className: "sb-filterbar__search-ico", viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
@@ -2721,8 +2849,8 @@ var STRINGS2 = {
     availabilityActionPending: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0430\u0442\u044B",
     editDates: "\u0418\u0437\u043C\u0435\u043D\u0438\u0442\u044C",
     doneDates: "\u0413\u043E\u0442\u043E\u0432\u043E",
+    closeDatePicker: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u043A\u0430\u043B\u0435\u043D\u0434\u0430\u0440\u044C",
     availableOnly: "\u0422\u043E\u043B\u044C\u043A\u043E \u0441\u0432\u043E\u0431\u043E\u0434\u043D\u044B\u0435",
-    dateRangeInvalid: "\u0414\u0430\u0442\u0430 \u043E\u043A\u043E\u043D\u0447\u0430\u043D\u0438\u044F \u0434\u043E\u043B\u0436\u043D\u0430 \u0431\u044B\u0442\u044C \u043F\u043E\u0437\u0436\u0435 \u0434\u0430\u0442\u044B \u043D\u0430\u0447\u0430\u043B\u0430",
     availableToday: "\u0421\u0432\u043E\u0431\u043E\u0434\u043D\u043E \u0441\u0435\u0433\u043E\u0434\u043D\u044F",
     availableSelected: "\u0421\u0432\u043E\u0431\u043E\u0434\u043D\u043E",
     clearFilters: "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0444\u0438\u043B\u044C\u0442\u0440\u044B"
@@ -2756,8 +2884,8 @@ var STRINGS2 = {
     availabilityActionPending: "Choose dates",
     editDates: "Change",
     doneDates: "Done",
+    closeDatePicker: "Close calendar",
     availableOnly: "Available only",
-    dateRangeInvalid: "End date must be after start date",
     availableToday: "Available today",
     availableSelected: "Available",
     clearFilters: "Clear filters"
