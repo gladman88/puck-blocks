@@ -2896,8 +2896,10 @@ function buildFilteredVehiclesUrl(apiBase, f) {
   if (f.vehicleType) qs.set("vehicle_type", f.vehicleType);
   if (f.category) qs.set("category", f.category);
   if (f.search) qs.set("search", f.search);
-  if (f.availableFrom) qs.set("available_from", f.availableFrom);
-  if (f.availableTo) qs.set("available_to", f.availableTo);
+  if (f.availableFrom && f.availableTo) {
+    qs.set("available_from", f.availableFrom);
+    qs.set("available_to", f.availableTo);
+  }
   const s = qs.toString();
   return `${apiBase}/api/v1/catalog/vehicles/${s ? `?${s}` : ""}`;
 }
