@@ -474,9 +474,11 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
     });
   });
 
-  it('sends dates only as a complete range and clears them together', async () => {
+  it('does not reload for a half-range and sends dates only as a complete pair', async () => {
     const fetchMock = stubFilteredFetch();
-    const { findByText, getByLabelText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
+    const { findByText, getByLabelText, queryByText } = render(
+      <VehicleCatalog showFilters apiBase="" locale="en" />,
+    );
     await findByText('BMW Z4');
 
     const lastVehiclesUrl = () => {
@@ -488,12 +490,16 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
       .filter(([u]) => String(u).includes('/vehicles/')).length;
 
     const callsBeforeStart = vehicleCallCount();
+    const allCallsBeforeStart = fetchMock.mock.calls.length;
     fireEvent.change(getByLabelText('Start date'), { target: { value: '2026-08-01' } });
-    await waitFor(() => expect(vehicleCallCount()).toBeGreaterThan(callsBeforeStart));
+    expect(vehicleCallCount()).toBe(callsBeforeStart);
+    expect(fetchMock.mock.calls).toHaveLength(allCallsBeforeStart);
+    expect(queryByText('Loading…')).toBeNull();
     expect(lastVehiclesUrl()).not.toContain('available_from');
     expect(lastVehiclesUrl()).not.toContain('available_to');
 
     fireEvent.change(getByLabelText('End date'), { target: { value: '2026-08-10' } });
+    await waitFor(() => expect(vehicleCallCount()).toBeGreaterThan(callsBeforeStart));
     await waitFor(() => expect(lastVehiclesUrl()).toContain('available_from=2026-08-01'));
     expect(lastVehiclesUrl()).toContain('available_to=2026-08-10');
 

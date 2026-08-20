@@ -3008,6 +3008,7 @@ function VehicleCatalog({
     }
     setDebouncedFilters(filters);
   }, [filters]);
+  const vehiclesUrl = showFilters ? buildFilteredVehiclesUrl(apiBase, debouncedFilters) : `${apiBase}/api/v1/catalog/vehicles/?vehicle_type=${vehicleType}`;
   react.useEffect(() => {
     let cancelled = false;
     const refreshingPreload = preloadedRef.current && !freshDataRef.current;
@@ -3016,7 +3017,6 @@ function VehicleCatalog({
       setActiveCat(null);
     }
     const headers = { "ngrok-skip-browser-warning": "true" };
-    const vehiclesUrl = showFilters ? buildFilteredVehiclesUrl(apiBase, debouncedFilters) : `${apiBase}/api/v1/catalog/vehicles/?vehicle_type=${vehicleType}`;
     Promise.all([
       fetch(`${apiBase}/api/v1/catalog/categories/`, { headers }).then(
         (r) => r.ok ? r.json() : []
@@ -3053,7 +3053,7 @@ function VehicleCatalog({
     return () => {
       cancelled = true;
     };
-  }, [apiBase, vehicleType, defaultCategory, showFilters, debouncedFilters]);
+  }, [apiBase, defaultCategory, showFilters, vehiclesUrl]);
   const didDeepLink = react.useRef(false);
   react.useEffect(() => {
     if (didDeepLink.current || state !== "ready") return;

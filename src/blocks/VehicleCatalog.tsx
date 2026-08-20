@@ -405,6 +405,13 @@ export function VehicleCatalog({
     setDebouncedFilters(filters);
   }, [filters]);
 
+  // Depend on the effective request URL, not the whole filter-state object.
+  // A half-selected date range, client-side sort, or available-only toggle does
+  // not change this URL and therefore must not clear/refetch the catalog.
+  const vehiclesUrl = showFilters
+    ? buildFilteredVehiclesUrl(apiBase, debouncedFilters)
+    : `${apiBase}/api/v1/catalog/vehicles/?vehicle_type=${vehicleType}`;
+
   useEffect(() => {
     let cancelled = false;
     const refreshingPreload = preloadedRef.current && !freshDataRef.current;
@@ -413,10 +420,6 @@ export function VehicleCatalog({
       setActiveCat(null);
     }
     const headers = { 'ngrok-skip-browser-warning': 'true' };
-    const vehiclesUrl = showFilters
-      ? buildFilteredVehiclesUrl(apiBase, debouncedFilters)
-      : `${apiBase}/api/v1/catalog/vehicles/?vehicle_type=${vehicleType}`;
-
     Promise.all([
       fetch(`${apiBase}/api/v1/catalog/categories/`, { headers }).then((r) =>
         r.ok ? (r.json() as Promise<CatalogCategory[]>) : [],
@@ -463,7 +466,7 @@ export function VehicleCatalog({
     return () => {
       cancelled = true;
     };
-  }, [apiBase, vehicleType, defaultCategory, showFilters, debouncedFilters]);
+  }, [apiBase, defaultCategory, showFilters, vehiclesUrl]);
 
   // Deep link: `?vehicle=<id>` opens the matching card once, after vehicles load.
   // Two catalog blocks (cars/bikes) each check their own list — only the block
