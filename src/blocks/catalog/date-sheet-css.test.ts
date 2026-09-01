@@ -22,13 +22,17 @@ function rule(selector: string): string {
  * rests on are pinned as stylesheet text instead. Both were live bugs on iOS.
  */
 describe('date sheet stylesheet', () => {
-  it('sizes the overlay by the visible viewport, not by a fixed bottom edge', () => {
+  it('sizes the overlay conservatively and centres the dialog inside it', () => {
     const overlay = rule('.sb-date-sheet');
 
-    expect(overlay).toContain('height: 100dvh');
-    // `inset: 0` resolves `bottom` against the iOS LARGE viewport, which slid
-    // the sheet under Safari's toolbar.
+    // Measured on an iPhone: `inset: 0` and `100dvh` both resolve against the
+    // LARGE viewport, which slid a bottom-anchored sheet under Safari's toolbar.
+    expect(overlay).toContain('height: 100svh');
     expect(overlay).not.toMatch(/inset:\s*0/);
+    expect(overlay).not.toContain('100dvh');
+    // Centring survives an overlay that overhangs the visible area at both ends.
+    expect(overlay).toContain('align-items: center');
+    expect(overlay).not.toContain('align-items: flex-end');
     expect(overlay).toContain('env(safe-area-inset-bottom)');
   });
 

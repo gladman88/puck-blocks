@@ -70,12 +70,13 @@ export function MobileDatePicker({
   }, [isOpen, onClose]);
 
   /**
-   * The sheet must never extend past the visible viewport. CSS `100dvh` covers
-   * the pre-hydration paint, but it is not enough on its own: iOS resolves a
-   * fixed `bottom` against the LARGE viewport (the sheet slid under Safari's
-   * toolbar), and Chromium can keep painting a stale `dvh`. `visualViewport`
-   * is the one measurement both engines report honestly, so mirror it here and
-   * let the dialog scroll inside whatever height that leaves.
+   * The sheet must never extend past the visible viewport. The stylesheet holds
+   * the conservative height (`100svh`); this narrows it further when the engine
+   * reports something smaller — a keyboard, a pinch-zoom, an Android toolbar.
+   *
+   * It may only SHRINK the overlay, never grow it: on iOS `innerHeight` (and,
+   * measured on an iPhone, `dvh`) report the large viewport, so trusting them
+   * upwards is what put the sheet under Safari's toolbar in the first place.
    */
   useEffect(() => {
     if (!isOpen) return;
@@ -83,8 +84,10 @@ export function MobileDatePicker({
     const apply = () => {
       const overlay = overlayRef.current;
       if (!overlay) return;
-      const height = window.visualViewport?.height ?? window.innerHeight;
-      if (height > 0) overlay.style.height = Math.round(height) + 'px';
+      const measured = window.visualViewport?.height ?? window.innerHeight;
+      if (!measured || measured <= 0) return;
+      overlay.style.height = '';
+      if (measured < overlay.clientHeight) overlay.style.height = Math.round(measured) + 'px';
     };
     // Orientation changes report the pre-rotation size for one frame.
     const applySoon = () => {

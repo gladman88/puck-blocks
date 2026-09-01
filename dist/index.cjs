@@ -2436,8 +2436,10 @@ function MobileDatePicker({
     const apply = () => {
       const overlay = overlayRef.current;
       if (!overlay) return;
-      const height = window.visualViewport?.height ?? window.innerHeight;
-      if (height > 0) overlay.style.height = Math.round(height) + "px";
+      const measured = window.visualViewport?.height ?? window.innerHeight;
+      if (!measured || measured <= 0) return;
+      overlay.style.height = "";
+      if (measured < overlay.clientHeight) overlay.style.height = Math.round(measured) + "px";
     };
     const applySoon = () => {
       apply();

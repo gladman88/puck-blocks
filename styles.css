@@ -3139,14 +3139,17 @@ a.sb-map__line:hover {
   top: 0;
   left: 0;
   right: 0;
-  /* Deliberately NOT `inset: 0`: iOS resolves a fixed `bottom` against the
-     LARGE viewport, so the sheet's last week row and padding slid under
-     Safari's toolbar. The height is the VISIBLE viewport — `100dvh` paints it
-     before hydration, then MobileDatePicker mirrors `visualViewport.height`
-     onto this element (Chromium can keep painting a stale `dvh`). */
-  height: 100dvh;
+  /* Deliberately NOT `inset: 0`, and NOT `100dvh`: on iOS both resolve against
+     the LARGE viewport (measured on an iPhone — the overlay spanned the whole
+     840pt screen while only ~93..762 was visible), which slid a bottom-anchored
+     sheet under Safari's toolbar. `100svh` is the conservative height — the one
+     that holds while the toolbars ARE shown — and MobileDatePicker narrows it
+     further to the measured `visualViewport.height` where that is honest. */
+  height: 100svh;
   display: flex;
-  align-items: flex-end;
+  /* Centred, not bottom-anchored: the overlay may still overhang the visible
+     area at BOTH ends, and centring keeps the dialog inside it either way. */
+  align-items: center;
   justify-content: center;
   padding: 1rem;
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
@@ -3165,7 +3168,7 @@ a.sb-map__line:hover {
   border-radius: 12px;
   background: var(--sb-surface);
   color: var(--sb-text);
-  box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.36);
 }
 .sb-date-sheet__head {
   flex: 0 0 auto;
@@ -3302,9 +3305,4 @@ a.sb-map__line:hover {
 }
 .sb-date-sheet__day.is-outside .sb-date-sheet__day-button {
   visibility: hidden;
-}
-@media (min-width: 641px) {
-  .sb-date-sheet {
-    align-items: center;
-  }
 }
