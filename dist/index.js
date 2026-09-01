@@ -2410,6 +2410,7 @@ function MobileDatePicker({
 }) {
   const titleId = useId();
   const closeRef = useRef(null);
+  const overlayRef = useRef(null);
   const isOpen = field !== null;
   const fieldLabel = field === "from" ? dateFromLabel : dateToLabel;
   const min = parseISODate(minDate);
@@ -2428,9 +2429,32 @@ function MobileDatePicker({
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [isOpen, onClose]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const apply = () => {
+      const overlay = overlayRef.current;
+      if (!overlay) return;
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      if (height > 0) overlay.style.height = Math.round(height) + "px";
+    };
+    const applySoon = () => {
+      apply();
+      window.requestAnimationFrame?.(apply);
+    };
+    apply();
+    const viewport = window.visualViewport;
+    window.addEventListener("resize", applySoon);
+    window.addEventListener("orientationchange", applySoon);
+    viewport?.addEventListener("resize", applySoon);
+    return () => {
+      window.removeEventListener("resize", applySoon);
+      window.removeEventListener("orientationchange", applySoon);
+      viewport?.removeEventListener("resize", applySoon);
+    };
+  }, [isOpen]);
   if (!isOpen || typeof document === "undefined") return null;
   return createPortal(
-    /* @__PURE__ */ jsx("div", { className: "sb-root", children: /* @__PURE__ */ jsx("div", { className: "sb-date-sheet", role: "presentation", onPointerDown: onClose, children: /* @__PURE__ */ jsxs(
+    /* @__PURE__ */ jsx("div", { className: "sb-root", children: /* @__PURE__ */ jsx("div", { className: "sb-date-sheet", role: "presentation", onPointerDown: onClose, ref: overlayRef, children: /* @__PURE__ */ jsxs(
       "section",
       {
         className: "sb-date-sheet__dialog",
@@ -2464,18 +2488,16 @@ function MobileDatePicker({
               disabled: { before: min },
               fixedWeeks: true,
               autoFocus: true,
-              onSelect: (date) => {
-                if (date) onSelect(toISODate(date));
-              },
+              navLayout: "around",
               classNames: {
                 root: "sb-date-sheet__calendar",
                 months: "sb-date-sheet__months",
                 month: "sb-date-sheet__month",
                 month_caption: "sb-date-sheet__caption",
                 caption_label: "sb-date-sheet__caption-label",
-                nav: "sb-date-sheet__nav",
                 button_previous: "sb-date-sheet__nav-button",
                 button_next: "sb-date-sheet__nav-button",
+                chevron: "sb-date-sheet__chevron",
                 weekdays: "sb-date-sheet__weekdays",
                 weekday: "sb-date-sheet__weekday",
                 month_grid: "sb-date-sheet__grid",
@@ -2486,6 +2508,9 @@ function MobileDatePicker({
                 disabled: "is-disabled",
                 today: "is-today",
                 outside: "is-outside"
+              },
+              onSelect: (date) => {
+                if (date) onSelect(toISODate(date));
               }
             }
           )

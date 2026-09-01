@@ -45,6 +45,7 @@ export function MobileDatePicker({
 }: MobileDatePickerProps) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const isOpen = field !== null;
   const fieldLabel = field === 'from' ? dateFromLabel : dateToLabel;
   const min = parseISODate(minDate);
@@ -68,11 +69,47 @@ export function MobileDatePicker({
     };
   }, [isOpen, onClose]);
 
+  /**
+   * The sheet must never extend past the visible viewport. CSS `100dvh` covers
+   * the pre-hydration paint, but it is not enough on its own: iOS resolves a
+   * fixed `bottom` against the LARGE viewport (the sheet slid under Safari's
+   * toolbar), and Chromium can keep painting a stale `dvh`. `visualViewport`
+   * is the one measurement both engines report honestly, so mirror it here and
+   * let the dialog scroll inside whatever height that leaves.
+   */
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const apply = () => {
+      const overlay = overlayRef.current;
+      if (!overlay) return;
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      if (height > 0) overlay.style.height = Math.round(height) + 'px';
+    };
+    // Orientation changes report the pre-rotation size for one frame.
+    const applySoon = () => {
+      apply();
+      window.requestAnimationFrame?.(apply);
+    };
+
+    apply();
+    const viewport = window.visualViewport;
+    window.addEventListener('resize', applySoon);
+    window.addEventListener('orientationchange', applySoon);
+    viewport?.addEventListener('resize', applySoon);
+
+    return () => {
+      window.removeEventListener('resize', applySoon);
+      window.removeEventListener('orientationchange', applySoon);
+      viewport?.removeEventListener('resize', applySoon);
+    };
+  }, [isOpen]);
+
   if (!isOpen || typeof document === 'undefined') return null;
 
   return createPortal(
     <div className="sb-root">
-      <div className="sb-date-sheet" role="presentation" onPointerDown={onClose}>
+      <div className="sb-date-sheet" role="presentation" onPointerDown={onClose} ref={overlayRef}>
         <section
           className="sb-date-sheet__dialog"
           role="dialog"
@@ -101,18 +138,26 @@ export function MobileDatePicker({
             disabled={{ before: min }}
             fixedWeeks
             autoFocus
-            onSelect={(date) => {
-              if (date) onSelect(toISODate(date));
-            }}
+            /**
+             * `navLayout="around"` renders the month arrows as siblings of the
+             * caption, laid out in normal flow. The default layout puts them in
+             * a separate <nav>, which only looks right when it is positioned
+             * absolutely — and that is what broke in production: the nav is a
+             * child of `months` (NOT of the caption, as in v8), so `inset: 0`
+             * resolved against the fixed overlay and threw both arrows to the
+             * screen edges, leaving no way to reach October. Keep the arrows in
+             * flow so no containing block can ever capture them again.
+             */
+            navLayout="around"
             classNames={{
               root: 'sb-date-sheet__calendar',
               months: 'sb-date-sheet__months',
               month: 'sb-date-sheet__month',
               month_caption: 'sb-date-sheet__caption',
               caption_label: 'sb-date-sheet__caption-label',
-              nav: 'sb-date-sheet__nav',
               button_previous: 'sb-date-sheet__nav-button',
               button_next: 'sb-date-sheet__nav-button',
+              chevron: 'sb-date-sheet__chevron',
               weekdays: 'sb-date-sheet__weekdays',
               weekday: 'sb-date-sheet__weekday',
               month_grid: 'sb-date-sheet__grid',
@@ -123,6 +168,9 @@ export function MobileDatePicker({
               disabled: 'is-disabled',
               today: 'is-today',
               outside: 'is-outside',
+            }}
+            onSelect={(date) => {
+              if (date) onSelect(toISODate(date));
             }}
           />
         </section>

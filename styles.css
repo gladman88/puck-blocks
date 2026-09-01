@@ -3136,15 +3136,31 @@ a.sb-map__line:hover {
 .sb-date-sheet {
   position: fixed;
   z-index: 10050;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Deliberately NOT `inset: 0`: iOS resolves a fixed `bottom` against the
+     LARGE viewport, so the sheet's last week row and padding slid under
+     Safari's toolbar. The height is the VISIBLE viewport — `100dvh` paints it
+     before hydration, then MobileDatePicker mirrors `visualViewport.height`
+     onto this element (Chromium can keep painting a stale `dvh`). */
+  height: 100dvh;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   padding: 1rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
   background: rgba(0, 0, 0, 0.58);
 }
 .sb-date-sheet__dialog {
+  display: flex;
+  flex-direction: column;
   width: min(100%, 27rem);
+  /* Bounded by the overlay, so a tall calendar scrolls instead of overflowing
+     off-screen. Both halves are load-bearing: without `min-height: 0` on the
+     calendar below, a flex child refuses to shrink and the cap does nothing. */
+  max-height: 100%;
+  overflow: hidden;
   border: 1px solid var(--sb-border);
   border-radius: 12px;
   background: var(--sb-surface);
@@ -3152,6 +3168,7 @@ a.sb-map__line:hover {
   box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.28);
 }
 .sb-date-sheet__head {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3181,14 +3198,25 @@ a.sb-map__line:hover {
   line-height: 1;
 }
 .sb-date-sheet__calendar {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0.75rem 0.9rem 1rem;
 }
-.sb-date-sheet__months,
+.sb-date-sheet__months {
+  width: 100%;
+}
+/* `navLayout="around"` renders [prev][caption][next] as siblings, then the day
+   grid. Laying that out in flow — never with absolute positioning — is what
+   keeps the arrows attached to the month they navigate. */
 .sb-date-sheet__month {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
   width: 100%;
 }
 .sb-date-sheet__caption {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3200,25 +3228,33 @@ a.sb-map__line:hover {
   font-weight: 700;
   text-transform: capitalize;
 }
-.sb-date-sheet__nav {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  pointer-events: none;
-}
 .sb-date-sheet__nav-button {
   width: 2.25rem;
   height: 2.25rem;
   border-radius: 8px;
-  pointer-events: auto;
+}
+/* At the navigation bound react-day-picker marks the button aria-disabled
+   rather than disabled, so it needs its own affordance. */
+.sb-date-sheet__nav-button[aria-disabled='true'] {
+  opacity: 0.32;
+  cursor: default;
+}
+.sb-date-sheet__nav-button[aria-disabled='true']:hover {
+  background: transparent;
+}
+/* react-day-picker's own stylesheet is not shipped with these blocks, and the
+   chevron polygons carry no fill of their own — they would paint black. */
+.sb-date-sheet__chevron {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: currentColor;
 }
 .sb-date-sheet__nav-button:hover,
 .sb-date-sheet__close:hover {
   background: var(--sb-bg);
 }
 .sb-date-sheet__grid {
+  grid-column: 1 / -1;
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
