@@ -169,21 +169,21 @@ describe('VehicleCatalog', () => {
     await screen.findByText('Забронировать');
     expect(screen.getByText('1 день')).toBeTruthy(); // min===max===1 → singular
     expect(screen.getByText('1-29 дней')).toBeTruthy(); // range with min 1 → plural (HIGH fix)
-    expect(screen.queryByText('Заполнить вручную')).toBeNull();
+    expect(screen.queryByText('Указать WhatsApp вручную')).toBeNull();
     expect(screen.queryByText('Отправить запрос')).toBeNull();
 
-    // step 2 (choice): dates + Telegram + «Заполнить вручную» — still no manual form
+    // step 2 (choice): dates + Telegram + «Указать WhatsApp вручную» — still no manual form
     fireEvent.click(screen.getByText('Забронировать'));
-    await screen.findByText('Заполнить вручную');
+    await screen.findByText('Указать WhatsApp вручную');
     expect(screen.queryByText('Отправить запрос')).toBeNull();
 
     // step 3 (form): the manual request form
-    fireEvent.click(screen.getByText('Заполнить вручную'));
+    fireEvent.click(screen.getByText('Указать WhatsApp вручную'));
     expect(await screen.findByText('Отправить запрос')).toBeTruthy();
 
     // ‹ Назад returns to the choice step
     fireEvent.click(screen.getByText(/Назад/));
-    await screen.findByText('Заполнить вручную');
+    await screen.findByText('Указать WhatsApp вручную');
     expect(screen.queryByText('Отправить запрос')).toBeNull();
   });
 

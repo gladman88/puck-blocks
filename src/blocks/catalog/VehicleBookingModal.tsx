@@ -142,21 +142,23 @@ const S = {
     back: 'Назад',
     bookCta: 'Забронировать',
     formTitle: 'Запрос на бронирование',
-    manual: 'Заполнить вручную',
-    manualSub: 'Имя и контакт — займёт 30 секунд',
+    // ⚠ Ручной ввод — ТОЛЬКО WhatsApp (2026-09-14): Telegram-логин, набранный
+    // руками, писался в `external_id` дословно (не chat_id) и ломал
+    // распознавание того же человека при следующем реальном обращении — тот
+    // же клиент заводился повторно, каждый раз с новым реф-агентом. Telegram
+    // остаётся доступен, но только через гарантированно-настоящий chat_id из
+    // кнопки «в 1 клик» выше.
+    manual: 'Указать WhatsApp вручную',
+    manualSub: 'Имя и номер — займёт 30 секунд',
     dateGet: 'Дата получения',
     dateReturn: 'Дата возврата',
-    contactWay: 'Способ связи',
-    phoneLabel: 'Номер телефона',
-    tgLabel: 'Telegram',
+    phoneLabel: 'Номер WhatsApp',
     successTitle: 'Заявка отправлена!',
     successText: 'Мы скоро свяжемся с вами.',
     tooMany: 'Слишком много запросов, попробуйте позже',
     sendErr: 'Не удалось отправить. Попробуйте ещё раз.',
     phonePh: '+66...',
-    tgPh: '@username',
-    phoneInvalid: 'Введите номер телефона (только цифры, можно с +)',
-    tgInvalid: 'Введите ник в Telegram (латиница, цифры, знак _)',
+    phoneInvalid: 'Введите номер с кодом страны, например +66812345678',
     deliveryTitle: 'Доставка',
     deliveryPickup: 'Доставить машину по адресу',
     deliveryDropoff: 'Заберём машину по адресу',
@@ -220,21 +222,17 @@ const S = {
     back: 'Back',
     bookCta: 'Book',
     formTitle: 'Booking request',
-    manual: 'Fill in manually',
-    manualSub: 'Name and contact — takes 30 seconds',
+    manual: 'Enter WhatsApp manually',
+    manualSub: 'Name and number — takes 30 seconds',
     dateGet: 'Pick-up date',
     dateReturn: 'Return date',
-    contactWay: 'Contact method',
-    phoneLabel: 'Phone number',
-    tgLabel: 'Telegram',
+    phoneLabel: 'WhatsApp number',
     successTitle: 'Request sent!',
     successText: 'We will contact you shortly.',
     tooMany: 'Too many requests, try later',
     sendErr: 'Could not send. Please try again.',
     phonePh: '+66...',
-    tgPh: '@username',
-    phoneInvalid: 'Enter a phone number (digits only, + is fine)',
-    tgInvalid: 'Enter a Telegram username (letters, digits, underscore)',
+    phoneInvalid: 'Enter your number with the country code, e.g. +66812345678',
     deliveryTitle: 'Delivery',
     deliveryPickup: 'Deliver the vehicle to my address',
     deliveryDropoff: "We'll pick it up from my address",
@@ -353,52 +351,25 @@ interface Props {
   onClose: () => void;
 }
 
-// Strict per-channel format validation (owner decision 2026-07-21 — WhatsApp
-// usernames exist but the `wa.me/<username>` deep link doesn't reliably open
-// a chat yet, since WhatsApp's own username-resolution rollout is still
-// mid-flight; see notify_catalog_booking's link-builder for the backend
-// side of this). Rather than accept ambiguous free text, each channel only
-// accepts its own shape — the other is rejected at submit, not silently
-// mis-filed like the incident that prompted this.
-const WHATSAPP_PHONE_RE = /^\+?[\d\s\-()]{7,20}$/;
-// Telegram handle: latin letters / digits / underscores, optional leading @.
-// Deliberately LENIENT on length — the standard self-set minimum is 5 chars,
-// but shorter usernames (4 and below) exist via Fragment auction, so a hard
-// 5-min would falsely reject a real customer. We only enforce "looks like a
-// handle, not a phone number": valid charset + at least one letter (a
-// pure-digit string is a phone and belongs in the other field).
-const TELEGRAM_HANDLE_RE = /^[a-zA-Z0-9_]{3,32}$/;
+// WhatsApp-only phone validation (owner decision 2026-09-14 — Telegram was
+// removed from this manual form entirely; see the `manual`/`manualSub` copy
+// above for why). MUST start with a country code (`+`): a number typed in
+// LOCAL format (no country code, e.g. a Thai `0812345678`) strips to a
+// DIFFERENT digit string than the same number typed internationally
+// (`+66812345678`), so the same customer booking twice with each format got
+// two `Contact` rows with two different `external_id`s — and, when each
+// booking carried a different `?ref=`, two different referral agents on what
+// was really one person. Forcing `+` here is the whole fix: it can't
+// guarantee every input, but it removes the format ambiguity at the source.
+const WHATSAPP_PHONE_RE = /^\+[\d\s\-()]{6,19}$/;
 
 function isValidWhatsAppPhone(value: string): boolean {
   const trimmed = value.trim();
   if (!WHATSAPP_PHONE_RE.test(trimmed)) return false;
-  return trimmed.replace(/\D/g, '').length >= 7;
-}
-
-function isValidTelegramUsername(value: string): boolean {
-  const handle = value.trim().replace(/^@/, '');
-  return TELEGRAM_HANDLE_RE.test(handle) && /[a-zA-Z]/.test(handle);
-}
-
-// Official-brand-colored icons for the channel toggle — always rendered in
-// their real brand color (not `currentColor`) so WhatsApp/Telegram stay
-// instantly recognizable regardless of the button's active/inactive text
-// color. Scoped to this file only — the site-wide `ContactIcon` component
-// (header/footer/hero) deliberately stays monochrome and is not touched.
-function WhatsAppBrandIcon() {
-  return (
-    <svg className="sb-vd__channel-ico" viewBox="0 0 24 24" fill="#25D366" aria-hidden="true">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-    </svg>
-  );
-}
-
-function TelegramBrandIcon() {
-  return (
-    <svg className="sb-vd__channel-ico" viewBox="0 0 24 24" fill="#26A5E4" aria-hidden="true">
-      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-    </svg>
-  );
+  const digits = trimmed.replace(/\D/g, '');
+  // E.164: country code + subscriber number, max 15 digits total; shortest
+  // real-world numbers (with a country code) run about 8.
+  return digits.length >= 8 && digits.length <= 15;
 }
 
 /**
@@ -436,15 +407,16 @@ export function VehicleBookingModal({
   const seedEnd = initialTo && initialTo > seedStart ? initialTo : nextDay(seedStart);
   const [start, setStart] = useState(seedStart);
   const [end, setEnd] = useState(seedEnd);
-  // Prefill from the Telegram Mini App user, if the host passed one (parity
-  // with frontend_catalog's BookingForm — name/channel/contact are just a
-  // starting point, still editable).
+  // Prefill the name from the Telegram Mini App user, if the host passed one
+  // — still just a starting point, editable. The contact field is WhatsApp-
+  // only now (2026-09-14: Telegram was removed from this manual form — see
+  // `manual`/`manualSub` copy above), so it never prefills from a Telegram
+  // username: that field is a phone number.
   const [name, setName] = useState(telegramUser?.first_name || '');
-  const [channel, setChannel] = useState<'whatsapp' | 'telegram'>(telegramUser ? 'telegram' : 'whatsapp');
-  const [contact, setContact] = useState(telegramUser?.username ? `@${telegramUser.username}` : '');
-  // Inline format-validation error for the contact field — cleared as soon
-  // as the customer changes the channel or edits the value, so it never
-  // lingers after they've corrected it.
+  const [contact, setContact] = useState('');
+  // Inline format-validation error for the phone field — cleared as soon as
+  // the customer edits the value, so it never lingers after they've
+  // corrected it.
   const [contactError, setContactError] = useState('');
   // accessory id -> quantity, picked on the detail screen (Stage 5, plan §6).
   const [accessories, setAccessories] = useState<Record<string, number>>({});
@@ -685,11 +657,8 @@ export function VehicleBookingModal({
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (submittingRef.current || submitting || !datesValid || !name.trim() || !contact.trim()) return;
-    const contactValid = channel === 'whatsapp'
-      ? isValidWhatsAppPhone(contact)
-      : isValidTelegramUsername(contact);
-    if (!contactValid) {
-      setContactError(channel === 'whatsapp' ? t.phoneInvalid : t.tgInvalid);
+    if (!isValidWhatsAppPhone(contact)) {
+      setContactError(t.phoneInvalid);
       return;
     }
     submittingRef.current = true;
@@ -704,18 +673,14 @@ export function VehicleBookingModal({
           start_date: start,
           end_date: end,
           customer_name: name.trim(),
-          contact_channel: channel,
+          // Manual form is WhatsApp-only (2026-09-14) — Telegram here goes
+          // ONLY through the 1-click flow above (handleTelegramBooking),
+          // which always carries a real chat_id. No `telegram_user_data`:
+          // it would be ignored server-side for this channel anyway, and
+          // omitting it keeps this payload honest about what it actually is.
+          contact_channel: 'whatsapp',
           contact_identifier: contact.trim(),
           ...(referralCode ? { referral_code: referralCode } : {}),
-          ...(telegramUser?.user_id
-            ? {
-                telegram_user_data: {
-                  user_id: telegramUser.user_id,
-                  username: telegramUser.username,
-                  first_name: telegramUser.first_name,
-                },
-              }
-            : {}),
           ...(selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {}),
           ...(effectivePickupLocation ? { pickup_location: effectivePickupLocation } : {}),
           ...(effectiveDropoffLocation ? { dropoff_location: effectiveDropoffLocation } : {}),
@@ -1483,32 +1448,6 @@ export function VehicleBookingModal({
                 </label>
 
                 <div className="sb-vd__field">
-                  <span className="sb-vd__field-label">{t.contactWay}</span>
-                  <div className="sb-vd__channel" role="group" aria-label={t.contactWay}>
-                    <button
-                      type="button"
-                      data-channel="whatsapp"
-                      aria-pressed={channel === 'whatsapp'}
-                      className={channel === 'whatsapp' ? 'is-active' : ''}
-                      onClick={() => { setChannel('whatsapp'); setContactError(''); }}
-                    >
-                      <WhatsAppBrandIcon />
-                      WhatsApp
-                    </button>
-                    <button
-                      type="button"
-                      data-channel="telegram"
-                      aria-pressed={channel === 'telegram'}
-                      className={channel === 'telegram' ? 'is-active' : ''}
-                      onClick={() => { setChannel('telegram'); setContactError(''); }}
-                    >
-                      <TelegramBrandIcon />
-                      Telegram
-                    </button>
-                  </div>
-                </div>
-
-                <div className="sb-vd__field">
                   {/* The error message lives OUTSIDE the <label> on purpose —
                       testing-library (and every screen reader) computes a
                       wrapping label's accessible name from ALL of its text
@@ -1518,13 +1457,11 @@ export function VehicleBookingModal({
                       lookups/associations. `aria-describedby` links it back
                       without that side effect. */}
                   <label className="sb-vd__field">
-                    <span className="sb-vd__field-label">
-                      {channel === 'whatsapp' ? t.phoneLabel : t.tgLabel}
-                    </span>
+                    <span className="sb-vd__field-label">{t.phoneLabel}</span>
                     <input
                       className="sb-input"
                       type="text"
-                      placeholder={channel === 'whatsapp' ? t.phonePh : t.tgPh}
+                      placeholder={t.phonePh}
                       required
                       value={contact}
                       onChange={(e) => { setContact(e.target.value); setContactError(''); }}

@@ -222,10 +222,10 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     await goToAccessories();
 
     fireEvent.click(screen.getByRole('button', { name: '+' }));
-    fireEvent.click(await screen.findByText('Fill in manually'));
+    fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
 
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
-    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66123456' } });
+    fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66123456' } });
     fireEvent.click(screen.getByText('Send request'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
@@ -413,7 +413,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     await screen.findByText('How to book?');
   }
   async function goToForm() {
-    fireEvent.click(await screen.findByText('Fill in manually'));
+    fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
   }
 
   // Mock the new Places AutocompleteSuggestion API: typing any text yields one
@@ -468,7 +468,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
 
     await goToForm();
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
-    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66123456' } });
+    fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66123456' } });
     fireEvent.click(screen.getByText('Send request'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
@@ -490,7 +490,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
 
     await goToForm();
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
-    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66123456' } });
+    fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66123456' } });
     fireEvent.click(screen.getByText('Send request'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
@@ -526,7 +526,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     expect(screen.getByText('Patong Beach Road')).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
-    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66123456' } });
+    fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66123456' } });
     fireEvent.click(screen.getByText('Send request'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
@@ -692,9 +692,9 @@ describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-bl
 
   async function submitManualForm() {
     fireEvent.click(screen.getByText('Book'));
-    fireEvent.click(await screen.findByText('Fill in manually'));
+    fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
-    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66123456' } });
+    fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66123456' } });
     fireEvent.click(screen.getByText('Send request'));
   }
 
@@ -972,8 +972,27 @@ describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-bl
   });
 });
 
-describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-puck-blocks §4.1c)', () => {
-  it('prefills name/channel/contact from telegramUser and echoes telegram_user_data in the payload', async () => {
+describe('VehicleBookingModal — manual form is WhatsApp-only (owner decision 2026-09-14)', () => {
+  // Removed 2026-09-14: a Telegram handle typed by hand here used to write the
+  // literal text into `Contact.external_id` instead of a real chat_id, which
+  // broke recognizing the same person on their next real message — the same
+  // customer got a second card (and sometimes a second referral agent) every
+  // time they booked again. Telegram now reaches the backend ONLY through the
+  // "1-click" button (handleTelegramBooking), which always carries a real
+  // chat_id from the bot. These tests pin that the option is gone for good.
+  it('has no Telegram option — no toggle, no Telegram-labelled field', async () => {
+    stubDetailFetch(baseDetail);
+    render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByText('Book'));
+    fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
+
+    expect(screen.queryByRole('button', { name: /Telegram/ })).toBeNull();
+    expect(screen.queryByLabelText('Telegram')).toBeNull();
+    expect(screen.getByLabelText('WhatsApp number')).toBeTruthy();
+  });
+
+  it('prefills the name from telegramUser but leaves the WhatsApp field empty, and omits telegram_user_data from the payload', async () => {
     let capturedBody: string | undefined;
     vi.stubGlobal(
       'fetch',
@@ -1001,46 +1020,46 @@ describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-pu
     );
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
-    fireEvent.click(await screen.findByText('Fill in manually'));
+    fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
 
     expect((screen.getByLabelText('Your name') as HTMLInputElement).value).toBe('Ivan');
-    // Prefilled from a Telegram Mini App user → channel defaults to Telegram,
-    // so the field label follows suit (was a static "Phone number" before).
-    expect((screen.getByLabelText('Telegram') as HTMLInputElement).value).toBe('@ivan_p');
+    expect((screen.getByLabelText('WhatsApp number') as HTMLInputElement).value).toBe('');
 
+    fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66912345678' } });
     fireEvent.click(screen.getByText('Send request'));
     await waitFor(() => expect(capturedBody).toBeDefined());
     const payload = JSON.parse(capturedBody!);
-    expect(payload.telegram_user_data).toEqual({ user_id: 42, username: 'ivan_p', first_name: 'Ivan' });
+    expect(payload.contact_channel).toBe('whatsapp');
+    expect(payload.telegram_user_data).toBeUndefined();
   });
 
-  it('defaults to WhatsApp with an empty name/contact when telegramUser is absent', async () => {
+  it('defaults to an empty name/contact when telegramUser is absent', async () => {
     stubDetailFetch(baseDetail);
     render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
-    fireEvent.click(await screen.findByText('Fill in manually'));
+    fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
 
     expect((screen.getByLabelText('Your name') as HTMLInputElement).value).toBe('');
-    expect((screen.getByLabelText('Phone number') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('WhatsApp number') as HTMLInputElement).value).toBe('');
   });
 
-  // Strict per-channel format validation (owner decision 2026-07-21):
-  // WhatsApp's own `wa.me/<username>` link doesn't reliably open a chat yet
-  // (its username-resolution rollout is still mid-flight), so each channel
-  // only accepts its own shape at submit time rather than silently filing
-  // a Telegram handle as a WhatsApp contact (the incident that prompted this).
-  describe('per-channel contact format validation', () => {
+  // WhatsApp format validation (owner decision 2026-09-14): a number typed
+  // WITHOUT a country code (local format) strips to a DIFFERENT digit string
+  // than the same number typed internationally, and the same customer booking
+  // twice, once each way, got two Contact rows for one person. The `+` is now
+  // mandatory so the field can't silently accept the ambiguous local form.
+  describe('WhatsApp phone format validation', () => {
     async function openManualForm(fetchImpl: (url: string, init?: RequestInit) => Promise<Response>) {
       vi.stubGlobal('fetch', fetchImpl);
       render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
       await screen.findByText('BMW Z4');
       fireEvent.click(screen.getByText('Book'));
-      fireEvent.click(await screen.findByText('Fill in manually'));
+      fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
       fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
     }
 
-    it('rejects a Telegram-shaped handle in the WhatsApp field and does not submit', async () => {
+    it('rejects a value with no country code and does not submit', async () => {
       let called = false;
       await openManualForm(vi.fn((url: string) => {
         if (url.includes('/catalog/vehicles/')) {
@@ -1050,15 +1069,15 @@ describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-pu
         return Promise.resolve(new Response('{}', { status: 200 }));
       }));
 
-      // WhatsApp is the default channel — no need to switch.
-      fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: 'Evgenii_yar' } });
+      // Local Thai mobile format, no leading '+' / country code.
+      fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '0812345678' } });
       fireEvent.click(screen.getByText('Send request'));
 
-      expect(await screen.findByText(/Enter a phone number/)).toBeTruthy();
+      expect(await screen.findByText(/country code/)).toBeTruthy();
       expect(called).toBe(false);
     });
 
-    it('rejects a phone number in the Telegram field and does not submit', async () => {
+    it('rejects a non-phone value and does not submit', async () => {
       let called = false;
       await openManualForm(vi.fn((url: string) => {
         if (url.includes('/catalog/vehicles/')) {
@@ -1068,12 +1087,22 @@ describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-pu
         return Promise.resolve(new Response('{}', { status: 200 }));
       }));
 
-      fireEvent.click(screen.getByRole('button', { name: /Telegram/ }));
-      fireEvent.change(screen.getByLabelText('Telegram'), { target: { value: '+66912345678' } });
+      fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: 'Evgenii_yar' } });
       fireEvent.click(screen.getByText('Send request'));
 
-      expect(await screen.findByText(/Enter a Telegram username/)).toBeTruthy();
+      expect(await screen.findByText(/country code/)).toBeTruthy();
       expect(called).toBe(false);
+    });
+
+    it('accepts a number with a country code (no error)', async () => {
+      await openManualForm(vi.fn(() =>
+        Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }))
+      ));
+
+      fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66812345678' } });
+      fireEvent.click(screen.getByText('Send request'));
+
+      await waitFor(() => expect(screen.queryByText(/country code/)).toBeNull());
     });
 
     it('clears the error as soon as the customer edits the contact field', async () => {
@@ -1081,45 +1110,12 @@ describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-pu
         Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }))
       ));
 
-      fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: 'not-a-phone' } });
+      fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: 'not-a-phone' } });
       fireEvent.click(screen.getByText('Send request'));
-      expect(await screen.findByText(/Enter a phone number/)).toBeTruthy();
+      expect(await screen.findByText(/country code/)).toBeTruthy();
 
-      fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66912345678' } });
-      expect(screen.queryByText(/Enter a phone number/)).toBeNull();
-    });
-
-    it('accepts a valid Telegram username (no error) — including a short 4-char one', async () => {
-      await openManualForm(vi.fn(() =>
-        Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }))
-      ));
-
-      fireEvent.click(screen.getByRole('button', { name: /Telegram/ }));
-      // 4 chars, digit inside, leading @ — all valid per the relaxed rule
-      // (standard min is 5 but Fragment short usernames exist, so we don't
-      // hard-reject on length).
-      fireEvent.change(screen.getByLabelText('Telegram'), { target: { value: '@ki2t' } });
-      fireEvent.click(screen.getByText('Send request'));
-
-      await waitFor(() => expect(screen.queryByText(/Enter a Telegram username/)).toBeNull());
-    });
-
-    it('rejects a pure-digit value in the Telegram field (that is a phone, not a username)', async () => {
-      let called = false;
-      await openManualForm(vi.fn((url: string) => {
-        if (url.includes('/catalog/vehicles/')) {
-          return Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }));
-        }
-        called = true;
-        return Promise.resolve(new Response('{}', { status: 200 }));
-      }));
-
-      fireEvent.click(screen.getByRole('button', { name: /Telegram/ }));
-      fireEvent.change(screen.getByLabelText('Telegram'), { target: { value: '12345678' } });
-      fireEvent.click(screen.getByText('Send request'));
-
-      expect(await screen.findByText(/Enter a Telegram username/)).toBeTruthy();
-      expect(called).toBe(false);
+      fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66912345678' } });
+      expect(screen.queryByText(/country code/)).toBeNull();
     });
   });
 
@@ -1146,9 +1142,9 @@ describe('VehicleBookingModal — Telegram Mini App prefill (plans/catalog-on-pu
       render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
       await screen.findByText('BMW Z4');
       fireEvent.click(screen.getByText('Book'));
-      fireEvent.click(await screen.findByText('Fill in manually'));
+      fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
       fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
-      fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+66912345678' } });
+      fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66912345678' } });
 
       const sendBtn = screen.getByText('Send request');
       fireEvent.click(sendBtn); // first tap — sets the ref synchronously

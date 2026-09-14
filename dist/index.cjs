@@ -1266,21 +1266,23 @@ var S = {
     back: "\u041D\u0430\u0437\u0430\u0434",
     bookCta: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
     formTitle: "\u0417\u0430\u043F\u0440\u043E\u0441 \u043D\u0430 \u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435",
-    manual: "\u0417\u0430\u043F\u043E\u043B\u043D\u0438\u0442\u044C \u0432\u0440\u0443\u0447\u043D\u0443\u044E",
-    manualSub: "\u0418\u043C\u044F \u0438 \u043A\u043E\u043D\u0442\u0430\u043A\u0442 \u2014 \u0437\u0430\u0439\u043C\u0451\u0442 30 \u0441\u0435\u043A\u0443\u043D\u0434",
+    // ⚠ Ручной ввод — ТОЛЬКО WhatsApp (2026-09-14): Telegram-логин, набранный
+    // руками, писался в `external_id` дословно (не chat_id) и ломал
+    // распознавание того же человека при следующем реальном обращении — тот
+    // же клиент заводился повторно, каждый раз с новым реф-агентом. Telegram
+    // остаётся доступен, но только через гарантированно-настоящий chat_id из
+    // кнопки «в 1 клик» выше.
+    manual: "\u0423\u043A\u0430\u0437\u0430\u0442\u044C WhatsApp \u0432\u0440\u0443\u0447\u043D\u0443\u044E",
+    manualSub: "\u0418\u043C\u044F \u0438 \u043D\u043E\u043C\u0435\u0440 \u2014 \u0437\u0430\u0439\u043C\u0451\u0442 30 \u0441\u0435\u043A\u0443\u043D\u0434",
     dateGet: "\u0414\u0430\u0442\u0430 \u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u044F",
     dateReturn: "\u0414\u0430\u0442\u0430 \u0432\u043E\u0437\u0432\u0440\u0430\u0442\u0430",
-    contactWay: "\u0421\u043F\u043E\u0441\u043E\u0431 \u0441\u0432\u044F\u0437\u0438",
-    phoneLabel: "\u041D\u043E\u043C\u0435\u0440 \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0430",
-    tgLabel: "Telegram",
+    phoneLabel: "\u041D\u043E\u043C\u0435\u0440 WhatsApp",
     successTitle: "\u0417\u0430\u044F\u0432\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0430!",
     successText: "\u041C\u044B \u0441\u043A\u043E\u0440\u043E \u0441\u0432\u044F\u0436\u0435\u043C\u0441\u044F \u0441 \u0432\u0430\u043C\u0438.",
     tooMany: "\u0421\u043B\u0438\u0448\u043A\u043E\u043C \u043C\u043D\u043E\u0433\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u043E\u0432, \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u043F\u043E\u0437\u0436\u0435",
     sendErr: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437.",
     phonePh: "+66...",
-    tgPh: "@username",
-    phoneInvalid: "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u043E\u043C\u0435\u0440 \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0430 (\u0442\u043E\u043B\u044C\u043A\u043E \u0446\u0438\u0444\u0440\u044B, \u043C\u043E\u0436\u043D\u043E \u0441 +)",
-    tgInvalid: "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u0438\u043A \u0432 Telegram (\u043B\u0430\u0442\u0438\u043D\u0438\u0446\u0430, \u0446\u0438\u0444\u0440\u044B, \u0437\u043D\u0430\u043A _)",
+    phoneInvalid: "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u043E\u043C\u0435\u0440 \u0441 \u043A\u043E\u0434\u043E\u043C \u0441\u0442\u0440\u0430\u043D\u044B, \u043D\u0430\u043F\u0440\u0438\u043C\u0435\u0440 +66812345678",
     deliveryTitle: "\u0414\u043E\u0441\u0442\u0430\u0432\u043A\u0430",
     deliveryPickup: "\u0414\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u043C\u0430\u0448\u0438\u043D\u0443 \u043F\u043E \u0430\u0434\u0440\u0435\u0441\u0443",
     deliveryDropoff: "\u0417\u0430\u0431\u0435\u0440\u0451\u043C \u043C\u0430\u0448\u0438\u043D\u0443 \u043F\u043E \u0430\u0434\u0440\u0435\u0441\u0443",
@@ -1344,21 +1346,17 @@ var S = {
     back: "Back",
     bookCta: "Book",
     formTitle: "Booking request",
-    manual: "Fill in manually",
-    manualSub: "Name and contact \u2014 takes 30 seconds",
+    manual: "Enter WhatsApp manually",
+    manualSub: "Name and number \u2014 takes 30 seconds",
     dateGet: "Pick-up date",
     dateReturn: "Return date",
-    contactWay: "Contact method",
-    phoneLabel: "Phone number",
-    tgLabel: "Telegram",
+    phoneLabel: "WhatsApp number",
     successTitle: "Request sent!",
     successText: "We will contact you shortly.",
     tooMany: "Too many requests, try later",
     sendErr: "Could not send. Please try again.",
     phonePh: "+66...",
-    tgPh: "@username",
-    phoneInvalid: "Enter a phone number (digits only, + is fine)",
-    tgInvalid: "Enter a Telegram username (letters, digits, underscore)",
+    phoneInvalid: "Enter your number with the country code, e.g. +66812345678",
     deliveryTitle: "Delivery",
     deliveryPickup: "Deliver the vehicle to my address",
     deliveryDropoff: "We'll pick it up from my address",
@@ -1412,22 +1410,12 @@ async function fetchDeliveryQuote(apiBase, location) {
     return null;
   }
 }
-var WHATSAPP_PHONE_RE = /^\+?[\d\s\-()]{7,20}$/;
-var TELEGRAM_HANDLE_RE = /^[a-zA-Z0-9_]{3,32}$/;
+var WHATSAPP_PHONE_RE = /^\+[\d\s\-()]{6,19}$/;
 function isValidWhatsAppPhone(value) {
   const trimmed = value.trim();
   if (!WHATSAPP_PHONE_RE.test(trimmed)) return false;
-  return trimmed.replace(/\D/g, "").length >= 7;
-}
-function isValidTelegramUsername(value) {
-  const handle = value.trim().replace(/^@/, "");
-  return TELEGRAM_HANDLE_RE.test(handle) && /[a-zA-Z]/.test(handle);
-}
-function WhatsAppBrandIcon() {
-  return /* @__PURE__ */ jsxRuntime.jsx("svg", { className: "sb-vd__channel-ico", viewBox: "0 0 24 24", fill: "#25D366", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" }) });
-}
-function TelegramBrandIcon() {
-  return /* @__PURE__ */ jsxRuntime.jsx("svg", { className: "sb-vd__channel-ico", viewBox: "0 0 24 24", fill: "#26A5E4", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" }) });
+  const digits = trimmed.replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 15;
 }
 function VehicleBookingModal({
   vehicle,
@@ -1453,8 +1441,7 @@ function VehicleBookingModal({
   const [start, setStart] = react.useState(seedStart);
   const [end, setEnd] = react.useState(seedEnd);
   const [name, setName] = react.useState(telegramUser?.first_name || "");
-  const [channel, setChannel] = react.useState(telegramUser ? "telegram" : "whatsapp");
-  const [contact, setContact] = react.useState(telegramUser?.username ? `@${telegramUser.username}` : "");
+  const [contact, setContact] = react.useState("");
   const [contactError, setContactError] = react.useState("");
   const [accessories, setAccessories] = react.useState({});
   const [accessoryLightbox, setAccessoryLightbox] = react.useState(null);
@@ -1604,9 +1591,8 @@ function VehicleBookingModal({
   const submit = async (e) => {
     e.preventDefault();
     if (submittingRef.current || submitting || !datesValid || !name.trim() || !contact.trim()) return;
-    const contactValid = channel === "whatsapp" ? isValidWhatsAppPhone(contact) : isValidTelegramUsername(contact);
-    if (!contactValid) {
-      setContactError(channel === "whatsapp" ? t.phoneInvalid : t.tgInvalid);
+    if (!isValidWhatsAppPhone(contact)) {
+      setContactError(t.phoneInvalid);
       return;
     }
     submittingRef.current = true;
@@ -1621,16 +1607,14 @@ function VehicleBookingModal({
           start_date: start,
           end_date: end,
           customer_name: name.trim(),
-          contact_channel: channel,
+          // Manual form is WhatsApp-only (2026-09-14) — Telegram here goes
+          // ONLY through the 1-click flow above (handleTelegramBooking),
+          // which always carries a real chat_id. No `telegram_user_data`:
+          // it would be ignored server-side for this channel anyway, and
+          // omitting it keeps this payload honest about what it actually is.
+          contact_channel: "whatsapp",
           contact_identifier: contact.trim(),
           ...referralCode ? { referral_code: referralCode } : {},
-          ...telegramUser?.user_id ? {
-            telegram_user_data: {
-              user_id: telegramUser.user_id,
-              username: telegramUser.username,
-              first_name: telegramUser.first_name
-            }
-          } : {},
           ...selectedAccessories.length > 0 ? { accessories: selectedAccessories } : {},
           ...effectivePickupLocation ? { pickup_location: effectivePickupLocation } : {},
           ...effectiveDropoffLocation ? { dropoff_location: effectiveDropoffLocation } : {}
@@ -2259,53 +2243,14 @@ function VehicleBookingModal({
                   )
                 ] }),
                 /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__field", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__field-label", children: t.contactWay }),
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__channel", role: "group", "aria-label": t.contactWay, children: [
-                    /* @__PURE__ */ jsxRuntime.jsxs(
-                      "button",
-                      {
-                        type: "button",
-                        "data-channel": "whatsapp",
-                        "aria-pressed": channel === "whatsapp",
-                        className: channel === "whatsapp" ? "is-active" : "",
-                        onClick: () => {
-                          setChannel("whatsapp");
-                          setContactError("");
-                        },
-                        children: [
-                          /* @__PURE__ */ jsxRuntime.jsx(WhatsAppBrandIcon, {}),
-                          "WhatsApp"
-                        ]
-                      }
-                    ),
-                    /* @__PURE__ */ jsxRuntime.jsxs(
-                      "button",
-                      {
-                        type: "button",
-                        "data-channel": "telegram",
-                        "aria-pressed": channel === "telegram",
-                        className: channel === "telegram" ? "is-active" : "",
-                        onClick: () => {
-                          setChannel("telegram");
-                          setContactError("");
-                        },
-                        children: [
-                          /* @__PURE__ */ jsxRuntime.jsx(TelegramBrandIcon, {}),
-                          "Telegram"
-                        ]
-                      }
-                    )
-                  ] })
-                ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__field", children: [
                   /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "sb-vd__field", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__field-label", children: channel === "whatsapp" ? t.phoneLabel : t.tgLabel }),
+                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__field-label", children: t.phoneLabel }),
                     /* @__PURE__ */ jsxRuntime.jsx(
                       "input",
                       {
                         className: "sb-input",
                         type: "text",
-                        placeholder: channel === "whatsapp" ? t.phonePh : t.tgPh,
+                        placeholder: t.phonePh,
                         required: true,
                         value: contact,
                         onChange: (e) => {
