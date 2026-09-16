@@ -673,7 +673,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
   });
 });
 
-describe('VehicleBookingModal — referral attribution (plans/catalog-on-puck-blocks §4.1b)', () => {
+describe('VehicleBookingModal — referral attribution', () => {
   function stubBookingFetch(detail: unknown, onBookingRequest: (body: string) => void) {
     vi.stubGlobal(
       'fetch',
