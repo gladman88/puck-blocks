@@ -26,11 +26,13 @@ Consumed as a git dependency (no npm registry), **pinned to an exact commit SHA*
 ```
 
 > **⚠️ A puck-blocks change is INVISIBLE to the consumers until you RE-PIN.**
-> Because they pin a fixed commit SHA, `frontend_site` and `frontend_fms` keep
-> using the OLD commit until their `package.json` SHA is bumped. Re-pinning is
-> mandatory after every functional change — never skip it.
+> Because they pin a fixed commit SHA, `frontend_site`, `frontend_fms` **and
+> `frontend_catalog`** keep using the OLD commit until their `package.json` SHA
+> is bumped. Re-pinning is mandatory after every functional change — never skip
+> it. The catalog is the one that gets forgotten: it is a thin shell around
+> `VehicleCatalog`. Check with `grep puck-blocks */package.json`.
 
-**Re-pin loop** (consumers `frontend_site` + `frontend_fms`):
+**Re-pin loop** (consumers `frontend_site` + `frontend_fms` + `frontend_catalog`):
 1. change `src/` → `npm run build` (commit `dist/`) → bump `version` → commit →
    **push puck-blocks**.
 2. resolve the new SHA (`git ls-remote https://github.com/gladman88/puck-blocks.git HEAD`).
