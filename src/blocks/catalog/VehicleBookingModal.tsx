@@ -22,7 +22,7 @@ interface PricingRow {
   monthly_price?: number;
 }
 // One sellable accessory item, and its category group (Stage 5,
-// plans/paid-accessories/IMPLEMENTATION_PLAN.md §6) — mirrors
+// workspace/docs/accessories.md) — mirrors
 // frontend_catalog's CatalogAccessoryItem/CatalogAccessoryCategory. `id: null`
 // on a group is the "Без категории"/"Other" fallback bucket, localized
 // server-side. available_stock is null = not asked (no date window yet) or
@@ -448,7 +448,7 @@ export function VehicleBookingModal({
   const submittingRef = useRef(false);
   const [stage, setStage] = useState<'detail' | 'choice' | 'form' | 'success'>('detail');
   const [err, setErr] = useState('');
-  // 1-click Telegram booking (plans/catalog-telegram-booking-intent/) — POSTs
+  // 1-click Telegram booking (workspace/docs/catalog.md) — POSTs
   // the current selection to /booking-intents/, then redirects to the bot
   // with the returned token. Separate loading/error state from the manual
   // form's (submitting/err) since they're two independent flows on the same
@@ -752,7 +752,7 @@ export function VehicleBookingModal({
     };
   }, [pollToken, apiBase]);
 
-  // 1-click Telegram booking (plans/catalog-telegram-booking-intent/):
+  // 1-click Telegram booking (workspace/docs/catalog.md):
   // Telegram's /start payload caps at 64 chars, far too small to carry
   // accessories/delivery addresses directly — so the current selection is
   // POSTed to a booking-intent first, and only the returned token travels in

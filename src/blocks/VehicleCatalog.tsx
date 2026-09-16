@@ -85,7 +85,7 @@ export interface VehicleCatalogProps {
   telegramBot?: string;
   /**
    * Google Maps JS API key for the delivery-address picker in the booking
-   * popup (Stage 6, plans/paid-accessories/ §Stage 6). Infra config, not
+   * popup (Stage 6, workspace/docs/accessories.md). Infra config, not
    * page content — deliberately NOT a Puck-editable field; defaults to
    * `process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (see config.tsx), same
    * pattern as frontend_fms's existing staff-only key. Undefined/empty →
@@ -112,7 +112,7 @@ export interface VehicleCatalogProps {
    * default — the site uses two fixed-type blocks (cars/bikes) with simple
    * tabs; the standalone catalog app (one block, all vehicle types, user
    * picks the type via the filter bar) turns this on. See
-   * plans/catalog-on-puck-blocks/IMPLEMENTATION_PLAN.md §4.1a.
+   * workspace/docs/puck-blocks.md.
    */
   showFilters?: boolean;
   /**

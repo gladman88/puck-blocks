@@ -2401,7 +2401,7 @@ a.sb-map__line:hover {
   flex-direction: column;
   gap: 0.4rem;
 }
-/* Additional paid accessories (Stage 5, plans/paid-accessories/ §6) — a
+/* Additional paid accessories (Stage 5, workspace/docs/accessories.md) — a
    SINGLE horizontal scroll-snap row, not a grid (design review 2026-07-16):
    a grid would otherwise grow the modal's height indefinitely with many
    items. Native scroll-snap gives a proper finger-swipe feel on mobile; the
@@ -2788,7 +2788,7 @@ a.sb-map__line:hover {
 .sb-btn--block {
   width: 100%;
 }
-/* Delivery/collection by address (Stage 6, plans/paid-accessories/ §Stage 6) */
+/* Delivery/collection by address (Stage 6, workspace/docs/accessories.md) */
 .sb-vd__addr-section {
   display: flex;
   flex-direction: column;
