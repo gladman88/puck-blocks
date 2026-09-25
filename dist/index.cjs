@@ -1187,21 +1187,75 @@ function DeliveryAddressSection({
     ] }) : null
   ] });
 }
-var SPEC_KEYS = [
-  "engine_volume",
-  "horse_power",
-  "fuel_type",
-  "transmission",
-  "drive_type",
-  "sprint_0_100",
-  "max_speed",
-  "clearance",
-  "weight",
-  "tank_volume",
-  "fuel_consumption"
-];
-var TRANSLATED_SPEC_KEYS = /* @__PURE__ */ new Set(["fuel_type", "transmission", "drive_type"]);
-var SPEC_VALUE_LABELS = {
+
+// src/blocks/catalog/specs.ts
+var LABELS = {
+  ru: {
+    engine: "\u0414\u0432\u0438\u0433\u0430\u0442\u0435\u043B\u044C",
+    battery: "\u0411\u0430\u0442\u0430\u0440\u0435\u044F",
+    power: "\u041C\u043E\u0449\u043D\u043E\u0441\u0442\u044C",
+    fuel: "\u0422\u043E\u043F\u043B\u0438\u0432\u043E",
+    transmission: "\u041A\u041F\u041F",
+    drive: "\u041F\u0440\u0438\u0432\u043E\u0434",
+    body: "\u041A\u0443\u0437\u043E\u0432",
+    seats: "\u041C\u0435\u0441\u0442",
+    range: "\u0417\u0430\u043F\u0430\u0441 \u0445\u043E\u0434\u0430",
+    sprint: "\u0420\u0430\u0437\u0433\u043E\u043D 0\u2013100",
+    max_speed: "\u041C\u0430\u043A\u0441. \u0441\u043A\u043E\u0440\u043E\u0441\u0442\u044C",
+    clearance: "\u041A\u043B\u0438\u0440\u0435\u043D\u0441",
+    weight: "\u041C\u0430\u0441\u0441\u0430",
+    tank: "\u0411\u0430\u043A",
+    fuel_consumption: "\u0420\u0430\u0441\u0445\u043E\u0434",
+    power_consumption: "\u0420\u0430\u0441\u0445\u043E\u0434 \u044D\u043D\u0435\u0440\u0433\u0438\u0438"
+  },
+  en: {
+    engine: "Engine",
+    battery: "Battery",
+    power: "Power",
+    fuel: "Fuel",
+    transmission: "Transmission",
+    drive: "Drive",
+    body: "Body",
+    seats: "Seats",
+    range: "Range",
+    sprint: "0\u2013100",
+    max_speed: "Top speed",
+    clearance: "Clearance",
+    weight: "Weight",
+    tank: "Tank",
+    fuel_consumption: "Consumption",
+    power_consumption: "Energy use"
+  }
+};
+var UNITS = {
+  ru: {
+    l: "\u043B",
+    cc: "\u0441\u043C\xB3",
+    kwh: "\u043A\u0412\u0442\xB7\u0447",
+    hp: "\u043B.\u0441.",
+    kmh: "\u043A\u043C/\u0447",
+    s: "\u0441",
+    mm: "\u043C\u043C",
+    kg: "\u043A\u0433",
+    km: "\u043A\u043C",
+    l100: "\u043B/100 \u043A\u043C",
+    kwh100: "\u043A\u0412\u0442\xB7\u0447/100 \u043A\u043C"
+  },
+  en: {
+    l: "L",
+    cc: "cc",
+    kwh: "kWh",
+    hp: "hp",
+    kmh: "km/h",
+    s: "s",
+    mm: "mm",
+    kg: "kg",
+    km: "km",
+    l100: "L/100 km",
+    kwh100: "kWh/100 km"
+  }
+};
+var ENUM_LABELS = {
   ru: {
     automatic: "\u0410\u0432\u0442\u043E\u043C\u0430\u0442",
     manual: "\u041C\u0435\u0445\u0430\u043D\u0438\u043A\u0430",
@@ -1211,9 +1265,38 @@ var SPEC_VALUE_LABELS = {
     diesel: "\u0414\u0438\u0437\u0435\u043B\u044C",
     electric: "\u042D\u043B\u0435\u043A\u0442\u0440\u043E",
     hybrid: "\u0413\u0438\u0431\u0440\u0438\u0434",
+    plug_in_hybrid: "\u0413\u0438\u0431\u0440\u0438\u0434 \u0441 \u0437\u0430\u0440\u044F\u0434\u043A\u043E\u0439",
     fwd: "\u041F\u0435\u0440\u0435\u0434\u043D\u0438\u0439",
     rwd: "\u0417\u0430\u0434\u043D\u0438\u0439",
-    awd: "\u041F\u043E\u043B\u043D\u044B\u0439"
+    awd: "\u041F\u043E\u043B\u043D\u044B\u0439",
+    turbo: "\u0442\u0443\u0440\u0431\u043E",
+    bi_turbo: "\u0431\u0438-\u0442\u0443\u0440\u0431\u043E",
+    supercharger: "\u043A\u043E\u043C\u043F\u0440\u0435\u0441\u0441\u043E\u0440",
+    sedan: "\u0421\u0435\u0434\u0430\u043D",
+    hatchback: "\u0425\u044D\u0442\u0447\u0431\u0435\u043A",
+    liftback: "\u041B\u0438\u0444\u0442\u0431\u0435\u043A",
+    wagon: "\u0423\u043D\u0438\u0432\u0435\u0440\u0441\u0430\u043B",
+    coupe: "\u041A\u0443\u043F\u0435",
+    cabriolet: "\u041A\u0430\u0431\u0440\u0438\u043E\u043B\u0435\u0442",
+    roadster: "\u0420\u043E\u0434\u0441\u0442\u0435\u0440",
+    crossover: "\u041A\u0440\u043E\u0441\u0441\u043E\u0432\u0435\u0440",
+    suv: "\u0412\u043D\u0435\u0434\u043E\u0440\u043E\u0436\u043D\u0438\u043A",
+    minivan: "\u041C\u0438\u043D\u0438\u0432\u044D\u043D",
+    minibus: "\u041C\u0438\u043A\u0440\u043E\u0430\u0432\u0442\u043E\u0431\u0443\u0441",
+    pickup: "\u041F\u0438\u043A\u0430\u043F",
+    scooter: "\u0421\u043A\u0443\u0442\u0435\u0440",
+    maxi_scooter: "\u041C\u0430\u043A\u0441\u0438\u0441\u043A\u0443\u0442\u0435\u0440",
+    naked: "\u041D\u0435\u0439\u043A\u0435\u0434",
+    sportbike: "\u0421\u043F\u043E\u0440\u0442\u0431\u0430\u0439\u043A",
+    sport_tourer: "\u0421\u043F\u043E\u0440\u0442-\u0442\u0443\u0440\u0438\u0441\u0442",
+    tourer: "\u0422\u0443\u0440\u0438\u0441\u0442",
+    cruiser: "\u041A\u0440\u0443\u0438\u0437\u0435\u0440",
+    chopper: "\u0427\u043E\u043F\u043F\u0435\u0440",
+    classic: "\u041A\u043B\u0430\u0441\u0441\u0438\u043A",
+    scrambler: "\u0421\u043A\u0440\u044D\u043C\u0431\u043B\u0435\u0440",
+    enduro: "\u042D\u043D\u0434\u0443\u0440\u043E",
+    adventure: "\u0422\u0443\u0440\u044D\u043D\u0434\u0443\u0440\u043E",
+    supermoto: "\u041C\u043E\u0442\u0430\u0440\u0434"
   },
   en: {
     automatic: "Automatic",
@@ -1224,11 +1307,95 @@ var SPEC_VALUE_LABELS = {
     diesel: "Diesel",
     electric: "Electric",
     hybrid: "Hybrid",
+    plug_in_hybrid: "Plug-in hybrid",
     fwd: "FWD",
     rwd: "RWD",
-    awd: "AWD"
+    awd: "AWD",
+    turbo: "turbo",
+    bi_turbo: "bi-turbo",
+    supercharger: "supercharged",
+    sedan: "Sedan",
+    hatchback: "Hatchback",
+    liftback: "Liftback",
+    wagon: "Wagon",
+    coupe: "Coupe",
+    cabriolet: "Convertible",
+    roadster: "Roadster",
+    crossover: "Crossover",
+    suv: "SUV",
+    minivan: "Minivan",
+    minibus: "Minibus",
+    pickup: "Pickup",
+    scooter: "Scooter",
+    maxi_scooter: "Maxi-scooter",
+    naked: "Naked",
+    sportbike: "Sportbike",
+    sport_tourer: "Sport tourer",
+    tourer: "Tourer",
+    cruiser: "Cruiser",
+    chopper: "Chopper",
+    classic: "Classic",
+    scrambler: "Scrambler",
+    enduro: "Enduro",
+    adventure: "Adventure",
+    supermoto: "Supermoto"
   }
 };
+function toNumber(v) {
+  if (v === null || v === void 0 || v === "") return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+function fmt(n, locale, fractionDigits) {
+  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
+    minimumFractionDigits: fractionDigits ?? 0,
+    maximumFractionDigits: fractionDigits ?? 1
+  }).format(n);
+}
+function enumLabel(value, locale) {
+  if (!value) return null;
+  return ENUM_LABELS[locale][value.toLowerCase()] ?? value;
+}
+function buildSpecRows(d, locale) {
+  const L = LABELS[locale];
+  const U = UNITS[locale];
+  const rows = [];
+  const push = (key, value) => {
+    if (value) rows.push({ key, label: L[key], value });
+  };
+  const withUnit = (v, unit, digits) => {
+    const n = toNumber(v);
+    return n === null ? null : `${fmt(n, locale, digits)}\xA0${U[unit]}`;
+  };
+  const battery = withUnit(d.battery_kwh, "kwh");
+  let engine;
+  if (d.vehicle_type === "motorcycle") {
+    engine = withUnit(d.engine_volume_cc, "cc");
+  } else {
+    engine = withUnit(d.engine_volume_l, "l", 1);
+    const boost = d.forced_induction && d.forced_induction !== "none" ? enumLabel(d.forced_induction, locale) : null;
+    if (engine && boost) engine = `${engine}, ${boost}`;
+  }
+  if (engine) push("engine", engine);
+  else push("battery", battery);
+  push("power", withUnit(d.horse_power_hp, "hp"));
+  push("fuel", enumLabel(d.fuel_type, locale));
+  push("transmission", enumLabel(d.transmission, locale));
+  push("drive", enumLabel(d.drive_type, locale));
+  push("body", enumLabel(d.body_type, locale));
+  const seats = toNumber(d.seats);
+  push("seats", seats === null ? null : fmt(seats, locale));
+  if (engine) push("battery", battery);
+  push("range", withUnit(d.range_km, "km"));
+  push("sprint", withUnit(d.sprint_0_100_s, "s"));
+  push("max_speed", withUnit(d.max_speed_kmh, "kmh"));
+  push("clearance", withUnit(d.clearance_mm, "mm"));
+  push("weight", withUnit(d.weight_kg, "kg"));
+  push("tank", withUnit(d.tank_volume_l, "l"));
+  push("fuel_consumption", withUnit(d.fuel_consumption_l_100km, "l100"));
+  push("power_consumption", withUnit(d.power_consumption_kwh_100km, "kwh100"));
+  return rows;
+}
 var S = {
   ru: {
     close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
@@ -1295,20 +1462,7 @@ var S = {
     deliveryCostPrefix: "\u0421\u0442\u043E\u0438\u043C\u043E\u0441\u0442\u044C",
     deliveryCostLoading: "\u0421\u0447\u0438\u0442\u0430\u0435\u043C \u0441\u0442\u043E\u0438\u043C\u043E\u0441\u0442\u044C\u2026",
     deliveryCostByRequest: "\u043F\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0443",
-    deliveryCostTotal: "\u0414\u043E\u0441\u0442\u0430\u0432\u043A\u0430 \u0438 \u043F\u0440\u0438\u0451\u043C\u043A\u0430",
-    labels: {
-      fuel_type: "\u0422\u043E\u043F\u043B\u0438\u0432\u043E",
-      transmission: "\u041A\u041F\u041F",
-      drive_type: "\u041F\u0440\u0438\u0432\u043E\u0434",
-      engine_volume: "\u0414\u0432\u0438\u0433\u0430\u0442\u0435\u043B\u044C",
-      horse_power: "\u041C\u043E\u0449\u043D\u043E\u0441\u0442\u044C",
-      sprint_0_100: "\u0420\u0430\u0437\u0433\u043E\u043D 0\u2013100",
-      max_speed: "\u041C\u0430\u043A\u0441. \u0441\u043A\u043E\u0440\u043E\u0441\u0442\u044C",
-      clearance: "\u041A\u043B\u0438\u0440\u0435\u043D\u0441",
-      weight: "\u041C\u0430\u0441\u0441\u0430",
-      tank_volume: "\u0411\u0430\u043A",
-      fuel_consumption: "\u0420\u0430\u0441\u0445\u043E\u0434"
-    }
+    deliveryCostTotal: "\u0414\u043E\u0441\u0442\u0430\u0432\u043A\u0430 \u0438 \u043F\u0440\u0438\u0451\u043C\u043A\u0430"
   },
   en: {
     close: "Close",
@@ -1369,20 +1523,7 @@ var S = {
     deliveryCostPrefix: "Price",
     deliveryCostLoading: "Calculating price\u2026",
     deliveryCostByRequest: "on request",
-    deliveryCostTotal: "Delivery & collection",
-    labels: {
-      fuel_type: "Fuel",
-      transmission: "Transmission",
-      drive_type: "Drive",
-      engine_volume: "Engine",
-      horse_power: "Power",
-      sprint_0_100: "0\u2013100",
-      max_speed: "Top speed",
-      clearance: "Clearance",
-      weight: "Weight",
-      tank_volume: "Tank",
-      fuel_consumption: "Consumption"
-    }
+    deliveryCostTotal: "Delivery & collection"
   }
 };
 var HEADERS = { "ngrok-skip-browser-warning": "true" };
@@ -1733,6 +1874,7 @@ function VehicleBookingModal({
     }
   };
   const d = detail;
+  const specRows = d ? buildSpecRows({ ...d, vehicle_type: d.vehicle_type ?? vehicle.vehicle_type }, locale) : [];
   const galleryUrls = (d?.gallery_images ?? []).map((g) => safeImageUrl(g.image_url)).filter((u) => Boolean(u));
   const fallbackImg = safeImageUrl(vehicle.photo_url ?? "") || "";
   const gallery = galleryUrls.length ? galleryUrls : fallbackImg ? [fallbackImg] : [];
@@ -2027,21 +2169,16 @@ function VehicleBookingModal({
                   /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__section-label", children: t.equipment }),
                   /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__chips", children: d.options.map((o, i) => /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-chip sb-chip--ghost", children: o }, i)) })
                 ] }) : null,
-                SPEC_KEYS.some((k) => d[k]) ? (() => {
-                  const present = SPEC_KEYS.filter((k) => d[k]);
-                  const visible = specsExpanded ? present : present.slice(0, 4);
+                specRows.length ? (() => {
+                  const visible = specsExpanded ? specRows : specRows.slice(0, 4);
                   return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__specs-wrap", children: [
                     /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__section-label", children: t.specs }),
                     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__specs-card", children: [
-                      /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__specs", children: visible.map((k) => {
-                        const raw = String(d[k]);
-                        const val = TRANSLATED_SPEC_KEYS.has(k) ? SPEC_VALUE_LABELS[locale][raw.toLowerCase()] ?? raw : raw;
-                        return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__spec", children: [
-                          /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.labels[k] }),
-                          /* @__PURE__ */ jsxRuntime.jsx("b", { children: val })
-                        ] }, k);
-                      }) }),
-                      present.length > 4 ? /* @__PURE__ */ jsxRuntime.jsxs(
+                      /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__specs", children: visible.map((row) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__spec", children: [
+                        /* @__PURE__ */ jsxRuntime.jsx("span", { children: row.label }),
+                        /* @__PURE__ */ jsxRuntime.jsx("b", { children: row.value })
+                      ] }, row.key)) }),
+                      specRows.length > 4 ? /* @__PURE__ */ jsxRuntime.jsxs(
                         "button",
                         {
                           type: "button",

@@ -1220,3 +1220,34 @@ describe('VehicleBookingModal — seeds dates from the catalog filter', () => {
     expect(ret > pickup).toBe(true);
   });
 });
+
+describe('VehicleBookingModal — specs from typed fields (CD-114)', () => {
+  const specDetail = {
+    ...baseDetail,
+    fuel_type: 'petrol', transmission: 'automatic', drive_type: 'rwd',
+    engine_volume_l: '2.0', forced_induction: 'turbo', horse_power_hp: 258,
+    sprint_0_100_s: '6.2', max_speed_kmh: 250,
+    // The legacy free-text field is still in the API until CD-114 lands on the
+    // backend — the card must NOT show it any more.
+    horse_power: '999 л.с. (old text)',
+  };
+  const norm = (el: Element | null) => (el?.textContent ?? '').replace(/\s/g, ' ');
+
+  it('shows the key specs with units and hides the rest behind the toggle', async () => {
+    renderModal(specDetail, 'ru');
+    const engine = await screen.findByText('Двигатель');
+    expect(norm(engine.nextElementSibling)).toBe('2,0 л, турбо');
+    expect(norm(screen.getByText('Мощность').nextElementSibling)).toBe('258 л.с.');
+    expect(screen.queryByText('Разгон 0–100')).toBeNull();
+    expect(screen.queryByText(/old text/)).toBeNull();
+
+    fireEvent.click(screen.getByText(/Все характеристики/));
+    expect(norm(screen.getByText('Разгон 0–100').nextElementSibling)).toBe('6,2 с');
+  });
+
+  it('a vehicle with no specs renders no specs section', async () => {
+    renderModal(baseDetail, 'ru');
+    await screen.findByText('Забронировать');
+    expect(screen.queryByText('Характеристики')).toBeNull();
+  });
+});

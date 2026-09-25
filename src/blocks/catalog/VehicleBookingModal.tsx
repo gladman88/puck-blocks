@@ -4,6 +4,7 @@ import { categoryLabel, type CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
 import { formatShortDate, money, nextDay, openNativeDatePicker, todayISO } from './dates';
 import { DeliveryAddressSection, type PickedLocation, type DeliveryCost } from './DeliveryAddressSection';
+import { buildSpecRows, type VehicleSpecs } from './specs';
 
 interface GalleryImage {
   image_url: string;
@@ -50,18 +51,10 @@ interface CatalogAccessoryGroup {
   photo_url: string | null;
   items: CatalogAccessoryItem[];
 }
-export interface CatalogVehicleDetail extends CatalogVehicle {
+export interface CatalogVehicleDetail extends CatalogVehicle, Omit<VehicleSpecs, 'vehicle_type'> {
   fuel_type?: string;
   transmission?: string;
   drive_type?: string;
-  engine_volume?: string;
-  horse_power?: string;
-  sprint_0_100?: string;
-  max_speed?: string;
-  clearance?: string;
-  weight?: string;
-  tank_volume?: string;
-  fuel_consumption?: string;
   options?: string[];
   advantages?: string[];
   insurance_class?: string;
@@ -72,38 +65,6 @@ export interface CatalogVehicleDetail extends CatalogVehicle {
   pricing_spans_seasons?: boolean;
   accessories?: CatalogAccessoryGroup[];
 }
-
-// Order mirrors the standalone catalog: engine → power → fuel → transmission →
-// drive are the first 4 (key specs), the rest collapse behind «Все характеристики».
-const SPEC_KEYS = [
-  'engine_volume',
-  'horse_power',
-  'fuel_type',
-  'transmission',
-  'drive_type',
-  'sprint_0_100',
-  'max_speed',
-  'clearance',
-  'weight',
-  'tank_volume',
-  'fuel_consumption',
-] as const;
-
-// fuel_type / transmission / drive_type come from the API as raw enums
-// ("electric", "automatic", "fwd"); localise them like the standalone does.
-const TRANSLATED_SPEC_KEYS = new Set(['fuel_type', 'transmission', 'drive_type']);
-const SPEC_VALUE_LABELS: Record<'ru' | 'en', Record<string, string>> = {
-  ru: {
-    automatic: 'Автомат', manual: 'Механика', cvt: 'Вариатор', robot: 'Робот',
-    petrol: 'Бензин', diesel: 'Дизель', electric: 'Электро', hybrid: 'Гибрид',
-    fwd: 'Передний', rwd: 'Задний', awd: 'Полный',
-  },
-  en: {
-    automatic: 'Automatic', manual: 'Manual', cvt: 'CVT', robot: 'Robot',
-    petrol: 'Petrol', diesel: 'Diesel', electric: 'Electric', hybrid: 'Hybrid',
-    fwd: 'FWD', rwd: 'RWD', awd: 'AWD',
-  },
-};
 
 const S = {
   ru: {
@@ -172,19 +133,6 @@ const S = {
     deliveryCostLoading: 'Считаем стоимость…',
     deliveryCostByRequest: 'по запросу',
     deliveryCostTotal: 'Доставка и приёмка',
-    labels: {
-      fuel_type: 'Топливо',
-      transmission: 'КПП',
-      drive_type: 'Привод',
-      engine_volume: 'Двигатель',
-      horse_power: 'Мощность',
-      sprint_0_100: 'Разгон 0–100',
-      max_speed: 'Макс. скорость',
-      clearance: 'Клиренс',
-      weight: 'Масса',
-      tank_volume: 'Бак',
-      fuel_consumption: 'Расход',
-    } as Record<string, string>,
   },
   en: {
     close: 'Close',
@@ -246,19 +194,6 @@ const S = {
     deliveryCostLoading: 'Calculating price…',
     deliveryCostByRequest: 'on request',
     deliveryCostTotal: 'Delivery & collection',
-    labels: {
-      fuel_type: 'Fuel',
-      transmission: 'Transmission',
-      drive_type: 'Drive',
-      engine_volume: 'Engine',
-      horse_power: 'Power',
-      sprint_0_100: '0–100',
-      max_speed: 'Top speed',
-      clearance: 'Clearance',
-      weight: 'Weight',
-      tank_volume: 'Tank',
-      fuel_consumption: 'Consumption',
-    } as Record<string, string>,
   },
 } as const;
 
@@ -821,6 +756,9 @@ export function VehicleBookingModal({
   };
 
   const d = detail;
+  const specRows = d
+    ? buildSpecRows({ ...d, vehicle_type: d.vehicle_type ?? vehicle.vehicle_type }, locale)
+    : [];
   const galleryUrls = (d?.gallery_images ?? [])
     .map((g) => safeImageUrl(g.image_url))
     .filter((u): u is string => Boolean(u));
@@ -1210,30 +1148,23 @@ export function VehicleBookingModal({
                   </div>
                 ) : null}
 
-                {/* Specs — first 4, rest behind a toggle (matches the standalone) */}
-                {SPEC_KEYS.some((k) => d[k])
+                {/* Specs — first 4, rest behind a toggle; rows and units: ./specs.ts */}
+                {specRows.length
                   ? (() => {
-                      const present = SPEC_KEYS.filter((k) => d[k]);
-                      const visible = specsExpanded ? present : present.slice(0, 4);
+                      const visible = specsExpanded ? specRows : specRows.slice(0, 4);
                       return (
                         <div className="sb-vd__specs-wrap">
                           <span className="sb-vd__section-label">{t.specs}</span>
                           <div className="sb-vd__specs-card">
                             <div className="sb-vd__specs">
-                              {visible.map((k) => {
-                                const raw = String(d[k]);
-                                const val = TRANSLATED_SPEC_KEYS.has(k)
-                                  ? (SPEC_VALUE_LABELS[locale][raw.toLowerCase()] ?? raw)
-                                  : raw;
-                                return (
-                                  <div className="sb-vd__spec" key={k}>
-                                    <span>{t.labels[k]}</span>
-                                    <b>{val}</b>
-                                  </div>
-                                );
-                              })}
+                              {visible.map((row) => (
+                                <div className="sb-vd__spec" key={row.key}>
+                                  <span>{row.label}</span>
+                                  <b>{row.value}</b>
+                                </div>
+                              ))}
                             </div>
-                            {present.length > 4 ? (
+                            {specRows.length > 4 ? (
                               <button
                                 type="button"
                                 className="sb-vd__specs-toggle"
