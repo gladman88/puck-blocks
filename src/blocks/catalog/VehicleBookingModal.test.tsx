@@ -1231,6 +1231,22 @@ describe('VehicleBookingModal — specs from typed fields (CD-114)', () => {
     // backend — the card must NOT show it any more.
     horse_power: '999 л.с. (old text)',
   };
+  // Tariff grid whose last period is the 28+ one (owner decision 2026-10-03: the
+  // monthly tariff is gone; the 30-day figure is a reference total, not a plan).
+  const pricingDetail = {
+    ...baseDetail,
+    pricing_table: [
+      { period_label: '15-27', min_days: 15, max_days: 27, price_per_day: 2000 },
+      { period_label: '28+', min_days: 28, max_days: null, price_per_day: 1833.333333, price_30_days: 55000 },
+    ],
+  };
+  const pricingDetailNoTotal = {
+    ...baseDetail,
+    pricing_table: [
+      { period_label: '15-27', min_days: 15, max_days: 27, price_per_day: 2000 },
+      { period_label: '28+', min_days: 28, max_days: null, price_per_day: 1833.333333 },
+    ],
+  };
   const norm = (el: Element | null) => (el?.textContent ?? '').replace(/\s/g, ' ');
 
   it('shows the key specs with units and hides the rest behind the toggle', async () => {
@@ -1249,5 +1265,20 @@ describe('VehicleBookingModal — specs from typed fields (CD-114)', () => {
     renderModal(baseDetail, 'ru');
     await screen.findByText('Забронировать');
     expect(screen.queryByText('Характеристики')).toBeNull();
+  });
+
+  it('shows the 30-day total under the price tiles', async () => {
+    renderModal(pricingDetail, 'ru');
+    await screen.findByText('BMW Z4');
+    expect(screen.getByText('28+ дней')).toBeTruthy();
+    expect(screen.getByText('30 дней')).toBeTruthy();
+    expect(screen.getByText('55,000')).toBeTruthy();
+    expect(screen.queryByText('(мес)')).toBeNull();
+  });
+
+  it('hides the 30-day row when the API does not send price_30_days', async () => {
+    renderModal(pricingDetailNoTotal, 'ru');
+    await screen.findByText('BMW Z4');
+    expect(screen.queryByText('30 дней')).toBeNull();
   });
 });

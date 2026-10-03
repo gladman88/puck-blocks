@@ -140,8 +140,8 @@ describe('VehicleCatalog', () => {
       options: [],
       deposits: [],
       pricing_table: [
-        { period_label: '1', min_days: 1, max_days: 1, price_per_day: 5000, is_monthly: false },
-        { period_label: '1-29', min_days: 1, max_days: 29, price_per_day: 1500, is_monthly: false },
+        { period_label: '1', min_days: 1, max_days: 1, price_per_day: 5000 },
+        { period_label: '1-29', min_days: 1, max_days: 29, price_per_day: 1500 },
       ],
     };
     vi.stubGlobal(

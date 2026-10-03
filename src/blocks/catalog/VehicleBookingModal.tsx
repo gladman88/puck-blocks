@@ -19,8 +19,7 @@ interface PricingRow {
   min_days: number;
   max_days: number | null;
   price_per_day: number;
-  is_monthly: boolean;
-  monthly_price?: number;
+  price_30_days?: number;
 }
 // One sellable accessory item, and its category group (Stage 5,
 // workspace/docs/accessories.md) — mirrors
@@ -88,7 +87,8 @@ const S = {
     prices: 'Цены',
     day: 'день',
     days: 'дней',
-    month: 'мес',
+    thirtyDays: '30 дней',
+    thirtyDaysCalc: 'по тарифу 28+',
     spansSeasons: 'Цены показаны за текущий сезон',
     bookFrom: 'Забронировать с',
     loading: 'Загрузка…',
@@ -155,7 +155,8 @@ const S = {
     prices: 'Prices',
     day: 'day',
     days: 'days',
-    month: 'month',
+    thirtyDays: '30 days',
+    thirtyDaysCalc: 'at the 28+ rate',
     spansSeasons: 'Prices shown for the current season',
     bookFrom: 'Book from',
     loading: 'Loading…',
@@ -1080,35 +1081,36 @@ export function VehicleBookingModal({
                       {d.pricing_table!.map((row, i) => (
                         <div className="sb-vd__price-row" key={i}>
                           <span className="sb-vd__price-period">
-                            {row.is_monthly
-                              ? `${row.period_label} ${t.days} (${t.month})`
-                              : row.min_days === row.max_days
-                                ? `${row.period_label} ${row.min_days === 1 ? t.day : t.days}`
-                                : `${row.period_label} ${t.days}`}
+                            {row.min_days === row.max_days
+                              ? `${row.period_label} ${row.min_days === 1 ? t.day : t.days}`
+                              : `${row.period_label} ${t.days}`}
                           </span>
                           <span className="sb-vd__price-value">
-                            {row.is_monthly && row.monthly_price != null ? (
-                              <>
-                                {money(row.monthly_price)}
-                                <small>
-                                  {' '}
-                                  ({Math.round(row.price_per_day).toLocaleString('en-US')}
-                                  {t.perDay})
-                                </small>
-                              </>
-                            ) : (
-                              <>
-                                {Math.round(row.price_per_day).toLocaleString('en-US')}
-                                <small>
-                                  {' '}
-                                  {t.priceUnit}
-                                  {t.perDay}
-                                </small>
-                              </>
-                            )}
+                            {Math.round(row.price_per_day).toLocaleString('en-US')}
+                            <small>
+                              {' '}
+                              {t.priceUnit}
+                              {t.perDay}
+                            </small>
                           </span>
                         </div>
                       ))}
+                      {(() => {
+                        const last = d.pricing_table![d.pricing_table!.length - 1];
+                        if (!last || last.price_30_days == null) return null;
+                        return (
+                          <div className="sb-vd__price-row sb-vd__price-row--total">
+                            <span className="sb-vd__price-period">
+                              <b>{t.thirtyDays}</b>
+                              {t.thirtyDaysCalc}
+                            </span>
+                            <span className="sb-vd__price-value">
+                              {last.price_30_days.toLocaleString('en-US')}
+                              <small> {t.priceUnit}</small>
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                     {d.pricing_spans_seasons ? (
                       <p className="sb-vd__season-note">{t.spansSeasons}</p>

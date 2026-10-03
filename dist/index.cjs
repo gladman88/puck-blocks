@@ -1443,7 +1443,8 @@ var S = {
     prices: "\u0426\u0435\u043D\u044B",
     day: "\u0434\u0435\u043D\u044C",
     days: "\u0434\u043D\u0435\u0439",
-    month: "\u043C\u0435\u0441",
+    thirtyDays: "30 \u0434\u043D\u0435\u0439",
+    thirtyDaysCalc: "\u043F\u043E \u0442\u0430\u0440\u0438\u0444\u0443 28+",
     spansSeasons: "\u0426\u0435\u043D\u044B \u043F\u043E\u043A\u0430\u0437\u0430\u043D\u044B \u0437\u0430 \u0442\u0435\u043A\u0443\u0449\u0438\u0439 \u0441\u0435\u0437\u043E\u043D",
     bookFrom: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441",
     loading: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026",
@@ -1510,7 +1511,8 @@ var S = {
     prices: "Prices",
     day: "day",
     days: "days",
-    month: "month",
+    thirtyDays: "30 days",
+    thirtyDaysCalc: "at the 28+ rate",
     spansSeasons: "Prices shown for the current season",
     bookFrom: "Book from",
     loading: "Loading\u2026",
@@ -2160,26 +2162,36 @@ function VehicleBookingModal({
                       d.pricing_season_name
                     ] }) : null
                   ] }),
-                  /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vd__prices-grid", children: d.pricing_table.map((row, i) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__price-row", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__price-period", children: row.is_monthly ? `${row.period_label} ${t.days} (${t.month})` : row.min_days === row.max_days ? `${row.period_label} ${row.min_days === 1 ? t.day : t.days}` : `${row.period_label} ${t.days}` }),
-                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__price-value", children: row.is_monthly && row.monthly_price != null ? /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
-                      money(row.monthly_price),
-                      /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
-                        " ",
-                        "(",
+                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__prices-grid", children: [
+                    d.pricing_table.map((row, i) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__price-row", children: [
+                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__price-period", children: row.min_days === row.max_days ? `${row.period_label} ${row.min_days === 1 ? t.day : t.days}` : `${row.period_label} ${t.days}` }),
+                      /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__price-value", children: [
                         Math.round(row.price_per_day).toLocaleString("en-US"),
-                        t.perDay,
-                        ")"
+                        /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
+                          " ",
+                          t.priceUnit,
+                          t.perDay
+                        ] })
                       ] })
-                    ] }) : /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
-                      Math.round(row.price_per_day).toLocaleString("en-US"),
-                      /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
-                        " ",
-                        t.priceUnit,
-                        t.perDay
-                      ] })
-                    ] }) })
-                  ] }, i)) }),
+                    ] }, i)),
+                    (() => {
+                      const last = d.pricing_table[d.pricing_table.length - 1];
+                      if (!last || last.price_30_days == null) return null;
+                      return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__price-row sb-vd__price-row--total", children: [
+                        /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__price-period", children: [
+                          /* @__PURE__ */ jsxRuntime.jsx("b", { children: t.thirtyDays }),
+                          t.thirtyDaysCalc
+                        ] }),
+                        /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__price-value", children: [
+                          last.price_30_days.toLocaleString("en-US"),
+                          /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
+                            " ",
+                            t.priceUnit
+                          ] })
+                        ] })
+                      ] });
+                    })()
+                  ] }),
                   d.pricing_spans_seasons ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vd__season-note", children: t.spansSeasons }) : null
                 ] }) : null,
                 (d.deposits ?? []).length > 0 ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__deposits", children: [

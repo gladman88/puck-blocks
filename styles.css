@@ -2403,6 +2403,26 @@ button.sb-lang__flag {
   font-weight: 600;
   color: var(--sb-text-muted);
 }
+/* «30 дней» — справочная сумма по последнему тарифу: строка на всю ширину под плашками. */
+.sb-vd__price-row--total {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--sb-bg-alt);
+}
+.sb-vd__price-row--total .sb-vd__price-period b {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--sb-text-strong);
+}
+.sb-vd__price-row--total .sb-vd__price-value {
+  font-size: 1.2rem;
+  white-space: nowrap;
+}
 .sb-vd__season-note {
   margin: 0;
   font-size: 0.78rem;
