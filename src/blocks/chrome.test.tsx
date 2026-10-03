@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
 import { SiteHeader } from './SiteHeader';
 import { Footer } from './Footer';
@@ -134,6 +134,24 @@ describe('LanguageSwitcher', () => {
     );
     expect(en?.getAttribute('href')).toBe('/en');
     window.history.pushState({}, '', '/');
+  });
+
+  it('onSelect: renders buttons (no links) and reports only the inactive pick', () => {
+    const onSelect = vi.fn();
+    const { container } = render(<LanguageSwitcher current="ru" onSelect={onSelect} />);
+    expect(container.querySelectorAll('a').length).toBe(0);
+    const flags = container.querySelectorAll('button.sb-lang__flag');
+    expect(flags.length).toBe(2);
+    const [ru, en] = Array.from(flags);
+    expect(ru.getAttribute('aria-pressed')).toBe('true');
+    expect(ru.classList.contains('is-active')).toBe(true);
+    expect(en.getAttribute('type')).toBe('button');
+
+    fireEvent.click(ru);
+    expect(onSelect).not.toHaveBeenCalled();
+    fireEvent.click(en);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith('en');
   });
 });
 

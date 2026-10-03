@@ -8,6 +8,10 @@ import { useEffect, useId, useState, type ReactElement } from 'react';
  * so there is no hydration mismatch); a mount-time effect then refines the href
  * from `window.location`.
  *
+ * Hosts whose locale is NOT a path segment (the standalone catalog: one URL,
+ * language held in state) pass `onSelect` — the flags then render as buttons
+ * that report the pick instead of navigating. Same markup classes, same look.
+ *
  * Inline SVG flags, NOT emoji: regional-indicator emoji render as bare letters
  * ("RU"/"GB") on Windows, so SVG is the only crisp, cross-platform option.
  */
@@ -76,9 +80,12 @@ const FLAGS: Record<SiteLocale, { node: ReactElement; label: string }> = {
 export interface LanguageSwitcherProps {
   current: SiteLocale;
   className?: string;
+  /** In-place switch for hosts without a locale path prefix: flags become
+   *  buttons calling this instead of links. Omitted = links (site default). */
+  onSelect?: (locale: SiteLocale) => void;
 }
 
-export function LanguageSwitcher({ current, className = '' }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ current, className = '', onSelect }: LanguageSwitcherProps) {
   const [hrefs, setHrefs] = useState<Record<SiteLocale, string>>({ ru: '/ru', en: '/en' });
 
   useEffect(() => {
@@ -94,6 +101,24 @@ export function LanguageSwitcher({ current, className = '' }: LanguageSwitcherPr
     <div className={`sb-lang ${className}`.trim()} role="group" aria-label="Language / Язык">
       {ORDER.map((loc) => {
         const active = loc === current;
+        if (onSelect) {
+          return (
+            <button
+              key={loc}
+              type="button"
+              className={`sb-lang__flag${active ? ' is-active' : ''}`}
+              lang={loc}
+              aria-label={FLAGS[loc].label}
+              aria-pressed={active}
+              title={FLAGS[loc].label}
+              onClick={() => {
+                if (!active) onSelect(loc);
+              }}
+            >
+              {FLAGS[loc].node}
+            </button>
+          );
+        }
         return (
           <a
             key={loc}

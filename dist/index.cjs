@@ -391,7 +391,7 @@ var FLAGS = {
   ru: { node: /* @__PURE__ */ jsxRuntime.jsx(FlagRU, {}), label: "\u0420\u0443\u0441\u0441\u043A\u0438\u0439" },
   en: { node: /* @__PURE__ */ jsxRuntime.jsx(FlagEN, {}), label: "English" }
 };
-function LanguageSwitcher({ current, className = "" }) {
+function LanguageSwitcher({ current, className = "", onSelect }) {
   const [hrefs, setHrefs] = react.useState({ ru: "/ru", en: "/en" });
   react.useEffect(() => {
     const sync = () => setHrefs({ ru: localeHref("ru"), en: localeHref("en") });
@@ -401,6 +401,24 @@ function LanguageSwitcher({ current, className = "" }) {
   }, []);
   return /* @__PURE__ */ jsxRuntime.jsx("div", { className: `sb-lang ${className}`.trim(), role: "group", "aria-label": "Language / \u042F\u0437\u044B\u043A", children: ORDER.map((loc) => {
     const active = loc === current;
+    if (onSelect) {
+      return /* @__PURE__ */ jsxRuntime.jsx(
+        "button",
+        {
+          type: "button",
+          className: `sb-lang__flag${active ? " is-active" : ""}`,
+          lang: loc,
+          "aria-label": FLAGS[loc].label,
+          "aria-pressed": active,
+          title: FLAGS[loc].label,
+          onClick: () => {
+            if (!active) onSelect(loc);
+          },
+          children: FLAGS[loc].node
+        },
+        loc
+      );
+    }
     return /* @__PURE__ */ jsxRuntime.jsx(
       "a",
       {
@@ -3891,6 +3909,7 @@ exports.ContactIcon = ContactIcon;
 exports.FeatureCards = FeatureCards;
 exports.Footer = Footer;
 exports.Hero = Hero;
+exports.LanguageSwitcher = LanguageSwitcher;
 exports.LeadForm = LeadForm;
 exports.MapContacts = MapContacts;
 exports.ReviewsCarousel = ReviewsCarousel;

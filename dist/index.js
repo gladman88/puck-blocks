@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useId, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, useId, useLayoutEffect } from 'react';
 import { siWhatsapp } from 'simple-icons';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { createPortal } from 'react-dom';
@@ -389,7 +389,7 @@ var FLAGS = {
   ru: { node: /* @__PURE__ */ jsx(FlagRU, {}), label: "\u0420\u0443\u0441\u0441\u043A\u0438\u0439" },
   en: { node: /* @__PURE__ */ jsx(FlagEN, {}), label: "English" }
 };
-function LanguageSwitcher({ current, className = "" }) {
+function LanguageSwitcher({ current, className = "", onSelect }) {
   const [hrefs, setHrefs] = useState({ ru: "/ru", en: "/en" });
   useEffect(() => {
     const sync = () => setHrefs({ ru: localeHref("ru"), en: localeHref("en") });
@@ -399,6 +399,24 @@ function LanguageSwitcher({ current, className = "" }) {
   }, []);
   return /* @__PURE__ */ jsx("div", { className: `sb-lang ${className}`.trim(), role: "group", "aria-label": "Language / \u042F\u0437\u044B\u043A", children: ORDER.map((loc) => {
     const active = loc === current;
+    if (onSelect) {
+      return /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          className: `sb-lang__flag${active ? " is-active" : ""}`,
+          lang: loc,
+          "aria-label": FLAGS[loc].label,
+          "aria-pressed": active,
+          title: FLAGS[loc].label,
+          onClick: () => {
+            if (!active) onSelect(loc);
+          },
+          children: FLAGS[loc].node
+        },
+        loc
+      );
+    }
     return /* @__PURE__ */ jsx(
       "a",
       {
@@ -3884,4 +3902,4 @@ var internalConfig = {
 };
 var puckConfig = internalConfig;
 
-export { AboutPromo, ContactIcon, FeatureCards, Footer, Hero, LeadForm, MapContacts, ReviewsCarousel, RichText, SiteHeader, StatCounters, TermsAccordion, VehicleCatalog, categoryLabel, puckConfig };
+export { AboutPromo, ContactIcon, FeatureCards, Footer, Hero, LanguageSwitcher, LeadForm, MapContacts, ReviewsCarousel, RichText, SiteHeader, StatCounters, TermsAccordion, VehicleCatalog, categoryLabel, puckConfig };

@@ -126,10 +126,22 @@ declare function ReviewsCarousel({ heading, anchorId, textReviews, mediaReviews 
  * so there is no hydration mismatch); a mount-time effect then refines the href
  * from `window.location`.
  *
+ * Hosts whose locale is NOT a path segment (the standalone catalog: one URL,
+ * language held in state) pass `onSelect` — the flags then render as buttons
+ * that report the pick instead of navigating. Same markup classes, same look.
+ *
  * Inline SVG flags, NOT emoji: regional-indicator emoji render as bare letters
  * ("RU"/"GB") on Windows, so SVG is the only crisp, cross-platform option.
  */
 type SiteLocale = 'ru' | 'en';
+interface LanguageSwitcherProps {
+    current: SiteLocale;
+    className?: string;
+    /** In-place switch for hosts without a locale path prefix: flags become
+     *  buttons calling this instead of links. Omitted = links (site default). */
+    onSelect?: (locale: SiteLocale) => void;
+}
+declare function LanguageSwitcher({ current, className, onSelect }: LanguageSwitcherProps): react.JSX.Element;
 
 interface NavLink {
     label: string;
@@ -407,4 +419,4 @@ interface ContactIconProps {
 /** Compact inline icon for a contact channel. */
 declare function ContactIcon({ kind, className }: ContactIconProps): react.JSX.Element;
 
-export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogFilterState, type CatalogPreload, type CatalogSortOption, type CatalogVehicle, ContactIcon, type ContactKind, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LeadForm, type LeadFormProps, MapContacts, type MapContactsProps, type MediaReview, type NavLink, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, VehicleCatalog, type VehicleCatalogProps, categoryLabel, puckConfig };
+export { AboutPromo, type AboutPromoProps, type CatalogCategory, type CatalogFilterState, type CatalogPreload, type CatalogSortOption, type CatalogVehicle, ContactIcon, type ContactKind, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LanguageSwitcher, type LanguageSwitcherProps, LeadForm, type LeadFormProps, MapContacts, type MapContactsProps, type MediaReview, type NavLink, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, type SiteLocale, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, VehicleCatalog, type VehicleCatalogProps, categoryLabel, puckConfig };

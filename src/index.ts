@@ -4,6 +4,9 @@ export type { Props, RootProps } from './config';
 export { ContactIcon } from './components/ContactIcon';
 export type { ContactKind } from './components/ContactIcon';
 
+export { LanguageSwitcher } from './components/LanguageSwitcher';
+export type { LanguageSwitcherProps, SiteLocale } from './components/LanguageSwitcher';
+
 export { Hero } from './blocks/Hero';
 export type { HeroProps } from './blocks/Hero';
 
