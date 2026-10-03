@@ -712,9 +712,16 @@ function LeadForm({
 }
 
 // src/blocks/catalog/dates.ts
-function todayISO() {
-  const d = /* @__PURE__ */ new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+var COMPANY_TIME_ZONE = "Asia/Bangkok";
+function todayISO(now = /* @__PURE__ */ new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: COMPANY_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(now);
+  const part = (type) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
 }
 function addDays(isoDate, n) {
   if (!isoDate) return "";

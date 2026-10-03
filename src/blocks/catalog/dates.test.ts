@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { formatDDMMYYYY, money, nextDay, openNativeDatePicker, todayISO } from './dates';
+import { COMPANY_TIME_ZONE, formatDDMMYYYY, money, nextDay, openNativeDatePicker, todayISO } from './dates';
 
 describe('money', () => {
   it('formats numbers (catalog prices arrive as JSON numbers)', () => {
@@ -48,6 +48,24 @@ describe('date helpers', () => {
   it('formatDDMMYYYY returns empty for empty/malformed input', () => {
     expect(formatDDMMYYYY('')).toBe('');
     expect(formatDDMMYYYY('nope')).toBe('');
+  });
+});
+
+describe('todayISO', () => {
+  it('returns the Phuket day, not the device day (evening in Russia is already tomorrow there)', () => {
+    expect(todayISO(new Date('2026-10-02T19:30:00Z'))).toBe('2026-10-03'); // 02:30 на Пхукете
+  });
+
+  it('is still yesterday just before Phuket midnight', () => {
+    expect(todayISO(new Date('2026-10-02T16:59:00Z'))).toBe('2026-10-02'); // 23:59 на Пхукете
+  });
+
+  it('rolls over exactly at Phuket midnight', () => {
+    expect(todayISO(new Date('2026-10-02T17:00:00Z'))).toBe('2026-10-03'); // 00:00 на Пхукете
+  });
+
+  it('pins the company time zone constant', () => {
+    expect(COMPANY_TIME_ZONE).toBe('Asia/Bangkok');
   });
 });
 

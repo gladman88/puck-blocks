@@ -1,8 +1,18 @@
 // TZ-safe ISO (YYYY-MM-DD) date helpers — ported from frontend_catalog/lib/dates.
 
-export function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+/** Пояс компании (Пхукет). Константа намеренно: блоки не читают настроек компании
+ *  (владелец 2026-10-03). Сменят `CompanySettings.timezone` — править здесь. */
+export const COMPANY_TIME_ZONE = 'Asia/Bangkok';
+
+/** «Сегодня» — день на Пхукете, а не на устройстве клиента: даты аренды — даты
+ *  выдачи машины. Иначе вечером в России календарь давал выбрать день, который на
+ *  Пхукете уже прошёл. */
+export function todayISO(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: COMPANY_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(now);
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
 export function addDays(isoDate: string, n: number): string {
