@@ -1274,6 +1274,11 @@ describe('VehicleBookingModal — specs from typed fields (CD-114)', () => {
     expect(screen.getByText('30 дней')).toBeTruthy();
     expect(screen.getByText('55,000')).toBeTruthy();
     expect(screen.queryByText('(мес)')).toBeNull();
+    // Цена дня — до сотых: «1,833» рядом с «55,000» не сходилось бы на 10 бат.
+    expect(screen.getByText('1,833.33')).toBeTruthy();
+    // В строке «30 дней» множителя нет — только «по тарифу 28+».
+    expect(screen.getByText('по тарифу 28+')).toBeTruthy();
+    expect(screen.queryByText(/30 ×/)).toBeNull();
   });
 
   it('hides the 30-day row when the API does not send price_30_days', async () => {

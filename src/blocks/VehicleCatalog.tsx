@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Section } from '../components/Section';
 import { VehicleBookingModal, type TelegramCatalogUser } from './catalog/VehicleBookingModal';
+import { formatDayPrice } from './catalog/price';
 import { FilterBar, defaultFilterState, type CatalogFilterState } from './catalog/FilterBar';
 
 export type { TelegramCatalogUser } from './catalog/VehicleBookingModal';
@@ -640,7 +641,7 @@ export function VehicleCatalog({
                         {v.min_price_per_day !== null ? (
                           <>
                             <small>{t.from} </small>
-                            {Math.round(v.min_price_per_day).toLocaleString('en-US')}
+                            {formatDayPrice(v.min_price_per_day)}
                             <small> {t.perDay}</small>
                           </>
                         ) : (

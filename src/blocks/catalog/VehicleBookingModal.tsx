@@ -5,6 +5,7 @@ import { safeHref, safeImageUrl } from '../../sanitize';
 import { formatShortDate, money, nextDay, openNativeDatePicker, todayISO } from './dates';
 import { DeliveryAddressSection, type PickedLocation, type DeliveryCost } from './DeliveryAddressSection';
 import { buildSpecRows, type VehicleSpecs } from './specs';
+import { formatDayPrice } from './price';
 
 interface GalleryImage {
   image_url: string;
@@ -988,7 +989,7 @@ export function VehicleBookingModal({
                   {price != null ? (
                     <p className="sb-vd__price">
                       <small>{t.from} </small>
-                      {Math.round(price).toLocaleString('en-US')}
+                      {formatDayPrice(price)}
                       <small>
                         {' '}
                         {t.priceUnit}
@@ -1086,7 +1087,7 @@ export function VehicleBookingModal({
                               : `${row.period_label} ${t.days}`}
                           </span>
                           <span className="sb-vd__price-value">
-                            {Math.round(row.price_per_day).toLocaleString('en-US')}
+                            {formatDayPrice(row.price_per_day)}
                             <small>
                               {' '}
                               {t.priceUnit}
@@ -1205,7 +1206,7 @@ export function VehicleBookingModal({
                   {price != null ? (
                     <p className="sb-bk__price">
                       <small>{t.from} </small>
-                      {Math.round(price).toLocaleString('en-US')}
+                      {formatDayPrice(price)}
                       <small>
                         {' '}
                         {t.priceUnit}
@@ -1357,7 +1358,7 @@ export function VehicleBookingModal({
                   {price != null ? (
                     <p className="sb-bk__price">
                       <small>{t.from} </small>
-                      {Math.round(price).toLocaleString('en-US')}
+                      {formatDayPrice(price)}
                       <small>
                         {' '}
                         {t.priceUnit}

@@ -1419,6 +1419,16 @@ function buildSpecRows(d, locale) {
   push("power_consumption", withUnit(d.power_consumption_kwh_100km, "kwh100"));
   return rows;
 }
+
+// src/blocks/catalog/price.ts
+function formatDayPrice(value) {
+  const rounded = Math.round(value * 100) / 100;
+  const digits = Number.isInteger(rounded) ? 0 : 2;
+  return rounded.toLocaleString("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  });
+}
 var S = {
   ru: {
     close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
@@ -2084,7 +2094,7 @@ function VehicleBookingModal({
                       t.from,
                       " "
                     ] }),
-                    Math.round(price).toLocaleString("en-US"),
+                    formatDayPrice(price),
                     /* @__PURE__ */ jsxs("small", { children: [
                       " ",
                       t.priceUnit,
@@ -2164,7 +2174,7 @@ function VehicleBookingModal({
                     d.pricing_table.map((row, i) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__price-row", children: [
                       /* @__PURE__ */ jsx("span", { className: "sb-vd__price-period", children: row.min_days === row.max_days ? `${row.period_label} ${row.min_days === 1 ? t.day : t.days}` : `${row.period_label} ${t.days}` }),
                       /* @__PURE__ */ jsxs("span", { className: "sb-vd__price-value", children: [
-                        Math.round(row.price_per_day).toLocaleString("en-US"),
+                        formatDayPrice(row.price_per_day),
                         /* @__PURE__ */ jsxs("small", { children: [
                           " ",
                           t.priceUnit,
@@ -2254,7 +2264,7 @@ function VehicleBookingModal({
                       t.from,
                       " "
                     ] }),
-                    Math.round(price).toLocaleString("en-US"),
+                    formatDayPrice(price),
                     /* @__PURE__ */ jsxs("small", { children: [
                       " ",
                       t.priceUnit,
@@ -2391,7 +2401,7 @@ function VehicleBookingModal({
                       t.from,
                       " "
                     ] }),
-                    Math.round(price).toLocaleString("en-US"),
+                    formatDayPrice(price),
                     /* @__PURE__ */ jsxs("small", { children: [
                       " ",
                       t.priceUnit,
@@ -3323,7 +3333,7 @@ function VehicleCatalog({
                 t.from,
                 " "
               ] }),
-              Math.round(v.min_price_per_day).toLocaleString("en-US"),
+              formatDayPrice(v.min_price_per_day),
               /* @__PURE__ */ jsxs("small", { children: [
                 " ",
                 t.perDay
