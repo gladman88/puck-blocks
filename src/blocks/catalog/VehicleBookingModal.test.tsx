@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { VehicleBookingModal, classifyIntentPollResponse } from './VehicleBookingModal';
 import type { CatalogVehicle } from '../VehicleCatalog';
+import { addDays, todayISO } from './dates';
 
 beforeEach(() => {
   // jsdom has no window.open; default it to a harmless stub so the 1-click
@@ -49,6 +50,26 @@ function stubDetailFetch(detail: unknown) {
       ),
     ),
   );
+}
+
+/** Click a day in the availability calendar, paging forward to its month. */
+function pickDay(iso: string) {
+  for (let i = 0; i < 24; i += 1) {
+    const button = document.querySelector<HTMLButtonElement>(`.sb-avcal__day[data-day="${iso}"] button`);
+    if (button) {
+      fireEvent.click(button);
+      return;
+    }
+    fireEvent.click(document.querySelector('.sb-avcal__nav--next')!);
+  }
+  throw new Error(`day ${iso} is not reachable in the calendar`);
+}
+
+/** The step has no default period any more — pick one the way a customer does:
+ *  two clicks in the calendar (tomorrow → three days from now). */
+function pickDates() {
+  pickDay(addDays(todayISO(), 1));
+  pickDay(addDays(todayISO(), 3));
 }
 
 function renderModal(detail: unknown, locale: 'ru' | 'en' = 'en') {
@@ -145,7 +166,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     const children = Array.from(body.children).map((el) => el.className);
     const vehicleIdx = children.indexOf('sb-bk__vehicle');
     const accessoriesIdx = children.indexOf('sb-vd__accessories');
-    const datesIdx = children.indexOf('sb-vd__dates');
+    const datesIdx = children.indexOf('sb-avcal-block'); // value fields + calendar
     expect(vehicleIdx).toBeGreaterThanOrEqual(0);
     expect(accessoriesIdx).toBeGreaterThan(vehicleIdx);
     expect(datesIdx).toBeGreaterThan(accessoriesIdx);
@@ -222,6 +243,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     await goToAccessories();
 
     fireEvent.click(screen.getByRole('button', { name: '+' }));
+    pickDates();
     fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
 
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
@@ -266,6 +288,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
     await goToAccessories();
     fireEvent.click(screen.getByRole('button', { name: '+' }));
+    pickDates();
     fireEvent.click(screen.getByText('1-click booking via Telegram'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
@@ -413,6 +436,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     await screen.findByText('How to book?');
   }
   async function goToForm() {
+    pickDates();
     fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
   }
 
@@ -574,6 +598,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     await waitFor(() => expect((input as HTMLInputElement).disabled).toBe(false));
     await pickAddress(input, 'Patong Beach Road');
 
+    pickDates();
     fireEvent.click(screen.getByText('1-click booking via Telegram'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
@@ -633,6 +658,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     expect(screen.getByDisplayValue('Return Point Rd')).toBeTruthy();
 
     // 3. Submit — collection must remain the distinct return address.
+    pickDates();
     fireEvent.click(screen.getByText('1-click booking via Telegram'));
     await waitFor(() => expect(capturedBody).toBeDefined());
     const payload = JSON.parse(capturedBody!);
@@ -692,6 +718,7 @@ describe('VehicleBookingModal — referral attribution', () => {
 
   async function submitManualForm() {
     fireEvent.click(screen.getByText('Book'));
+    pickDates();
     fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
     fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66123456' } });
@@ -758,6 +785,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     );
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
+    pickDates();
     fireEvent.click(await screen.findByText('1-click booking via Telegram'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
@@ -784,6 +812,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
+    pickDates();
     fireEvent.click(await screen.findByText('1-click booking via Telegram'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
@@ -810,6 +839,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
+    pickDates();
     fireEvent.click(await screen.findByText('1-click booking via Telegram'));
 
     await screen.findByText('Could not send. Please try again.');
@@ -834,6 +864,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
+    pickDates();
     fireEvent.click(await screen.findByText('1-click booking via Telegram'));
 
     await screen.findByText('Could not send. Please try again.');
@@ -871,6 +902,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     );
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
+    pickDates();
     fireEvent.click(await screen.findByText('1-click booking via Telegram'));
 
     await waitFor(() => expect(onTelegramLink).toHaveBeenCalledTimes(1));
@@ -897,6 +929,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
+    pickDates();
     fireEvent.click(await screen.findByText('1-click booking via Telegram'));
 
     // No host callback → the bot opens in the synchronously-created new tab...
@@ -919,6 +952,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
+    pickDates();
     fireEvent.click(await screen.findByText('1-click booking via Telegram'));
 
     await screen.findByText('Could not send. Please try again.');
@@ -941,6 +975,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
+    pickDates();
     fireEvent.click(await screen.findByText('1-click booking via Telegram'));
 
     await screen.findByText('Could not send. Please try again.');
@@ -985,6 +1020,7 @@ describe('VehicleBookingModal — manual form is WhatsApp-only (owner decision 2
     render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
+    pickDates();
     fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
 
     expect(screen.queryByRole('button', { name: /Telegram/ })).toBeNull();
@@ -1020,6 +1056,7 @@ describe('VehicleBookingModal — manual form is WhatsApp-only (owner decision 2
     );
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
+    pickDates();
     fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
 
     expect((screen.getByLabelText('Your name') as HTMLInputElement).value).toBe('Ivan');
@@ -1038,6 +1075,7 @@ describe('VehicleBookingModal — manual form is WhatsApp-only (owner decision 2
     render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
+    pickDates();
     fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
 
     expect((screen.getByLabelText('Your name') as HTMLInputElement).value).toBe('');
@@ -1055,6 +1093,7 @@ describe('VehicleBookingModal — manual form is WhatsApp-only (owner decision 2
       render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
       await screen.findByText('BMW Z4');
       fireEvent.click(screen.getByText('Book'));
+      pickDates();
       fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
       fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
     }
@@ -1062,7 +1101,7 @@ describe('VehicleBookingModal — manual form is WhatsApp-only (owner decision 2
     it('rejects a value with no country code and does not submit', async () => {
       let called = false;
       await openManualForm(vi.fn((url: string) => {
-        if (url.includes('/catalog/vehicles/')) {
+        if (url.includes('/catalog/vehicles/') || url.includes('/catalog/availability/')) {
           return Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }));
         }
         called = true;
@@ -1080,7 +1119,7 @@ describe('VehicleBookingModal — manual form is WhatsApp-only (owner decision 2
     it('rejects a non-phone value and does not submit', async () => {
       let called = false;
       await openManualForm(vi.fn((url: string) => {
-        if (url.includes('/catalog/vehicles/')) {
+        if (url.includes('/catalog/vehicles/') || url.includes('/catalog/availability/')) {
           return Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }));
         }
         called = true;
@@ -1128,7 +1167,7 @@ describe('VehicleBookingModal — manual form is WhatsApp-only (owner decision 2
     it('a rapid double-tap fires only ONE booking-request POST', async () => {
       let postCount = 0;
       vi.stubGlobal('fetch', vi.fn((url: string) => {
-        if (url.includes('/catalog/vehicles/')) {
+        if (url.includes('/catalog/vehicles/') || url.includes('/catalog/availability/')) {
           return Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } }));
         }
         // booking-request POST — resolve after a tick so the second tap races
@@ -1142,6 +1181,7 @@ describe('VehicleBookingModal — manual form is WhatsApp-only (owner decision 2
       render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />);
       await screen.findByText('BMW Z4');
       fireEvent.click(screen.getByText('Book'));
+      pickDates();
       fireEvent.click(await screen.findByText('Enter WhatsApp manually'));
       fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
       fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66912345678' } });
@@ -1180,44 +1220,484 @@ describe('classifyIntentPollResponse (intent status-poll branches)', () => {
   });
 });
 
-describe('VehicleBookingModal — seeds dates from the catalog filter', () => {
-  const stubDetail = () =>
-    vi.stubGlobal('fetch', vi.fn(() =>
-      Promise.resolve(new Response(JSON.stringify(baseDetail), { status: 200, headers: { 'content-type': 'application/json' } })),
-    ));
+describe('VehicleBookingModal — availability calendar on the "How to book?" step', () => {
+  // The approved mock-up: a model of two units, "today" is 9 Oct 2026 on Phuket.
+  const UNITS = [
+    { vehicle_id: 'v1', busy: [{ start: '2026-10-09', end: '2026-10-14' }, { start: '2026-11-01', end: '2026-11-09' }] },
+    { vehicle_id: 'v2', busy: [{ start: '2026-10-12', end: '2026-10-20' }, { start: '2026-10-25', end: '2026-11-03' }] },
+  ];
 
-  it('prefills pick-up/return from initialFrom/initialTo', async () => {
-    stubDetail();
+  beforeEach(() => {
+    // Only the clock is faked — timers stay real, so waitFor/polling still work.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-09T05:00:00Z')); // 12:00 on Phuket
+    // The 1-click path opens the bot in a new tab (jsdom cannot navigate this one).
+    vi.stubGlobal('open', vi.fn(() => ({ location: { href: '' }, close: vi.fn() })));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  interface ApiStub {
+    /** Body of GET /availability/; a number → that HTTP error status. */
+    availability?: unknown;
+    /** Body of the 201 from POST /booking-requests/. */
+    bookingResponse?: unknown;
+    detail?: unknown;
+  }
+  function stubApi({ availability = { today: '2026-10-09', units: UNITS }, bookingResponse, detail = baseDetail }: ApiStub = {}) {
+    const calls = { availability: [] as string[], request: [] as Record<string, unknown>[], intent: [] as Record<string, unknown>[] };
+    const json = (body: unknown, status = 200) =>
+      Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        const u = String(url);
+        if (u.includes('/catalog/availability/')) {
+          calls.availability.push(u);
+          return typeof availability === 'number' ? Promise.resolve(new Response('', { status: availability })) : json(availability);
+        }
+        if (u.includes('/booking-requests/')) {
+          calls.request.push(JSON.parse(init?.body as string));
+          return json(bookingResponse ?? { success: true, booking_id: 'b1' }, 201);
+        }
+        if (u.includes('/status/')) return json({ status: 'used' });
+        if (u.includes('/booking-intents/')) {
+          calls.intent.push(JSON.parse(init?.body as string));
+          return json({ token: 'tok123' }, 201);
+        }
+        return json(detail);
+      }),
+    );
+    return calls;
+  }
+
+  type ModalProps = Partial<Parameters<typeof VehicleBookingModal>[0]>;
+  async function openChoice(locale: 'ru' | 'en', props: ModalProps = {}) {
     render(
       <VehicleBookingModal
         vehicle={vehicle}
         apiBase=""
-        locale="en"
+        locale={locale}
         botUsername="test_bot"
-        initialFrom="2099-08-01"
-        initialTo="2099-08-05"
+        unitIds={['v1', 'v2']}
         onClose={vi.fn()}
+        {...props}
       />,
     );
     await screen.findByText('BMW Z4');
-    fireEvent.click(screen.getByText('Book'));
-    await screen.findByText('How to book?');
-    expect((screen.getByLabelText('Pick-up date') as HTMLInputElement).value).toBe('2099-08-01');
-    expect((screen.getByLabelText('Return date') as HTMLInputElement).value).toBe('2099-08-05');
+    fireEvent.click(screen.getByText(locale === 'ru' ? 'Забронировать' : 'Book'));
+    await screen.findByText(locale === 'ru' ? 'Как забронировать?' : 'How to book?');
+  }
+  /** Wait until the availability answer is on screen (a day struck through). */
+  const availabilityShown = () => waitFor(() => expect(document.querySelector('.sb-avcal__day.is-busy')).not.toBeNull());
+  const status = () => document.querySelector('.sb-avcal__status') as HTMLElement;
+  const button = (label: string) => screen.getByText(label).closest('button') as HTMLButtonElement;
+  const sendManualForm = () => {
+    fireEvent.change(screen.getByLabelText(/Your name|Ваше имя/), { target: { value: 'John' } });
+    fireEvent.change(screen.getByLabelText(/WhatsApp/), { target: { value: '+66812345678' } });
+    fireEvent.click(screen.getByText(/Send request|Отправить запрос/));
+  };
+
+  it('starts with no period: both booking buttons are disabled and there are no native date inputs', async () => {
+    const calls = stubApi();
+    await openChoice('en');
+    await availabilityShown();
+
+    expect(document.querySelector('input[type="date"]')).toBeNull();
+    expect(screen.getAllByText('Select')).toHaveLength(2); // both value fields are empty
+    expect(status().textContent).toBe('Choose the pick-up day.');
+    expect(status().getAttribute('aria-live')).toBe('polite');
+    expect(button('1-click booking via Telegram').disabled).toBe(true);
+    expect(button('Enter WhatsApp manually').disabled).toBe(true);
+    expect(screen.getByText('available')).toBeTruthy();
+    expect(screen.getByText('booked')).toBeTruthy();
+    expect(screen.getByText('your dates')).toBeTruthy();
+
+    // A pick-up day alone is not a period yet.
+    pickDay('2026-10-14');
+    expect(button('1-click booking via Telegram').disabled).toBe(true);
+    expect(button('Enter WhatsApp manually').disabled).toBe(true);
+    expect(calls.request).toHaveLength(0);
+    expect(calls.intent).toHaveLength(0);
   });
 
-  it('falls back to today / next-day when the filter had no dates', async () => {
-    stubDetail();
-    render(
-      <VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} />,
+  it('asks availability once, for every unit, with the opened vehicle first', async () => {
+    const calls = stubApi();
+    await openChoice('en', { unitIds: ['v2', 'v3', 'v1'] });
+    await availabilityShown();
+    expect(calls.availability).toEqual(['/api/v1/catalog/availability/?vehicle_ids=v1,v2,v3']);
+  });
+
+  it('without unitIds asks only for the opened vehicle', async () => {
+    const calls = stubApi({ availability: { today: '2026-10-09', units: [UNITS[0]] } });
+    await openChoice('en', { unitIds: undefined });
+    await availabilityShown();
+    expect(calls.availability).toEqual(['/api/v1/catalog/availability/?vehicle_ids=v1']);
+  });
+
+  it('strikes out only the days when EVERY unit is busy, and explains the picked pick-up day (ru)', async () => {
+    stubApi();
+    await openChoice('ru');
+    await availabilityShown();
+    const cell = (iso: string) => document.querySelector(`.sb-avcal__day[data-day="${iso}"]`) as HTMLElement;
+    expect(cell('2026-10-12').classList.contains('is-busy')).toBe(true);
+    expect(cell('2026-10-13').classList.contains('is-busy')).toBe(true);
+    expect(cell('2026-10-10').classList.contains('is-busy')).toBe(false); // unit 2 is free
+    expect(cell('2026-10-14').classList.contains('is-busy')).toBe(false); // unit 1 is back
+
+    expect(status().textContent).toBe('Выберите день получения.');
+    pickDay('2026-10-10');
+    expect(status().textContent).toBe('Получение 10 окт. Теперь выберите возврат — свободна до 12 окт.');
+    expect(screen.getByText('10.10.2026')).toBeTruthy();
+    expect(screen.getAllByText('Выберите')).toHaveLength(1); // the return field is still empty
+
+    pickDay('2026-10-12'); // return on the day unit 2 goes out again — allowed
+    expect(status().textContent).toBe('10 окт. → 12 окт. · 2 дня · свободна на эти даты');
+    expect(screen.getByText('12.10.2026')).toBeTruthy();
+
+    // A click on a complete period starts over. A busy day is clickable too —
+    // the customer is told, not stopped.
+    pickDay('2026-10-12');
+    expect(status().textContent).toBe('12 окт. модель занята. Выберите день возврата.');
+    expect(status().classList.contains('is-warn')).toBe(true);
+
+    // No limit ahead → no "свободна до" tail.
+    pickDay('2026-11-10');
+    pickDay('2026-11-10');
+    expect(status().textContent).toBe('Получение 10 нояб. Теперь выберите возврат.');
+  });
+
+  it('a free period is booked on the unit that covers it — not on the opened vehicle when that one is busy', async () => {
+    const calls = stubApi();
+    await openChoice('en');
+    await availabilityShown();
+
+    pickDay('2026-11-03');
+    pickDay('2026-11-07'); // v1 is rented 1–9 Nov, v2 is free from 3 Nov
+    expect(status().textContent).toBe('3 Nov → 7 Nov · 4 days · available for these dates');
+    expect(status().classList.contains('is-ok')).toBe(true);
+    expect(document.querySelector('.sb-avcal')!.classList.contains('is-conflict')).toBe(false);
+    expect(screen.queryByText("We'll find a replacement for these dates")).toBeNull();
+
+    fireEvent.click(button('Enter WhatsApp manually'));
+    sendManualForm();
+    await screen.findByText('Request sent!');
+    expect(screen.getByText('We will contact you shortly.')).toBeTruthy();
+    expect(calls.request).toHaveLength(1);
+    expect(calls.request[0]).toMatchObject({ vehicle_id: 'v2', start_date: '2026-11-03', end_date: '2026-11-07' });
+  });
+
+  it('the 1-click Telegram intent goes to the covering unit as well', async () => {
+    const calls = stubApi();
+    await openChoice('en');
+    await availabilityShown();
+    pickDay('2026-11-03');
+    pickDay('2026-11-07');
+    fireEvent.click(button('1-click booking via Telegram'));
+    await screen.findByText('Request sent!');
+    expect(calls.intent).toHaveLength(1);
+    expect(calls.intent[0]).toMatchObject({ vehicle_id: 'v2', start_date: '2026-11-03', end_date: '2026-11-07' });
+  });
+
+  it('returning on the day of somebody else’s pick-up is a free period', async () => {
+    const calls = stubApi();
+    await openChoice('en');
+    await availabilityShown();
+    pickDay('2026-10-10');
+    pickDay('2026-10-12');
+    expect(status().classList.contains('is-ok')).toBe(true);
+    fireEvent.click(button('1-click booking via Telegram'));
+    await waitFor(() => expect(calls.intent).toHaveLength(1));
+    expect(calls.intent[0].vehicle_id).toBe('v2');
+  });
+
+  it('a busy period does not stop the customer: the buttons ask for a replacement and the manual request still goes out (ru)', async () => {
+    const calls = stubApi();
+    await openChoice('ru');
+    await availabilityShown();
+    pickDay('2026-11-01');
+    pickDay('2026-11-05');
+
+    expect(document.querySelector('.sb-avcal')!.classList.contains('is-conflict')).toBe(true);
+    expect(status().textContent).toBe('Выбрано 1–5 нояб. · 4 дня. Модель занята: 1–2 нояб.');
+    expect(status().classList.contains('is-warn')).toBe(true);
+    expect(screen.getByText('На эти даты подберём замену')).toBeTruthy();
+    expect(screen.getByText('Напишем, что свободно на ваши даты')).toBeTruthy();
+    expect(screen.getByText('Менеджер подберёт машину и ответит')).toBeTruthy();
+    expect(screen.queryByText('Бронь в 1 клик через Telegram')).toBeNull();
+    expect(screen.queryByText('Указать WhatsApp вручную')).toBeNull();
+    expect(button('Подобрать через Telegram').disabled).toBe(false);
+    expect(button('Оставить WhatsApp').disabled).toBe(false);
+
+    fireEvent.click(button('Оставить WhatsApp'));
+    sendManualForm();
+    // The 201 carries no `dates_busy` (older backend) → the calendar's verdict.
+    await screen.findByText('Запрос получен!');
+    expect(
+      screen.getByText('BMW Z4 на 1 ноября – 5 ноября занята. Менеджер подберёт варианты и свяжется с вами.'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Заявка отправлена!')).toBeNull();
+    // Nobody covers the period → the request stays on the opened vehicle.
+    expect(calls.request).toHaveLength(1);
+    expect(calls.request[0]).toMatchObject({
+      vehicle_id: 'v1', start_date: '2026-11-01', end_date: '2026-11-05', contact_channel: 'whatsapp',
+    });
+  });
+
+  it('a busy period through Telegram: the intent is created and the confirmation says "Request received!"', async () => {
+    const calls = stubApi();
+    await openChoice('en');
+    await availabilityShown();
+    pickDay('2026-11-01');
+    pickDay('2026-11-05');
+    expect(status().textContent).toBe('Selected 1–5 Nov · 4 days. The model is booked: 1–2 Nov');
+
+    fireEvent.click(button('Find one via Telegram'));
+    await screen.findByText('Request received!');
+    expect(
+      screen.getByText('BMW Z4 is booked for 1 November – 5 November. A manager will find options and contact you.'),
+    ).toBeTruthy();
+    expect(calls.intent).toHaveLength(1);
+    expect(calls.intent[0]).toMatchObject({ vehicle_id: 'v1', start_date: '2026-11-01', end_date: '2026-11-05' });
+  });
+
+  it('every day is free on some unit, but no single unit covers the period → still a replacement request', async () => {
+    stubApi({
+      availability: {
+        today: '2026-10-09',
+        units: [
+          { vehicle_id: 'v1', busy: [{ start: '2026-10-12', end: '2026-10-15' }] },
+          { vehicle_id: 'v2', busy: [{ start: '2026-10-15', end: '2026-10-18' }] },
+        ],
+      },
+    });
+    await openChoice('ru');
+    pickDay('2026-10-11');
+    pickDay('2026-10-17');
+    await waitFor(() =>
+      expect(status().textContent).toBe('Выбрано 11–17 окт. · 6 дней. На весь срок свободной машины нет'),
     );
-    await screen.findByText('BMW Z4');
+    expect(document.querySelector('.sb-avcal__day.is-busy')).toBeNull();
+    expect(screen.getByText('Подобрать через Telegram')).toBeTruthy();
+  });
+
+  it('the server has the last word: `dates_busy: true` on a locally free period shows "Request received!"', async () => {
+    stubApi({ bookingResponse: { success: true, booking_id: 'b1', dates_busy: true } });
+    await openChoice('en');
+    await availabilityShown();
+    pickDay('2026-11-03');
+    pickDay('2026-11-07');
+    fireEvent.click(button('Enter WhatsApp manually')); // locally free → the regular label
+    sendManualForm();
+    await screen.findByText('Request received!');
+    expect(screen.queryByText('Request sent!')).toBeNull();
+  });
+
+  it('`dates_busy: false` on a locally busy period shows the regular confirmation', async () => {
+    stubApi({ bookingResponse: { success: true, booking_id: 'b1', dates_busy: false } });
+    await openChoice('en');
+    await availabilityShown();
+    pickDay('2026-11-01');
+    pickDay('2026-11-05');
+    fireEvent.click(button('Leave your WhatsApp'));
+    sendManualForm();
+    await screen.findByText('Request sent!');
+    expect(screen.queryByText('Request received!')).toBeNull();
+  });
+
+  it('availability endpoint missing (old backend, 404) → the step works, nothing is struck out', async () => {
+    const calls = stubApi({ availability: 404 });
+    await openChoice('en');
+    await waitFor(() => expect(calls.availability).toHaveLength(1));
+
+    pickDay('2026-11-01');
+    pickDay('2026-11-05');
+    expect(document.querySelector('.sb-avcal__day.is-busy')).toBeNull();
+    expect(document.querySelector('.sb-avcal')!.classList.contains('is-conflict')).toBe(false);
+    // Availability is unknown → no "available" claim, and no replacement wording.
+    expect(status().textContent).toBe('1 Nov → 5 Nov · 4 days');
+    expect(screen.queryByText("We'll find a replacement for these dates")).toBeNull();
+
+    fireEvent.click(button('Enter WhatsApp manually'));
+    sendManualForm();
+    await screen.findByText('Request sent!');
+    expect(calls.request[0]).toMatchObject({ vehicle_id: 'v1', start_date: '2026-11-01', end_date: '2026-11-05' });
+  });
+
+  it('a malformed availability body is treated as "unknown", not as a crash', async () => {
+    const calls = stubApi({ availability: { units: [null, { vehicle_id: 'v1' }, { vehicle_id: 7, busy: [] }] } });
+    await openChoice('en');
+    await waitFor(() => expect(calls.availability).toHaveLength(1));
+    pickDay('2026-11-01');
+    pickDay('2026-11-05');
+    expect(document.querySelector('.sb-avcal__day.is-busy')).toBeNull();
+    expect(button('1-click booking via Telegram').disabled).toBe(false);
+  });
+
+  it('«Book from <date>» on the detail screen sets the pick-up day and clears the return day', async () => {
+    const busyVehicle: CatalogVehicle = { ...vehicle, is_available: false, free_from: '2026-10-14' };
+    stubApi({ detail: { ...baseDetail, is_available: false, free_from: '2026-10-14' } });
+    render(
+      <VehicleBookingModal
+        vehicle={busyVehicle}
+        apiBase=""
+        locale="en"
+        botUsername="test_bot"
+        initialFrom="2026-11-03"
+        initialTo="2026-11-07"
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(await screen.findByText('Book from 2026-10-14'));
     fireEvent.click(screen.getByText('Book'));
     await screen.findByText('How to book?');
-    const pickup = (screen.getByLabelText('Pick-up date') as HTMLInputElement).value;
-    const ret = (screen.getByLabelText('Return date') as HTMLInputElement).value;
-    expect(pickup).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(ret > pickup).toBe(true);
+
+    // The seeded period is replaced: calendar open, return day to be picked.
+    expect(document.querySelector('.sb-avcal__summary')).toBeNull();
+    expect(screen.getByText('14.10.2026')).toBeTruthy();
+    expect(screen.getAllByText('Select')).toHaveLength(1);
+    expect(document.querySelector('.sb-avcal__day[data-day="2026-10-14"]')!.classList.contains('is-start')).toBe(true);
+    expect(button('1-click booking via Telegram').disabled).toBe(true);
+  });
+
+  it('booking buttons stay disabled until availability resolves', async () => {
+    stubApi();
+    const base = globalThis.fetch as unknown as (u: string, i?: RequestInit) => Promise<Response>;
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((u: string, i?: RequestInit) =>
+        String(u).includes('/catalog/availability/') ? gate.then(() => base(u, i)) : base(u, i),
+      ),
+    );
+    await openChoice('en', { initialFrom: '2026-11-03', initialTo: '2026-11-07' });
+    expect(button('1-click booking via Telegram').disabled).toBe(true);
+    expect(button('Enter WhatsApp manually').disabled).toBe(true);
+    release();
+    await waitFor(() => expect(button('1-click booking via Telegram').disabled).toBe(false));
+    expect(button('Enter WhatsApp manually').disabled).toBe(false);
+  });
+
+  it('availability failure enables the buttons', async () => {
+    stubApi();
+    const base = globalThis.fetch as unknown as (u: string, i?: RequestInit) => Promise<Response>;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((u: string, i?: RequestInit) =>
+        String(u).includes('/catalog/availability/') ? Promise.reject(new Error('network')) : base(u, i),
+      ),
+    );
+    await openChoice('en', { initialFrom: '2026-11-03', initialTo: '2026-11-07' });
+    await waitFor(() => expect(button('1-click booking via Telegram').disabled).toBe(false));
+    expect(button('Enter WhatsApp manually').disabled).toBe(false);
+  });
+
+  it("calendar uses the server's today", async () => {
+    // Устройство: 2026-10-09; сервер говорит, что на Пхукете уже 11-е.
+    stubApi({ availability: { today: '2026-10-11', units: [{ vehicle_id: 'v1', busy: [] }] } });
+    await openChoice('en');
+    await waitFor(() =>
+      expect(document.querySelector<HTMLButtonElement>('.sb-avcal__day[data-day="2026-10-09"] button')!.disabled).toBe(true),
+    );
+    expect(document.querySelector<HTMLButtonElement>('.sb-avcal__day[data-day="2026-10-11"] button')!.disabled).toBe(false);
+  });
+
+  describe('dates seeded from the catalog filter', () => {
+    it('free period → one collapsed row; «Change» opens the calendar for good', async () => {
+      const calls = stubApi();
+      await openChoice('en', { initialFrom: '2026-11-03', initialTo: '2026-11-07' });
+
+      // Collapsed from the first paint (availability still loading) and after it.
+      expect(document.querySelector('.sb-avcal__summary')).not.toBeNull();
+      await waitFor(() => expect(status().textContent).toBe('4 days · available for these dates'));
+      expect(document.querySelector('.sb-avcal')).toBeNull();
+      expect(document.querySelector('.sb-vd__dates')).toBeNull();
+      expect(document.querySelector('.sb-avcal-block')!.classList.contains('is-collapsed')).toBe(true);
+      expect(screen.getByText('Rental dates')).toBeTruthy();
+      expect(document.querySelector('.sb-filterbar__availability-range')!.textContent).toBe('03.11.2026 — 07.11.2026');
+      // The compact row has no "available only" switch — that belongs to the list.
+      expect(document.querySelector('.sb-avcal__summary input')).toBeNull();
+      expect(button('1-click booking via Telegram').disabled).toBe(false);
+
+      fireEvent.click(screen.getByText('Change'));
+      expect(document.querySelector('.sb-avcal__summary')).toBeNull();
+      expect(document.querySelector('.sb-avcal')).not.toBeNull();
+      expect(screen.getByText('03.11.2026')).toBeTruthy();
+      expect(screen.getByText('07.11.2026')).toBeTruthy();
+      expect(document.querySelector('.sb-avcal__day[data-day="2026-11-03"]')!.classList.contains('is-start')).toBe(true);
+      expect(status().textContent).toBe('3 Nov → 7 Nov · 4 days · available for these dates');
+
+      // Picking another free period does not collapse it back.
+      pickDay('2026-11-10');
+      pickDay('2026-11-12');
+      expect(document.querySelector('.sb-avcal')).not.toBeNull();
+      expect(document.querySelector('.sb-avcal__summary')).toBeNull();
+
+      fireEvent.click(button('1-click booking via Telegram'));
+      await waitFor(() => expect(calls.intent).toHaveLength(1));
+      expect(calls.intent[0]).toMatchObject({ start_date: '2026-11-10', end_date: '2026-11-12' });
+    });
+
+    it('the seeded period is sent as is from the collapsed row, on the covering unit', async () => {
+      const calls = stubApi();
+      await openChoice('en', { initialFrom: '2026-11-03', initialTo: '2026-11-07' });
+      await waitFor(() => expect(status().textContent).toBe('4 days · available for these dates'));
+      fireEvent.click(button('1-click booking via Telegram'));
+      await waitFor(() => expect(calls.intent).toHaveLength(1));
+      expect(calls.intent[0]).toMatchObject({ vehicle_id: 'v2', start_date: '2026-11-03', end_date: '2026-11-07' });
+    });
+
+    it('busy period → the calendar is open right away, with the replacement wording', async () => {
+      stubApi();
+      await openChoice('ru', { initialFrom: '2026-11-01', initialTo: '2026-11-05' });
+      await waitFor(() => expect(document.querySelector('.sb-avcal.is-conflict')).not.toBeNull());
+      expect(document.querySelector('.sb-avcal__summary')).toBeNull();
+      expect(status().textContent).toBe('Выбрано 1–5 нояб. · 4 дня. Модель занята: 1–2 нояб.');
+      expect(screen.getByText('Подобрать через Telegram')).toBeTruthy();
+
+      // It stays open once the customer moves to a free period.
+      pickDay('2026-11-10');
+      pickDay('2026-11-12');
+      expect(document.querySelector('.sb-avcal')).not.toBeNull();
+      expect(document.querySelector('.sb-avcal__summary')).toBeNull();
+      expect(screen.getByText('Бронь в 1 клик через Telegram')).toBeTruthy();
+    });
+
+    it('availability unknown (404) → the seeded dates stay collapsed, without the "available" claim', async () => {
+      const calls = stubApi({ availability: 404 });
+      await openChoice('en', { initialFrom: '2026-11-03', initialTo: '2026-11-07' });
+      await waitFor(() => expect(calls.availability).toHaveLength(1));
+      expect(document.querySelector('.sb-avcal__summary')).not.toBeNull();
+      expect(status().textContent).toBe('4 days');
+    });
+
+    it('a half pair, a past start or a reversed pair is not seeded — the period starts empty', async () => {
+      const cases: ModalProps[] = [
+        { initialFrom: '2026-11-03' },
+        { initialTo: '2026-11-07' },
+        { initialFrom: '2026-10-01', initialTo: '2026-10-20' }, // pick-up day already passed
+        { initialFrom: '2026-11-07', initialTo: '2026-11-03' },
+      ];
+      for (const props of cases) {
+        stubApi();
+        await openChoice('en', props);
+        expect(document.querySelector('.sb-avcal__summary')).toBeNull();
+        expect(screen.getAllByText('Select')).toHaveLength(2);
+        expect(button('1-click booking via Telegram').disabled).toBe(true);
+        cleanup();
+      }
+    });
+
+    it('a pair starting today is seeded', async () => {
+      stubApi({ availability: { today: '2026-10-09', units: [{ vehicle_id: 'v1', busy: [] }] } });
+      await openChoice('en', { unitIds: undefined, initialFrom: '2026-10-09', initialTo: '2026-10-11' });
+      await waitFor(() => expect(status().textContent).toBe('2 days · available for these dates'));
+      expect(document.querySelector('.sb-filterbar__availability-range')!.textContent).toBe('09.10.2026 — 11.10.2026');
+    });
   });
 });
 

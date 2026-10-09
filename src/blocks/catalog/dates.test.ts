@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { COMPANY_TIME_ZONE, formatDDMMYYYY, money, nextDay, openNativeDatePicker, todayISO } from './dates';
+import { COMPANY_TIME_ZONE, daysBetween, formatDDMMYYYY, formatDayMonth, formatDayMonthRange, money, nextDay, openNativeDatePicker, pluralDays, todayISO } from './dates';
 
 describe('money', () => {
   it('formats numbers (catalog prices arrive as JSON numbers)', () => {
@@ -85,5 +85,55 @@ describe('openNativeDatePicker', () => {
       throw new Error('NotAllowedError');
     });
     expect(() => openNativeDatePicker({ showPicker } as unknown as HTMLInputElement)).not.toThrow();
+  });
+});
+
+describe('pluralDays', () => {
+  it('declines the Russian word by the number', () => {
+    expect(pluralDays(1, 'ru')).toBe('1 день');
+    expect(pluralDays(2, 'ru')).toBe('2 дня');
+    expect(pluralDays(4, 'ru')).toBe('4 дня');
+    expect(pluralDays(5, 'ru')).toBe('5 дней');
+    expect(pluralDays(11, 'ru')).toBe('11 дней');
+    expect(pluralDays(12, 'ru')).toBe('12 дней');
+    expect(pluralDays(21, 'ru')).toBe('21 день');
+    expect(pluralDays(22, 'ru')).toBe('22 дня');
+    expect(pluralDays(111, 'ru')).toBe('111 дней');
+  });
+
+  it('uses singular / plural in English', () => {
+    expect(pluralDays(1, 'en')).toBe('1 day');
+    expect(pluralDays(4, 'en')).toBe('4 days');
+  });
+});
+
+describe('formatDayMonth / formatDayMonthRange', () => {
+  it('formats a short date without the year', () => {
+    expect(formatDayMonth('2026-11-01', 'ru')).toBe('1 нояб.');
+    expect(formatDayMonth('2026-10-12', 'ru')).toBe('12 окт.');
+    expect(formatDayMonth('2026-11-01', 'en')).toBe('1 Nov');
+    expect(formatDayMonth('', 'ru')).toBe('');
+  });
+
+  it('does not shift the day in a negative-offset zone (UTC formatting)', () => {
+    // 00:00 UTC of the 1st is still Oct 31 in the Americas — the formatter pins UTC.
+    expect(formatDayMonth('2026-11-01', 'en')).toBe('1 Nov');
+  });
+
+  it('collapses a same-month range and spells out a cross-month one', () => {
+    expect(formatDayMonthRange('2026-11-01', '2026-11-05', 'ru')).toBe('1–5 нояб.');
+    expect(formatDayMonthRange('2026-11-01', '2026-11-05', 'en')).toBe('1–5 Nov');
+    expect(formatDayMonthRange('2026-10-30', '2026-11-02', 'ru')).toBe('30 окт. – 2 нояб.');
+    expect(formatDayMonthRange('2026-11-01', '2026-11-01', 'ru')).toBe('1 нояб.');
+    // Same month number, different year → not collapsed.
+    expect(formatDayMonthRange('2026-11-01', '2027-11-05', 'en')).toBe('1 Nov – 5 Nov');
+  });
+});
+
+describe('daysBetween', () => {
+  it('counts calendar days across a month boundary', () => {
+    expect(daysBetween('2026-11-01', '2026-11-05')).toBe(4);
+    expect(daysBetween('2026-10-30', '2026-11-02')).toBe(3);
+    expect(daysBetween('', '2026-11-02')).toBe(0);
   });
 });

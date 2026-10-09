@@ -779,6 +779,200 @@ function formatShortDate(isoDate, lang) {
     timeZone: "UTC"
   });
 }
+function pluralDays(n, lang) {
+  if (lang === "en") return `${n} ${n === 1 ? "day" : "days"}`;
+  const a = Math.abs(n) % 10;
+  const b = Math.abs(n) % 100;
+  const word = a === 1 && b !== 11 ? "\u0434\u0435\u043D\u044C" : a >= 2 && a <= 4 && (b < 12 || b > 14) ? "\u0434\u043D\u044F" : "\u0434\u043D\u0435\u0439";
+  return `${n} ${word}`;
+}
+function utcDate(isoDate) {
+  if (!isoDate) return null;
+  const [y, m, d] = isoDate.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(Date.UTC(y, m - 1, d));
+}
+var dayMonthFormatters = {};
+function dayMonthParts(date, lang) {
+  const fmt2 = dayMonthFormatters[lang] ?? (dayMonthFormatters[lang] = new Intl.DateTimeFormat(lang === "ru" ? "ru-RU" : "en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC"
+  }));
+  const parts = fmt2.formatToParts(date);
+  const part = (type) => parts.find((p) => p.type === type)?.value ?? "";
+  return { day: part("day"), month: part("month") };
+}
+function formatDayMonth(isoDate, lang) {
+  const date = utcDate(isoDate);
+  if (!date) return "";
+  const { day, month } = dayMonthParts(date, lang);
+  return `${day} ${month}`;
+}
+function formatDayMonthRange(fromISO, toISO, lang) {
+  const from = utcDate(fromISO);
+  const to = utcDate(toISO);
+  if (!from || !to) return "";
+  if (fromISO === toISO) return formatDayMonth(fromISO, lang);
+  const sameMonth = from.getUTCFullYear() === to.getUTCFullYear() && from.getUTCMonth() === to.getUTCMonth();
+  if (sameMonth) {
+    const a = dayMonthParts(from, lang);
+    const b = dayMonthParts(to, lang);
+    return `${a.day}\u2013${b.day} ${b.month}`;
+  }
+  return `${formatDayMonth(fromISO, lang)} \u2013 ${formatDayMonth(toISO, lang)}`;
+}
+function daysBetween(fromISO, toISO) {
+  const from = utcDate(fromISO);
+  const to = utcDate(toISO);
+  if (!from || !to) return 0;
+  return Math.round((to.getTime() - from.getTime()) / 864e5);
+}
+
+// src/blocks/catalog/availability.ts
+function unitBusyOn(unit, day) {
+  return unit.busy.some((b) => b.start <= day && day < b.end);
+}
+function isDayBusy(units, day) {
+  return units.length > 0 && units.every((u) => unitBusyOn(u, day));
+}
+function unitCovering(units, start, end) {
+  const unit = units.find((u) => !u.busy.some((b) => b.start < end && b.end > start));
+  return unit ? unit.vehicle_id : null;
+}
+function maxReturnDay(units, start) {
+  let latest = null;
+  for (const unit of units) {
+    if (unitBusyOn(unit, start)) continue;
+    let next = null;
+    for (const b of unit.busy) {
+      if (b.start > start && (next === null || b.start < next)) next = b.start;
+    }
+    if (next === null) return null;
+    if (latest === null || next > latest) latest = next;
+  }
+  return latest;
+}
+function busyDaysIn(units, start, end) {
+  const ranges = [];
+  if (!start || !end) return ranges;
+  let from = null;
+  let prev = "";
+  for (let day = start; day && day < end; day = addDays(day, 1)) {
+    if (isDayBusy(units, day)) {
+      if (from === null) from = day;
+    } else if (from !== null) {
+      ranges.push([from, prev]);
+      from = null;
+    }
+    prev = day;
+  }
+  if (from !== null) ranges.push([from, prev]);
+  return ranges;
+}
+function parseISODate(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day, 12);
+}
+function toISODate(value) {
+  return String(value.getFullYear()) + "-" + String(value.getMonth() + 1).padStart(2, "0") + "-" + String(value.getDate()).padStart(2, "0");
+}
+var WIDE_QUERY = "(min-width: 641px)";
+function readMonths() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return 1;
+  return window.matchMedia(WIDE_QUERY).matches ? 2 : 1;
+}
+function useCalendarMonths() {
+  const [months, setMonths] = react.useState(readMonths);
+  react.useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia(WIDE_QUERY);
+    const apply = () => setMonths(query.matches ? 2 : 1);
+    apply();
+    query.addEventListener?.("change", apply);
+    return () => query.removeEventListener?.("change", apply);
+  }, []);
+  return months;
+}
+function AvailabilityCalendar({ units, today, start, end, onChange, locale: locale$1, months }) {
+  const autoMonths = useCalendarMonths();
+  const monthCount = months ?? autoMonths;
+  const todayDate = parseISODate(today);
+  const picking = Boolean(start && !end);
+  const complete = Boolean(start && end);
+  const returnLimit = picking ? maxReturnDay(units, start) : null;
+  const conflict = units.length > 0 && (complete ? unitCovering(units, start, end) === null : picking && isDayBusy(units, start));
+  const busyLabel = (date) => formatShortDate(toISODate(date), locale$1) + " \u2014 " + (locale$1 === "ru" ? "\u0437\u0430\u043D\u044F\u0442\u043E" : "booked");
+  const handleDayClick = (date) => {
+    const day = toISODate(date);
+    if (day < today) return;
+    if (!start || end || day <= start) onChange(day, "");
+    else onChange(start, day);
+  };
+  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: `sb-avcal${monthCount === 2 ? " sb-avcal--two" : ""}${conflict ? " is-conflict" : ""}`, children: /* @__PURE__ */ jsxRuntime.jsx(
+    reactDayPicker.DayPicker,
+    {
+      locale: locale$1 === "ru" ? locale.ru : locale.enGB,
+      numberOfMonths: monthCount,
+      defaultMonth: start ? parseISODate(start) : todayDate,
+      startMonth: todayDate,
+      today: todayDate,
+      disabled: { before: todayDate },
+      fixedWeeks: true,
+      navLayout: "around",
+      onDayClick: handleDayClick,
+      components: {
+        DayButton: ({ day, modifiers, ...buttonProps }) => /* @__PURE__ */ jsxRuntime.jsx("button", { ...buttonProps, title: modifiers.busy ? busyLabel(day.date) : void 0 })
+      },
+      labels: {
+        labelDayButton: (date, modifiers, options, dateLib) => {
+          return modifiers.busy ? busyLabel(date) : reactDayPicker.labelDayButton(date, modifiers, options, dateLib);
+        }
+      },
+      modifiers: {
+        // День возврата машину не занимает — у конца срока зачёркивание снято.
+        busy: (date) => {
+          const day = toISODate(date);
+          return day >= today && !(complete && day === end) && isDayBusy(units, day);
+        },
+        rangeStart: (date) => Boolean(start) && toISODate(date) === start,
+        rangeEnd: (date) => Boolean(end) && toISODate(date) === end,
+        rangeMiddle: (date) => {
+          if (!complete) return false;
+          const day = toISODate(date);
+          return day > start && day < end;
+        },
+        unreachable: (date) => returnLimit !== null && toISODate(date) > returnLimit
+      },
+      modifiersClassNames: {
+        busy: "is-busy",
+        rangeStart: "is-start",
+        rangeEnd: "is-end",
+        rangeMiddle: "is-middle",
+        unreachable: "is-unreachable"
+      },
+      classNames: {
+        root: "sb-avcal__calendar",
+        months: "sb-avcal__months",
+        month: "sb-avcal__month",
+        month_caption: "sb-avcal__caption",
+        caption_label: "sb-avcal__caption-label",
+        button_previous: "sb-avcal__nav sb-avcal__nav--prev",
+        button_next: "sb-avcal__nav sb-avcal__nav--next",
+        chevron: "sb-avcal__chevron",
+        weekdays: "sb-avcal__weekdays",
+        weekday: "sb-avcal__weekday",
+        month_grid: "sb-avcal__grid",
+        week: "sb-avcal__week",
+        day: "sb-avcal__day",
+        day_button: "sb-avcal__day-button",
+        disabled: "is-disabled",
+        today: "is-today",
+        outside: "is-outside"
+      }
+    }
+  ) });
+}
 var DEFAULT_CENTER = { lat: 7.8804, lng: 98.3923 };
 var DEFAULT_ZOOM = 11;
 var SELECTED_ZOOM = 16;
@@ -1498,7 +1692,31 @@ var S = {
     deliveryCostPrefix: "\u0421\u0442\u043E\u0438\u043C\u043E\u0441\u0442\u044C",
     deliveryCostLoading: "\u0421\u0447\u0438\u0442\u0430\u0435\u043C \u0441\u0442\u043E\u0438\u043C\u043E\u0441\u0442\u044C\u2026",
     deliveryCostByRequest: "\u043F\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0443",
-    deliveryCostTotal: "\u0414\u043E\u0441\u0442\u0430\u0432\u043A\u0430 \u0438 \u043F\u0440\u0438\u0451\u043C\u043A\u0430"
+    deliveryCostTotal: "\u0414\u043E\u0441\u0442\u0430\u0432\u043A\u0430 \u0438 \u043F\u0440\u0438\u0451\u043C\u043A\u0430",
+    // Календарь занятости на шаге «Как забронировать?» (владелец 2026-10-09).
+    datePlaceholder: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435",
+    datesTitle: "\u0414\u0430\u0442\u044B \u0430\u0440\u0435\u043D\u0434\u044B",
+    datesEdit: "\u0418\u0437\u043C\u0435\u043D\u0438\u0442\u044C",
+    legendFree: "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u043E",
+    legendBusy: "\u0437\u0430\u043D\u044F\u0442\u043E",
+    legendYours: "\u0432\u0430\u0448\u0438 \u0434\u0430\u0442\u044B",
+    calPickStart: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0435\u043D\u044C \u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u044F.",
+    calPickup: "\u041F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u0435",
+    calPickReturn: "\u0422\u0435\u043F\u0435\u0440\u044C \u0432\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u043E\u0437\u0432\u0440\u0430\u0442",
+    calFreeUntil: "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u0430 \u0434\u043E",
+    calStartBusy: "\u043C\u043E\u0434\u0435\u043B\u044C \u0437\u0430\u043D\u044F\u0442\u0430. \u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0435\u043D\u044C \u0432\u043E\u0437\u0432\u0440\u0430\u0442\u0430.",
+    calFree: "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u0430 \u043D\u0430 \u044D\u0442\u0438 \u0434\u0430\u0442\u044B",
+    calSelected: "\u0412\u044B\u0431\u0440\u0430\u043D\u043E",
+    calBusyDays: "\u041C\u043E\u0434\u0435\u043B\u044C \u0437\u0430\u043D\u044F\u0442\u0430:",
+    calNoUnit: "\u041D\u0430 \u0432\u0435\u0441\u044C \u0441\u0440\u043E\u043A \u0441\u0432\u043E\u0431\u043E\u0434\u043D\u043E\u0439 \u043C\u0430\u0448\u0438\u043D\u044B \u043D\u0435\u0442",
+    // Занятый срок: заявка та же, меняются только слова.
+    askHint: "\u041D\u0430 \u044D\u0442\u0438 \u0434\u0430\u0442\u044B \u043F\u043E\u0434\u0431\u0435\u0440\u0451\u043C \u0437\u0430\u043C\u0435\u043D\u0443",
+    tgAsk: "\u041F\u043E\u0434\u043E\u0431\u0440\u0430\u0442\u044C \u0447\u0435\u0440\u0435\u0437 Telegram",
+    tgAskSub: "\u041D\u0430\u043F\u0438\u0448\u0435\u043C, \u0447\u0442\u043E \u0441\u0432\u043E\u0431\u043E\u0434\u043D\u043E \u043D\u0430 \u0432\u0430\u0448\u0438 \u0434\u0430\u0442\u044B",
+    manualAsk: "\u041E\u0441\u0442\u0430\u0432\u0438\u0442\u044C WhatsApp",
+    manualAskSub: "\u041C\u0435\u043D\u0435\u0434\u0436\u0435\u0440 \u043F\u043E\u0434\u0431\u0435\u0440\u0451\u0442 \u043C\u0430\u0448\u0438\u043D\u0443 \u0438 \u043E\u0442\u0432\u0435\u0442\u0438\u0442",
+    successBusyTitle: "\u0417\u0430\u043F\u0440\u043E\u0441 \u043F\u043E\u043B\u0443\u0447\u0435\u043D!",
+    successBusyText: (vehicleName, dates) => `${vehicleName} \u043D\u0430 ${dates} \u0437\u0430\u043D\u044F\u0442\u0430. \u041C\u0435\u043D\u0435\u0434\u0436\u0435\u0440 \u043F\u043E\u0434\u0431\u0435\u0440\u0451\u0442 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u0438 \u0441\u0432\u044F\u0436\u0435\u0442\u0441\u044F \u0441 \u0432\u0430\u043C\u0438.`
   },
   en: {
     close: "Close",
@@ -1560,7 +1778,29 @@ var S = {
     deliveryCostPrefix: "Price",
     deliveryCostLoading: "Calculating price\u2026",
     deliveryCostByRequest: "on request",
-    deliveryCostTotal: "Delivery & collection"
+    deliveryCostTotal: "Delivery & collection",
+    datePlaceholder: "Select",
+    datesTitle: "Rental dates",
+    datesEdit: "Change",
+    legendFree: "available",
+    legendBusy: "booked",
+    legendYours: "your dates",
+    calPickStart: "Choose the pick-up day.",
+    calPickup: "Pick-up",
+    calPickReturn: "Now choose the return day",
+    calFreeUntil: "available until",
+    calStartBusy: "\u2014 the model is booked. Choose the return day.",
+    calFree: "available for these dates",
+    calSelected: "Selected",
+    calBusyDays: "The model is booked:",
+    calNoUnit: "No vehicle is free for the whole period",
+    askHint: "We'll find a replacement for these dates",
+    tgAsk: "Find one via Telegram",
+    tgAskSub: "We'll message you what is free for your dates",
+    manualAsk: "Leave your WhatsApp",
+    manualAskSub: "A manager will find a vehicle and reply",
+    successBusyTitle: "Request received!",
+    successBusyText: (vehicleName, dates) => `${vehicleName} is booked for ${dates}. A manager will find options and contact you.`
   }
 };
 var HEADERS = { "ngrok-skip-browser-warning": "true" };
@@ -1588,6 +1828,37 @@ async function fetchDeliveryQuote(apiBase, location) {
     return null;
   }
 }
+async function fetchAvailability(apiBase, ids) {
+  try {
+    const res = await fetch(
+      `${apiBase}/api/v1/catalog/availability/?vehicle_ids=${ids.map(encodeURIComponent).join(",")}`,
+      { headers: HEADERS }
+    );
+    if (!res.ok) return { units: [], today: null };
+    const j = await res.json();
+    if (!j || !Array.isArray(j.units)) return { units: [], today: null };
+    const byId = /* @__PURE__ */ new Map();
+    for (const raw of j.units) {
+      if (!raw || typeof raw.vehicle_id !== "string" || !Array.isArray(raw.busy)) continue;
+      byId.set(raw.vehicle_id, {
+        vehicle_id: raw.vehicle_id,
+        busy: raw.busy.filter(
+          (b) => Boolean(b) && typeof b.start === "string" && typeof b.end === "string" && b.start < b.end
+        )
+      });
+    }
+    return {
+      units: ids.map((id) => byId.get(id)).filter((u) => Boolean(u)),
+      today: typeof j.today === "string" && /^\d{4}-\d{2}-\d{2}$/.test(j.today) ? j.today : null
+    };
+  } catch {
+    return { units: [], today: null };
+  }
+}
+var MAX_AVAILABILITY_IDS = 20;
+function withPeriod(text) {
+  return text.endsWith(".") ? text : `${text}.`;
+}
 var WHATSAPP_PHONE_RE = /^\+[\d\s\-()]{6,19}$/;
 function isValidWhatsAppPhone(value) {
   const trimmed = value.trim();
@@ -1606,6 +1877,7 @@ function VehicleBookingModal({
   onTelegramLink,
   initialFrom,
   initialTo,
+  unitIds,
   onClose
 }) {
   const t = S[locale];
@@ -1613,11 +1885,22 @@ function VehicleBookingModal({
   const [state, setState] = react.useState("loading");
   const [gi, setGi] = react.useState(0);
   const [specsExpanded, setSpecsExpanded] = react.useState(false);
-  const minStart = !vehicle.is_available && vehicle.free_from && vehicle.free_from > todayISO() ? vehicle.free_from : todayISO();
-  const seedStart = initialFrom && initialFrom >= minStart ? initialFrom : minStart;
-  const seedEnd = initialTo && initialTo > seedStart ? initialTo : nextDay(seedStart);
-  const [start, setStart] = react.useState(seedStart);
-  const [end, setEnd] = react.useState(seedEnd);
+  const [serverToday, setServerToday] = react.useState(null);
+  const today = serverToday ?? todayISO();
+  const [seeded] = react.useState(
+    () => Boolean(initialFrom && initialTo && initialFrom >= todayISO() && initialTo > initialFrom)
+  );
+  const [start, setStart] = react.useState(seeded ? initialFrom : "");
+  const [end, setEnd] = react.useState(seeded ? initialTo : "");
+  const availabilityIds = [vehicle.id, ...(unitIds ?? []).filter((id) => id && id !== vehicle.id)].slice(
+    0,
+    MAX_AVAILABILITY_IDS
+  );
+  const availabilityKey = availabilityIds.join(",");
+  const [units, setUnits] = react.useState([]);
+  const [availLoading, setAvailLoading] = react.useState(true);
+  const [datesExpanded, setDatesExpanded] = react.useState(!seeded);
+  const [successBusy, setSuccessBusy] = react.useState(false);
   const [name, setName] = react.useState(telegramUser?.first_name || "");
   const [contact, setContact] = react.useState("");
   const [contactError, setContactError] = react.useState("");
@@ -1730,9 +2013,27 @@ function VehicleBookingModal({
     };
   }, [apiBase, vehicle.id]);
   react.useEffect(() => {
-    if (start && (!end || end <= start)) setEnd(nextDay(start));
-  }, [start, end]);
-  const datesValid = Boolean(start && end && start >= minStart && end > start);
+    let cancelled = false;
+    setUnits([]);
+    setAvailLoading(true);
+    fetchAvailability(apiBase, availabilityKey.split(",")).then((r) => {
+      if (cancelled) return;
+      setUnits(r.units);
+      setServerToday(r.today);
+      setAvailLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, availabilityKey]);
+  const datesValid = Boolean(start && end && start >= today && end > start);
+  const coveringUnitId = datesValid ? unitCovering(units, start, end) : null;
+  const conflict = datesValid && units.length > 0 && coveringUnitId === null;
+  const bookingVehicleId = coveringUnitId ?? vehicle.id;
+  const datesCollapsed = !datesExpanded && datesValid && !conflict;
+  react.useEffect(() => {
+    if (conflict) setDatesExpanded(true);
+  }, [conflict]);
   const selectedAccessories = Object.entries(accessories).filter(([, qty]) => qty > 0).map(([accessory_id, quantity]) => ({ accessory_id, quantity }));
   const effectivePickupLocation = pickupEnabled ? pickupLocation : null;
   const effectiveDropoffLocation = dropoffEnabled ? dropoffSameAsPickup && pickupEnabled && pickupLocation ? pickupLocation : dropoffLocation : null;
@@ -1781,7 +2082,7 @@ function VehicleBookingModal({
         method: "POST",
         headers: { "content-type": "application/json", ...HEADERS },
         body: JSON.stringify({
-          vehicle_id: vehicle.id,
+          vehicle_id: bookingVehicleId,
           start_date: start,
           end_date: end,
           customer_name: name.trim(),
@@ -1799,6 +2100,8 @@ function VehicleBookingModal({
         })
       });
       if (res.ok) {
+        const body = await res.json().catch(() => null);
+        setSuccessBusy(typeof body?.dates_busy === "boolean" ? body.dates_busy : conflict);
         setStage("success");
       } else {
         setErr(res.status === 429 ? t.tooMany : t.sendErr);
@@ -1861,6 +2164,7 @@ function VehicleBookingModal({
     tgSubmittingRef.current = true;
     setTgSubmitting(true);
     setTgErr("");
+    setSuccessBusy(conflict);
     let popup = null;
     try {
       popup = onTelegramLink || typeof window === "undefined" ? null : window.open("", "_blank");
@@ -1868,7 +2172,7 @@ function VehicleBookingModal({
         method: "POST",
         headers: { "content-type": "application/json", ...HEADERS },
         body: JSON.stringify({
-          vehicle_id: vehicle.id,
+          vehicle_id: bookingVehicleId,
           start_date: start,
           end_date: end,
           ...referralCode ? { referral_code: referralCode } : {},
@@ -2004,6 +2308,38 @@ function VehicleBookingModal({
       ) })
     ] });
   };
+  const renderDatesStatus = () => {
+    const days = datesValid ? pluralDays(daysBetween(start, end), locale) : "";
+    let text;
+    let tone = "";
+    if (!start) {
+      text = t.calPickStart;
+    } else if (!datesValid) {
+      const day = formatDayMonth(start, locale);
+      if (isDayBusy(units, start)) {
+        text = `${day} ${t.calStartBusy}`;
+        tone = "is-warn";
+      } else {
+        const limit = maxReturnDay(units, start);
+        text = `${withPeriod(`${t.calPickup} ${day}`)} ` + withPeriod(
+          limit ? `${t.calPickReturn} \u2014 ${t.calFreeUntil} ${formatDayMonth(limit, locale)}` : t.calPickReturn
+        );
+      }
+    } else if (conflict) {
+      const busy = busyDaysIn(units, start, end).map(([a, b]) => formatDayMonthRange(a, b, locale));
+      text = `${t.calSelected} ${formatDayMonthRange(start, end, locale)} \xB7 ${withPeriod(days)} ` + (busy.length > 0 ? `${t.calBusyDays} ${busy.join(", ")}` : t.calNoUnit);
+      tone = "is-warn";
+    } else {
+      const parts = [
+        ...datesCollapsed ? [] : [`${formatDayMonth(start, locale)} \u2192 ${formatDayMonth(end, locale)}`],
+        days,
+        ...units.length > 0 ? [t.calFree] : []
+      ];
+      text = parts.join(" \xB7 ");
+      if (units.length > 0) tone = "is-ok";
+    }
+    return /* @__PURE__ */ jsxRuntime.jsx("p", { className: `sb-avcal__status ${tone}`, "aria-live": "polite", children: text });
+  };
   return reactDom.createPortal(
     // Wrap in .sb-root so the design tokens (--sb-*) cascade into the portal,
     // which lives outside the page's .sb-root.
@@ -2031,8 +2367,11 @@ function VehicleBookingModal({
             state === "error" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-modal__state", children: t.error }) : null,
             state === "ready" && d ? stage === "success" ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-modal__success", children: [
               /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-modal__check", "aria-hidden": true, children: "\u2713" }),
-              /* @__PURE__ */ jsxRuntime.jsx("h3", { children: t.successTitle }),
-              /* @__PURE__ */ jsxRuntime.jsx("p", { children: t.successText }),
+              /* @__PURE__ */ jsxRuntime.jsx("h3", { children: successBusy ? t.successBusyTitle : t.successTitle }),
+              /* @__PURE__ */ jsxRuntime.jsx("p", { children: successBusy ? t.successBusyText(
+                d.display_name,
+                `${formatShortDate(start, locale)} \u2013 ${formatShortDate(end, locale)}`
+              ) : t.successText }),
               /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-btn", onClick: onClose, children: "OK" })
             ] }) : stage === "detail" ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-modal__body", children: [
               gallery.length > 0 ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__media", children: [
@@ -2151,9 +2490,9 @@ function VehicleBookingModal({
                       type: "button",
                       className: "sb-vd__avail-btn",
                       onClick: () => {
-                        const from = d.free_from;
-                        setStart(from);
-                        if (end <= from) setEnd(nextDay(from));
+                        setStart(d.free_from);
+                        setEnd("");
+                        setDatesExpanded(true);
                       },
                       children: [
                         t.bookFrom,
@@ -2276,35 +2615,72 @@ function VehicleBookingModal({
                 ] })
               ] }),
               renderAccessories(),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__dates", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("label", { children: [
-                  t.dateGet,
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: `sb-avcal-block${datesCollapsed ? " is-collapsed" : ""}`, children: [
+                datesCollapsed ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-filterbar__availability is-ready is-compact sb-avcal__summary", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__availability-compact", children: [
+                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__availability-summary", children: [
+                    /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", width: "18", height: "18", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+                      /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
+                      /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "16", y1: "2", x2: "16", y2: "6" }),
+                      /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "8", y1: "2", x2: "8", y2: "6" }),
+                      /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
+                    ] }),
+                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-filterbar__availability-title", children: t.datesTitle }),
+                    /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-filterbar__availability-range", children: [
+                      formatDDMMYYYY(start),
+                      " \u2014 ",
+                      formatDDMMYYYY(end)
+                    ] })
+                  ] }),
                   /* @__PURE__ */ jsxRuntime.jsx(
-                    "input",
+                    "button",
                     {
-                      type: "date",
-                      className: "sb-input",
-                      value: start,
-                      min: minStart,
-                      onClick: (e) => openNativeDatePicker(e.currentTarget),
-                      onChange: (e) => setStart(e.target.value)
+                      type: "button",
+                      className: "sb-filterbar__availability-edit",
+                      onClick: () => setDatesExpanded(true),
+                      children: t.datesEdit
                     }
                   )
+                ] }) }) : /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__dates", children: [
+                    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-avcal__field", children: [
+                      /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.dateGet }),
+                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: `sb-input sb-avcal__value${start ? "" : " is-placeholder"}`, children: start ? formatDDMMYYYY(start) : t.datePlaceholder })
+                    ] }),
+                    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-avcal__field", children: [
+                      /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.dateReturn }),
+                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: `sb-input sb-avcal__value${end ? "" : " is-placeholder"}`, children: end ? formatDDMMYYYY(end) : t.datePlaceholder })
+                    ] })
+                  ] }),
+                  /* @__PURE__ */ jsxRuntime.jsx(
+                    AvailabilityCalendar,
+                    {
+                      units,
+                      today,
+                      start,
+                      end,
+                      locale,
+                      onChange: (nextStart, nextEnd) => {
+                        setStart(nextStart);
+                        setEnd(nextEnd);
+                      }
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-avcal__legend", children: [
+                    /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+                      /* @__PURE__ */ jsxRuntime.jsx("i", { className: "sb-avcal__legend-free", "aria-hidden": true, children: "9" }),
+                      t.legendFree
+                    ] }),
+                    /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+                      /* @__PURE__ */ jsxRuntime.jsx("i", { className: "sb-avcal__legend-busy", "aria-hidden": true, children: "12" }),
+                      t.legendBusy
+                    ] }),
+                    /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+                      /* @__PURE__ */ jsxRuntime.jsx("i", { className: "sb-avcal__legend-yours", "aria-hidden": true, children: "14" }),
+                      t.legendYours
+                    ] })
+                  ] })
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("label", { children: [
-                  t.dateReturn,
-                  /* @__PURE__ */ jsxRuntime.jsx(
-                    "input",
-                    {
-                      type: "date",
-                      className: "sb-input",
-                      value: end,
-                      min: nextDay(start),
-                      onClick: (e) => openNativeDatePicker(e.currentTarget),
-                      onChange: (e) => setEnd(e.target.value)
-                    }
-                  )
-                ] })
+                renderDatesStatus()
               ] }),
               /* @__PURE__ */ jsxRuntime.jsx(
                 DeliveryAddressSection,
@@ -2351,18 +2727,19 @@ function VehicleBookingModal({
                 }
               ),
               /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__book-actions", children: [
+                conflict ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-avcal__ask", children: t.askHint }) : null,
                 /* @__PURE__ */ jsxRuntime.jsxs(
                   "button",
                   {
                     type: "button",
                     className: "sb-vd__tg-card",
-                    disabled: !datesValid || tgSubmitting,
+                    disabled: !datesValid || availLoading || tgSubmitting,
                     onClick: handleTelegramBooking,
                     children: [
                       /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-icon", "aria-hidden": true, children: "\u2708" }),
                       /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__tg-text", children: [
-                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-title", children: t.tgQuick }),
-                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-sub", children: tgSubmitting ? t.loading : t.tgQuickSub })
+                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-title", children: conflict ? t.tgAsk : t.tgQuick }),
+                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-sub", children: tgSubmitting ? t.loading : conflict ? t.tgAskSub : t.tgQuickSub })
                       ] }),
                       /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
                     ]
@@ -2375,13 +2752,13 @@ function VehicleBookingModal({
                   {
                     type: "button",
                     className: "sb-vd__option-card",
-                    disabled: !datesValid,
+                    disabled: !datesValid || availLoading,
                     onClick: () => setStage("form"),
                     children: [
                       /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__option-icon", "aria-hidden": true, children: "\u270E" }),
                       /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vd__tg-text", children: [
-                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-title", children: t.manual }),
-                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-sub", children: t.manualSub })
+                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-title", children: conflict ? t.manualAsk : t.manual }),
+                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-sub", children: conflict ? t.manualAskSub : t.manualSub })
                       ] }),
                       /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
                     ]
@@ -2521,11 +2898,11 @@ function VehicleBookingModal({
     document.body
   );
 }
-function parseISODate(value) {
+function parseISODate2(value) {
   const [year, month, day] = value.split("-").map(Number);
   return new Date(year, month - 1, day, 12);
 }
-function toISODate(value) {
+function toISODate2(value) {
   return String(value.getFullYear()) + "-" + String(value.getMonth() + 1).padStart(2, "0") + "-" + String(value.getDate()).padStart(2, "0");
 }
 function MobileDatePicker({
@@ -2544,8 +2921,8 @@ function MobileDatePicker({
   const overlayRef = react.useRef(null);
   const isOpen = field !== null;
   const fieldLabel = field === "from" ? dateFromLabel : dateToLabel;
-  const min = parseISODate(minDate);
-  const selectedDate = selected ? parseISODate(selected) : void 0;
+  const min = parseISODate2(minDate);
+  const selectedDate = selected ? parseISODate2(selected) : void 0;
   react.useEffect(() => {
     if (!isOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -2643,7 +3020,7 @@ function MobileDatePicker({
                 outside: "is-outside"
               },
               onSelect: (date) => {
-                if (date) onSelect(toISODate(date));
+                if (date) onSelect(toISODate2(date));
               }
             }
           )
@@ -3059,10 +3436,13 @@ function buildFilteredVehiclesUrl(apiBase, f) {
   const s = qs.toString();
   return `${apiBase}/api/v1/catalog/vehicles/${s ? `?${s}` : ""}`;
 }
+function vehicleGroupKey(v) {
+  return `${v.brand}:${v.model}:${v.year ?? ""}:${v.color ?? ""}`;
+}
 function groupVehicles(vehicles) {
   const groups = /* @__PURE__ */ new Map();
   for (const v of vehicles) {
-    const key = `${v.brand}:${v.model}:${v.year ?? ""}:${v.color ?? ""}`;
+    const key = vehicleGroupKey(v);
     const existing = groups.get(key);
     if (existing) existing.push(v);
     else groups.set(key, [v]);
@@ -3272,6 +3652,12 @@ function VehicleCatalog({
     if (!showFilters || availableOnly) return regularOrder;
     return [...regularOrder].sort((a, b) => Number(b.availableCount > 0) - Number(a.availableCount > 0));
   }, [groups, showFilters, filters.availableOnly, filters.availableFrom, filters.availableTo, filters.sort]);
+  const selectedUnitIds = react.useMemo(() => {
+    if (!selected) return void 0;
+    const key = vehicleGroupKey(selected);
+    const rest = vehicles.filter((v) => vehicleGroupKey(v) === key && v.id !== selected.id).map((v, i) => ({ v, i })).sort((a, b) => (a.v.min_price_per_day ?? Infinity) - (b.v.min_price_per_day ?? Infinity) || a.i - b.i).map(({ v }) => v.id);
+    return [selected.id, ...rest];
+  }, [selected, vehicles]);
   return /* @__PURE__ */ jsxRuntime.jsxs(Section, { className: "sb-vcatalog", id: anchorId || void 0, children: [
     heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: heading }) : null,
     showFilters ? /* @__PURE__ */ jsxRuntime.jsx(
@@ -3358,6 +3744,7 @@ function VehicleCatalog({
         onTelegramLink,
         initialFrom: filters.availableFrom,
         initialTo: filters.availableTo,
+        unitIds: selectedUnitIds,
         onClose: () => setSelected(null)
       }
     ) : null

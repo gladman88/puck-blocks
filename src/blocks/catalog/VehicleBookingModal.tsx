@@ -2,7 +2,18 @@ import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type Touc
 import { createPortal } from 'react-dom';
 import { categoryLabel, type CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
-import { formatShortDate, money, nextDay, openNativeDatePicker, todayISO } from './dates';
+import {
+  daysBetween,
+  formatDDMMYYYY,
+  formatDayMonth,
+  formatDayMonthRange,
+  formatShortDate,
+  money,
+  pluralDays,
+  todayISO,
+} from './dates';
+import { AvailabilityCalendar } from './AvailabilityCalendar';
+import { busyDaysIn, isDayBusy, maxReturnDay, unitCovering, type UnitAvailability } from './availability';
 import { DeliveryAddressSection, type PickedLocation, type DeliveryCost } from './DeliveryAddressSection';
 import { buildSpecRows, type VehicleSpecs } from './specs';
 import { formatDayPrice } from './price';
@@ -134,6 +145,31 @@ const S = {
     deliveryCostLoading: 'Считаем стоимость…',
     deliveryCostByRequest: 'по запросу',
     deliveryCostTotal: 'Доставка и приёмка',
+    // Календарь занятости на шаге «Как забронировать?» (владелец 2026-10-09).
+    datePlaceholder: 'Выберите',
+    datesTitle: 'Даты аренды',
+    datesEdit: 'Изменить',
+    legendFree: 'свободно',
+    legendBusy: 'занято',
+    legendYours: 'ваши даты',
+    calPickStart: 'Выберите день получения.',
+    calPickup: 'Получение',
+    calPickReturn: 'Теперь выберите возврат',
+    calFreeUntil: 'свободна до',
+    calStartBusy: 'модель занята. Выберите день возврата.',
+    calFree: 'свободна на эти даты',
+    calSelected: 'Выбрано',
+    calBusyDays: 'Модель занята:',
+    calNoUnit: 'На весь срок свободной машины нет',
+    // Занятый срок: заявка та же, меняются только слова.
+    askHint: 'На эти даты подберём замену',
+    tgAsk: 'Подобрать через Telegram',
+    tgAskSub: 'Напишем, что свободно на ваши даты',
+    manualAsk: 'Оставить WhatsApp',
+    manualAskSub: 'Менеджер подберёт машину и ответит',
+    successBusyTitle: 'Запрос получен!',
+    successBusyText: (vehicleName: string, dates: string) =>
+      `${vehicleName} на ${dates} занята. Менеджер подберёт варианты и свяжется с вами.`,
   },
   en: {
     close: 'Close',
@@ -196,6 +232,29 @@ const S = {
     deliveryCostLoading: 'Calculating price…',
     deliveryCostByRequest: 'on request',
     deliveryCostTotal: 'Delivery & collection',
+    datePlaceholder: 'Select',
+    datesTitle: 'Rental dates',
+    datesEdit: 'Change',
+    legendFree: 'available',
+    legendBusy: 'booked',
+    legendYours: 'your dates',
+    calPickStart: 'Choose the pick-up day.',
+    calPickup: 'Pick-up',
+    calPickReturn: 'Now choose the return day',
+    calFreeUntil: 'available until',
+    calStartBusy: '— the model is booked. Choose the return day.',
+    calFree: 'available for these dates',
+    calSelected: 'Selected',
+    calBusyDays: 'The model is booked:',
+    calNoUnit: 'No vehicle is free for the whole period',
+    askHint: "We'll find a replacement for these dates",
+    tgAsk: 'Find one via Telegram',
+    tgAskSub: "We'll message you what is free for your dates",
+    manualAsk: 'Leave your WhatsApp',
+    manualAskSub: 'A manager will find a vehicle and reply',
+    successBusyTitle: 'Request received!',
+    successBusyText: (vehicleName: string, dates: string) =>
+      `${vehicleName} is booked for ${dates}. A manager will find options and contact you.`,
   },
 } as const;
 
@@ -245,6 +304,49 @@ async function fetchDeliveryQuote(apiBase: string, location: PickedLocation): Pr
   }
 }
 
+/** Занятость экземпляров модели — один запрос при открытии окна. Любая неудача
+ *  (сеть, 4xx/5xx, старый бэкенд без ручки — 404, чужая форма ответа) → `[]`:
+ *  календарь работает без зачёркиваний, заявки уходят как раньше. Экземпляры
+ *  возвращаются в порядке `ids` — он задаёт, какую машину брать первой. */
+async function fetchAvailability(
+  apiBase: string,
+  ids: string[],
+): Promise<{ units: UnitAvailability[]; today: string | null }> {
+  try {
+    const res = await fetch(
+      `${apiBase}/api/v1/catalog/availability/?vehicle_ids=${ids.map(encodeURIComponent).join(',')}`,
+      { headers: HEADERS },
+    );
+    if (!res.ok) return { units: [], today: null };
+    const j = (await res.json()) as { units?: unknown; today?: unknown } | null;
+    if (!j || !Array.isArray(j.units)) return { units: [], today: null };
+    const byId = new Map<string, UnitAvailability>();
+    for (const raw of j.units as Array<Partial<UnitAvailability> | null>) {
+      if (!raw || typeof raw.vehicle_id !== 'string' || !Array.isArray(raw.busy)) continue;
+      byId.set(raw.vehicle_id, {
+        vehicle_id: raw.vehicle_id,
+        busy: raw.busy.filter(
+          (b) => Boolean(b) && typeof b.start === 'string' && typeof b.end === 'string' && b.start < b.end,
+        ),
+      });
+    }
+    return {
+      units: ids.map((id) => byId.get(id)).filter((u): u is UnitAvailability => Boolean(u)),
+      today: typeof j.today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(j.today) ? j.today : null,
+    };
+  } catch {
+    return { units: [], today: null };
+  }
+}
+
+/** Потолок ручки занятости (`vehicle_ids` > 20 → 400). */
+const MAX_AVAILABILITY_IDS = 20;
+
+/** «…10 окт.» уже кончается точкой, «…10 мая» / “10 Oct” — нет. */
+function withPeriod(text: string): string {
+  return text.endsWith('.') ? text : `${text}.`;
+}
+
 /** Telegram Mini App user, forwarded by the HOST app from its own
  *  `window.Telegram.WebApp.initData` — this component never reads
  *  `window.Telegram` itself (see VehicleCatalogProps.telegramUser). */
@@ -281,10 +383,16 @@ interface Props {
    *  tab instead so the catalog stays alive to poll for confirmation. */
   onTelegramLink?: (url: string) => void;
   /** Dates the customer already picked in the catalog filter (ISO YYYY-MM-DD).
-   *  Seed the booking form so they don't re-enter them — clamped to this
-   *  vehicle's earliest bookable day; absent → today / next-day defaults. */
+   *  Seed the booking step so they don't re-enter them — only when BOTH came
+   *  and the start is not in the past; otherwise the period starts empty (no
+   *  "today – tomorrow" default: the customer picks it in the calendar). */
   initialFrom?: string;
   initialTo?: string;
+  /** Ids of ALL physical units of this model (the catalog card groups them).
+   *  The availability calendar strikes a day out only when every unit is busy,
+   *  and the request goes to a unit that is free for the whole period. Absent →
+   *  just this vehicle. */
+  unitIds?: string[];
   onClose: () => void;
 }
 
@@ -325,6 +433,7 @@ export function VehicleBookingModal({
   onTelegramLink,
   initialFrom,
   initialTo,
+  unitIds,
   onClose,
 }: Props) {
   const t = S[locale];
@@ -333,17 +442,32 @@ export function VehicleBookingModal({
   const [gi, setGi] = useState(0);
   const [specsExpanded, setSpecsExpanded] = useState(false);
 
-  const minStart =
-    !vehicle.is_available && vehicle.free_from && vehicle.free_from > todayISO()
-      ? vehicle.free_from
-      : todayISO();
+  // «Сегодня» — по ответу ручки занятости (Пхукет), пока она не пришла — по устройству.
+  const [serverToday, setServerToday] = useState<string | null>(null);
+  const today = serverToday ?? todayISO();
   // Seed from the catalog filter's picked dates (so the customer doesn't
-  // re-enter them), clamped to this vehicle's earliest bookable day. The
-  // return date is kept only if it's still after the (possibly clamped) start.
-  const seedStart = initialFrom && initialFrom >= minStart ? initialFrom : minStart;
-  const seedEnd = initialTo && initialTo > seedStart ? initialTo : nextDay(seedStart);
-  const [start, setStart] = useState(seedStart);
-  const [end, setEnd] = useState(seedEnd);
+  // re-enter them) — only a complete, still-bookable pair. No clamping and no
+  // default period: an empty period keeps both booking buttons disabled.
+  const [seeded] = useState(() =>
+    Boolean(initialFrom && initialTo && initialFrom >= todayISO() && initialTo > initialFrom),
+  );
+  const [start, setStart] = useState(seeded ? initialFrom! : '');
+  const [end, setEnd] = useState(seeded ? initialTo! : '');
+  // Availability of every unit of the model, `vehicle.id` first — the order
+  // decides which unit a free period is booked on.
+  const availabilityIds = [vehicle.id, ...(unitIds ?? []).filter((id) => id && id !== vehicle.id)].slice(
+    0,
+    MAX_AVAILABILITY_IDS,
+  );
+  const availabilityKey = availabilityIds.join(',');
+  const [units, setUnits] = useState<UnitAvailability[]>([]);
+  // Занятость ещё грузится (≠ «неизвестна»): до ответа или ошибки кнопки брони выключены.
+  const [availLoading, setAvailLoading] = useState(true);
+  // Seeded dates start collapsed into one row; «Изменить» (or a seeded period
+  // that turned out busy) opens the calendar for good.
+  const [datesExpanded, setDatesExpanded] = useState(!seeded);
+  // Whether the request that led to the success screen was for busy dates.
+  const [successBusy, setSuccessBusy] = useState(false);
   // Prefill the name from the Telegram Mini App user, if the host passed one
   // — still just a starting point, editable. The contact field is WhatsApp-
   // only now (2026-09-14: Telegram was removed from this manual form — see
@@ -528,12 +652,35 @@ export function VehicleBookingModal({
     };
   }, [apiBase, vehicle.id]);
 
-  // Keep end strictly after start.
   useEffect(() => {
-    if (start && (!end || end <= start)) setEnd(nextDay(start));
-  }, [start, end]);
+    let cancelled = false;
+    setUnits([]);
+    setAvailLoading(true);
+    fetchAvailability(apiBase, availabilityKey.split(',')).then((r) => {
+      if (cancelled) return;
+      setUnits(r.units);
+      setServerToday(r.today);
+      setAvailLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, availabilityKey]);
 
-  const datesValid = Boolean(start && end && start >= minStart && end > start);
+  const datesValid = Boolean(start && end && start >= today && end > start);
+  // The unit that is free for the whole period (null — nobody, or no data).
+  const coveringUnitId = datesValid ? unitCovering(units, start, end) : null;
+  // Busy period: the customer is NOT stopped — the same request goes out as a
+  // "find me a replacement" one (owner 2026-10-09). Unknown availability
+  // (`units` empty) is never a conflict.
+  const conflict = datesValid && units.length > 0 && coveringUnitId === null;
+  const bookingVehicleId = coveringUnitId ?? vehicle.id;
+  const datesCollapsed = !datesExpanded && datesValid && !conflict;
+
+  // A seeded period that turned out busy opens the calendar — and it stays open.
+  useEffect(() => {
+    if (conflict) setDatesExpanded(true);
+  }, [conflict]);
 
   // Shared by both booking paths (manual form + 1-click Telegram) — the
   // catalog-picked accessory selection in the {accessory_id, quantity} shape
@@ -606,7 +753,7 @@ export function VehicleBookingModal({
         method: 'POST',
         headers: { 'content-type': 'application/json', ...HEADERS },
         body: JSON.stringify({
-          vehicle_id: vehicle.id,
+          vehicle_id: bookingVehicleId,
           start_date: start,
           end_date: end,
           customer_name: name.trim(),
@@ -624,6 +771,10 @@ export function VehicleBookingModal({
         }),
       });
       if (res.ok) {
+        // The server decides at creation time (`dates_busy`); an older backend
+        // without the field → what the calendar showed when the form was sent.
+        const body = (await res.json().catch(() => null)) as { dates_busy?: unknown } | null;
+        setSuccessBusy(typeof body?.dates_busy === 'boolean' ? body.dates_busy : conflict);
         setStage('success');
       } else {
         setErr(res.status === 429 ? t.tooMany : t.sendErr);
@@ -699,6 +850,9 @@ export function VehicleBookingModal({
     tgSubmittingRef.current = true;
     setTgSubmitting(true);
     setTgErr('');
+    // The booking is created out-of-band by the bot — the success screen (shown
+    // once the intent is redeemed) goes by what the calendar showed at the tap.
+    setSuccessBusy(conflict);
     let popup: Window | null = null;
     try {
       // Browser fallback opens the bot in a NEW tab, so the catalog stays alive
@@ -710,7 +864,7 @@ export function VehicleBookingModal({
         method: 'POST',
         headers: { 'content-type': 'application/json', ...HEADERS },
         body: JSON.stringify({
-          vehicle_id: vehicle.id,
+          vehicle_id: bookingVehicleId,
           start_date: start,
           end_date: end,
           ...(referralCode ? { referral_code: referralCode } : {}),
@@ -879,6 +1033,49 @@ export function VehicleBookingModal({
     );
   };
 
+  // Status line under the calendar — one sentence about the current selection.
+  const renderDatesStatus = () => {
+    const days = datesValid ? pluralDays(daysBetween(start, end), locale) : '';
+    let text: string;
+    let tone = '';
+    if (!start) {
+      text = t.calPickStart;
+    } else if (!datesValid) {
+      const day = formatDayMonth(start, locale);
+      if (isDayBusy(units, start)) {
+        text = `${day} ${t.calStartBusy}`;
+        tone = 'is-warn';
+      } else {
+        const limit = maxReturnDay(units, start);
+        text =
+          `${withPeriod(`${t.calPickup} ${day}`)} ` +
+          withPeriod(
+            limit ? `${t.calPickReturn} — ${t.calFreeUntil} ${formatDayMonth(limit, locale)}` : t.calPickReturn,
+          );
+      }
+    } else if (conflict) {
+      const busy = busyDaysIn(units, start, end).map(([a, b]) => formatDayMonthRange(a, b, locale));
+      text =
+        `${t.calSelected} ${formatDayMonthRange(start, end, locale)} · ${withPeriod(days)} ` +
+        (busy.length > 0 ? `${t.calBusyDays} ${busy.join(', ')}` : t.calNoUnit);
+      tone = 'is-warn';
+    } else {
+      // "Free" is claimed only when availability is actually known.
+      const parts = [
+        ...(datesCollapsed ? [] : [`${formatDayMonth(start, locale)} → ${formatDayMonth(end, locale)}`]),
+        days,
+        ...(units.length > 0 ? [t.calFree] : []),
+      ];
+      text = parts.join(' · ');
+      if (units.length > 0) tone = 'is-ok';
+    }
+    return (
+      <p className={`sb-avcal__status ${tone}`} aria-live="polite">
+        {text}
+      </p>
+    );
+  };
+
   return createPortal(
     // Wrap in .sb-root so the design tokens (--sb-*) cascade into the portal,
     // which lives outside the page's .sb-root.
@@ -916,8 +1113,15 @@ export function VehicleBookingModal({
               <div className="sb-modal__check" aria-hidden>
                 ✓
               </div>
-              <h3>{t.successTitle}</h3>
-              <p>{t.successText}</p>
+              <h3>{successBusy ? t.successBusyTitle : t.successTitle}</h3>
+              <p>
+                {successBusy
+                  ? t.successBusyText(
+                      d.display_name,
+                      `${formatShortDate(start, locale)} – ${formatShortDate(end, locale)}`,
+                    )
+                  : t.successText}
+              </p>
               <button type="button" className="sb-btn" onClick={onClose}>
                 OK
               </button>
@@ -1049,9 +1253,10 @@ export function VehicleBookingModal({
                       type="button"
                       className="sb-vd__avail-btn"
                       onClick={() => {
-                        const from = d.free_from!;
-                        setStart(from);
-                        if (end <= from) setEnd(nextDay(from));
+                        // New start, the return day is picked in the calendar.
+                        setStart(d.free_from!);
+                        setEnd('');
+                        setDatesExpanded(true);
                       }}
                     >
                       {t.bookFrom} {d.free_from}
@@ -1224,29 +1429,79 @@ export function VehicleBookingModal({
                   read-only summary anymore. Same interactive carousel. */}
               {renderAccessories()}
 
-              <div className="sb-vd__dates">
-                <label>
-                  {t.dateGet}
-                  <input
-                    type="date"
-                    className="sb-input"
-                    value={start}
-                    min={minStart}
-                    onClick={(e) => openNativeDatePicker(e.currentTarget)}
-                    onChange={(e) => setStart(e.target.value)}
-                  />
-                </label>
-                <label>
-                  {t.dateReturn}
-                  <input
-                    type="date"
-                    className="sb-input"
-                    value={end}
-                    min={nextDay(start)}
-                    onClick={(e) => openNativeDatePicker(e.currentTarget)}
-                    onChange={(e) => setEnd(e.target.value)}
-                  />
-                </label>
+              {/* Dates: two read-only value fields + the availability calendar
+                  (no native date inputs — the customer must SEE which days the
+                  model is taken). Dates seeded from the catalog filter and free
+                  → one collapsed row, like the filter's own compact panel. */}
+              <div className={`sb-avcal-block${datesCollapsed ? ' is-collapsed' : ''}`}>
+                {datesCollapsed ? (
+                  <div className="sb-filterbar__availability is-ready is-compact sb-avcal__summary">
+                    <div className="sb-filterbar__availability-compact">
+                      <div className="sb-filterbar__availability-summary">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                          <rect x="3" y="4" width="18" height="18" rx="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                        <span className="sb-filterbar__availability-title">{t.datesTitle}</span>
+                        <span className="sb-filterbar__availability-range">
+                          {formatDDMMYYYY(start)} — {formatDDMMYYYY(end)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="sb-filterbar__availability-edit"
+                        onClick={() => setDatesExpanded(true)}
+                      >
+                        {t.datesEdit}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="sb-vd__dates">
+                      <div className="sb-avcal__field">
+                        <span>{t.dateGet}</span>
+                        <span className={`sb-input sb-avcal__value${start ? '' : ' is-placeholder'}`}>
+                          {start ? formatDDMMYYYY(start) : t.datePlaceholder}
+                        </span>
+                      </div>
+                      <div className="sb-avcal__field">
+                        <span>{t.dateReturn}</span>
+                        <span className={`sb-input sb-avcal__value${end ? '' : ' is-placeholder'}`}>
+                          {end ? formatDDMMYYYY(end) : t.datePlaceholder}
+                        </span>
+                      </div>
+                    </div>
+                    <AvailabilityCalendar
+                      units={units}
+                      today={today}
+                      start={start}
+                      end={end}
+                      locale={locale}
+                      onChange={(nextStart, nextEnd) => {
+                        setStart(nextStart);
+                        setEnd(nextEnd);
+                      }}
+                    />
+                    <div className="sb-avcal__legend">
+                      <span>
+                        <i className="sb-avcal__legend-free" aria-hidden>9</i>
+                        {t.legendFree}
+                      </span>
+                      <span>
+                        <i className="sb-avcal__legend-busy" aria-hidden>12</i>
+                        {t.legendBusy}
+                      </span>
+                      <span>
+                        <i className="sb-avcal__legend-yours" aria-hidden>14</i>
+                        {t.legendYours}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {renderDatesStatus()}
               </div>
 
               {/* Delivery/collection by address (Stage 6) — moved here from the
@@ -1305,18 +1560,21 @@ export function VehicleBookingModal({
               />
 
               <div className="sb-vd__book-actions">
+                {conflict ? <p className="sb-avcal__ask">{t.askHint}</p> : null}
                 <button
                   type="button"
                   className="sb-vd__tg-card"
-                  disabled={!datesValid || tgSubmitting}
+                  disabled={!datesValid || availLoading || tgSubmitting}
                   onClick={handleTelegramBooking}
                 >
                   <span className="sb-vd__tg-icon" aria-hidden>
                     ✈
                   </span>
                   <span className="sb-vd__tg-text">
-                    <span className="sb-vd__tg-title">{t.tgQuick}</span>
-                    <span className="sb-vd__tg-sub">{tgSubmitting ? t.loading : t.tgQuickSub}</span>
+                    <span className="sb-vd__tg-title">{conflict ? t.tgAsk : t.tgQuick}</span>
+                    <span className="sb-vd__tg-sub">
+                      {tgSubmitting ? t.loading : conflict ? t.tgAskSub : t.tgQuickSub}
+                    </span>
                   </span>
                   <span className="sb-vd__tg-arrow" aria-hidden>
                     ›
@@ -1329,15 +1587,15 @@ export function VehicleBookingModal({
                 <button
                   type="button"
                   className="sb-vd__option-card"
-                  disabled={!datesValid}
+                  disabled={!datesValid || availLoading}
                   onClick={() => setStage('form')}
                 >
                   <span className="sb-vd__option-icon" aria-hidden>
                     ✎
                   </span>
                   <span className="sb-vd__tg-text">
-                    <span className="sb-vd__tg-title">{t.manual}</span>
-                    <span className="sb-vd__tg-sub">{t.manualSub}</span>
+                    <span className="sb-vd__tg-title">{conflict ? t.manualAsk : t.manual}</span>
+                    <span className="sb-vd__tg-sub">{conflict ? t.manualAskSub : t.manualSub}</span>
                   </span>
                   <span className="sb-vd__tg-arrow" aria-hidden>
                     ›

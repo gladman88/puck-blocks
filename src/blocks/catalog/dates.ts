@@ -77,3 +77,64 @@ export function formatShortDate(isoDate: string, lang: 'en' | 'ru'): string {
     timeZone: 'UTC',
   });
 }
+
+/** «4 дня» / “4 days” — число со склонённым словом «день». */
+export function pluralDays(n: number, lang: 'en' | 'ru'): string {
+  if (lang === 'en') return `${n} ${n === 1 ? 'day' : 'days'}`;
+  const a = Math.abs(n) % 10;
+  const b = Math.abs(n) % 100;
+  const word = a === 1 && b !== 11 ? 'день' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'дня' : 'дней';
+  return `${n} ${word}`;
+}
+
+function utcDate(isoDate: string): Date | null {
+  if (!isoDate) return null;
+  const [y, m, d] = isoDate.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+const dayMonthFormatters: Partial<Record<'en' | 'ru', Intl.DateTimeFormat>> = {};
+function dayMonthParts(date: Date, lang: 'en' | 'ru'): { day: string; month: string } {
+  const fmt = (dayMonthFormatters[lang] ??= new Intl.DateTimeFormat(lang === 'ru' ? 'ru-RU' : 'en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }));
+  const parts = fmt.formatToParts(date);
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return { day: part('day'), month: part('month') };
+}
+
+/** Короткая дата без года: «1 нояб.» / “1 Nov”. Вход — ISO `YYYY-MM-DD`. */
+export function formatDayMonth(isoDate: string, lang: 'en' | 'ru'): string {
+  const date = utcDate(isoDate);
+  if (!date) return '';
+  const { day, month } = dayMonthParts(date, lang);
+  return `${day} ${month}`;
+}
+
+/** Короткий промежуток: «1–5 нояб.» в одном месяце, «30 окт. – 2 нояб.» в разных,
+ *  одна дата — если концы совпали. */
+export function formatDayMonthRange(fromISO: string, toISO: string, lang: 'en' | 'ru'): string {
+  const from = utcDate(fromISO);
+  const to = utcDate(toISO);
+  if (!from || !to) return '';
+  if (fromISO === toISO) return formatDayMonth(fromISO, lang);
+  const sameMonth =
+    from.getUTCFullYear() === to.getUTCFullYear() && from.getUTCMonth() === to.getUTCMonth();
+  if (sameMonth) {
+    const a = dayMonthParts(from, lang);
+    const b = dayMonthParts(to, lang);
+    return `${a.day}–${b.day} ${b.month}`;
+  }
+  return `${formatDayMonth(fromISO, lang)} – ${formatDayMonth(toISO, lang)}`;
+}
+
+/** Число дней между двумя ISO-датами (`to` − `from`). */
+export function daysBetween(fromISO: string, toISO: string): number {
+  const from = utcDate(fromISO);
+  const to = utcDate(toISO);
+  if (!from || !to) return 0;
+  return Math.round((to.getTime() - from.getTime()) / 86400000);
+}

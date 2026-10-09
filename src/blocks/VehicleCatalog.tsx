@@ -238,13 +238,19 @@ interface VehicleGroup {
   availableCount: number;
 }
 
+/** One card = one model: identical units share brand/model/year/colour. The
+ *  SAME key decides which units' availability the booking calendar merges. */
+export function vehicleGroupKey(v: Pick<CatalogVehicle, 'brand' | 'model' | 'year' | 'color'>): string {
+  return `${v.brand}:${v.model}:${v.year ?? ''}:${v.color ?? ''}`;
+}
+
 // Group identical units (same brand/model/year/colour) into one card, mirroring
 // frontend_catalog: the card shows a representative + a count, not one card per
 // physical unit.
 function groupVehicles(vehicles: CatalogVehicle[]): VehicleGroup[] {
   const groups = new Map<string, CatalogVehicle[]>();
   for (const v of vehicles) {
-    const key = `${v.brand}:${v.model}:${v.year ?? ''}:${v.color ?? ''}`;
+    const key = vehicleGroupKey(v);
     const existing = groups.get(key);
     if (existing) existing.push(v);
     else groups.set(key, [v]);
@@ -560,6 +566,21 @@ export function VehicleCatalog({
     return [...regularOrder].sort((a, b) => Number(b.availableCount > 0) - Number(a.availableCount > 0));
   }, [groups, showFilters, filters.availableOnly, filters.availableFrom, filters.availableTo, filters.sort]);
 
+  // Every physical unit of the opened model, from the list already loaded (no
+  // extra request) — the booking calendar strikes a day out only when ALL of
+  // them are busy.
+  const selectedUnitIds = useMemo(() => {
+    if (!selected) return undefined;
+    const key = vehicleGroupKey(selected);
+    // Открытая машина первой, остальные — от дешёвой к дорогой (null — в конец), при равенстве — как в списке.
+    const rest = vehicles
+      .filter((v) => vehicleGroupKey(v) === key && v.id !== selected.id)
+      .map((v, i) => ({ v, i }))
+      .sort((a, b) => (a.v.min_price_per_day ?? Infinity) - (b.v.min_price_per_day ?? Infinity) || a.i - b.i)
+      .map(({ v }) => v.id);
+    return [selected.id, ...rest];
+  }, [selected, vehicles]);
+
   return (
     <Section className="sb-vcatalog" id={anchorId || undefined}>
       {heading ? <h2 className="sb-h2">{heading}</h2> : null}
@@ -669,6 +690,7 @@ export function VehicleCatalog({
           onTelegramLink={onTelegramLink}
           initialFrom={filters.availableFrom}
           initialTo={filters.availableTo}
+          unitIds={selectedUnitIds}
           onClose={() => setSelected(null)}
         />
       ) : null}

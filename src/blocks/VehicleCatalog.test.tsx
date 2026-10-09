@@ -177,6 +177,17 @@ describe('VehicleCatalog', () => {
     await screen.findByText('Указать WhatsApp вручную');
     expect(screen.queryByText('Отправить запрос')).toBeNull();
 
+    // No period picked yet → both booking buttons are inactive (no more
+    // "today – tomorrow" default); the period is picked in the calendar.
+    expect((screen.getByText('Указать WhatsApp вручную').closest('button') as HTMLButtonElement).disabled).toBe(true);
+    const days = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.sb-avcal__day:not(.is-outside) .sb-avcal__day-button'),
+    ).filter((b) => !b.disabled);
+    fireEvent.click(days[0]);
+    fireEvent.click(document.querySelector('.sb-avcal__nav--next')!);
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.sb-avcal__day:not(.is-outside) .sb-avcal__day-button')!);
+    expect((screen.getByText('Указать WhatsApp вручную').closest('button') as HTMLButtonElement).disabled).toBe(false);
+
     // step 3 (form): the manual request form
     fireEvent.click(screen.getByText('Указать WhatsApp вручную'));
     expect(await screen.findByText('Отправить запрос')).toBeTruthy();
@@ -185,6 +196,70 @@ describe('VehicleCatalog', () => {
     fireEvent.click(screen.getByText(/Назад/));
     await screen.findByText('Указать WhatsApp вручную');
     expect(screen.queryByText('Отправить запрос')).toBeNull();
+  });
+
+  it('the booking modal asks availability for EVERY unit of the opened model, and only when it opens', async () => {
+    const secondUnit = { ...vehicle, id: 'v2' };
+    const otherModel = { ...vehicle, id: 'v3', model: 'X5', display_name: 'BMW X5' };
+    const fetchMock = vi.fn((url: string) => {
+      const u = String(url);
+      const body = u.includes('/categories/')
+        ? [cat]
+        : u.includes('/availability/')
+          ? { today: '2026-10-09', units: [] }
+          : /\/vehicles\/[^/]+\/$/.test(u)
+            ? { ...vehicle, gallery_images: [], advantages: [], options: [], deposits: [], pricing_table: [] }
+            : [vehicle, secondUnit, otherModel];
+      return Promise.resolve(
+        new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } }),
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const availabilityCalls = () => fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.includes('/availability/'));
+
+    const { container } = render(<VehicleCatalog vehicleType="car" apiBase="" />);
+    await screen.findByText('BMW Z4');
+    expect(availabilityCalls()).toHaveLength(0); // the list itself never asks
+
+    const card = Array.from(container.querySelectorAll('button.sb-vcard')).find((c) => c.textContent?.includes('BMW Z4'))!;
+    fireEvent.click(card);
+    await screen.findByText('Забронировать');
+    await waitFor(() => expect(availabilityCalls()).toHaveLength(1));
+    expect(availabilityCalls()[0]).toBe('/api/v1/catalog/availability/?vehicle_ids=v1,v2');
+  });
+
+  it('unitIds: opened unit first, the rest cheapest first', async () => {
+    // Группа из пяти экземпляров; карточка группы открывает самый дешёвый свободный (v3).
+    const units = [
+      { ...vehicle, id: 'v1', min_price_per_day: 5000 },
+      { ...vehicle, id: 'v2', min_price_per_day: 9000 },
+      { ...vehicle, id: 'v3', min_price_per_day: 3000 },
+      { ...vehicle, id: 'v4', min_price_per_day: null },
+      { ...vehicle, id: 'v5', min_price_per_day: 5000 },
+    ];
+    const fetchMock = vi.fn((url: string) => {
+      const u = String(url);
+      const body = u.includes('/categories/')
+        ? [cat]
+        : u.includes('/availability/')
+          ? { today: '2026-10-09', units: [] }
+          : /\/vehicles\/[^/]+\/$/.test(u)
+            ? { ...vehicle, gallery_images: [], advantages: [], options: [], deposits: [], pricing_table: [] }
+            : units;
+      return Promise.resolve(
+        new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } }),
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { container } = render(<VehicleCatalog vehicleType="car" apiBase="" />);
+    await screen.findByText('BMW Z4');
+    const card = Array.from(container.querySelectorAll('button.sb-vcard')).find((c) => c.textContent?.includes('BMW Z4'))!;
+    fireEvent.click(card);
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.map(([u]) => String(u)).some((u) => u.includes('/availability/'))).toBe(true),
+    );
+    const call = fetchMock.mock.calls.map(([u]) => String(u)).find((u) => u.includes('/availability/'))!;
+    expect(call).toBe('/api/v1/catalog/availability/?vehicle_ids=v3,v1,v5,v2,v4');
   });
 
   it('uses English labels when puck metadata locale is en', async () => {

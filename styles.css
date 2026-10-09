@@ -2813,6 +2813,272 @@ button.sb-lang__flag {
 .sb-vd__dates .sb-input {
   min-width: 0;
 }
+/* ── Availability calendar on the "How to book?" step ─────────────────────
+   Two read-only value fields, the calendar of the model's busy days, a legend
+   and a one-line status. Busy days are struck through but stay clickable: a
+   request for a busy period still goes out (as "find me a replacement"). */
+.sb-avcal-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.sb-vd__dates .sb-avcal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  font-size: 0.85rem;
+  color: var(--sb-text-muted);
+}
+.sb-avcal__value {
+  display: block;
+  overflow: hidden;
+  color: var(--sb-text-strong);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sb-avcal__value.is-placeholder {
+  color: var(--sb-text-muted);
+}
+/* The collapsed dates row reuses the catalog filter's compact panel markup, but
+   inside the modal it is a plain block — not a sticky bar over a list. */
+.sb-filterbar__availability.sb-avcal__summary {
+  position: static;
+  margin-bottom: 0;
+  box-shadow: none;
+}
+.sb-avcal__months {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+}
+.sb-avcal--two .sb-avcal__months {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+/* `navLayout="around"`: [prev?][caption][next?] then the day grid, all in flow.
+   With two months the first has only "prev" and the last only "next", so every
+   piece is pinned to its own column instead of relying on source order. */
+.sb-avcal__month {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  align-items: center;
+  /* Months of 5 and 6 weeks sit side by side: pin each to the top, or the
+     shorter one drifts down and its rows spread to fill the taller sibling. */
+  align-self: start;
+  align-content: start;
+  min-width: 0;
+}
+.sb-avcal__caption {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  margin-bottom: 0.4rem;
+}
+.sb-avcal__caption-label {
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.sb-avcal__nav {
+  grid-row: 1;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 0.4rem;
+  padding: 0;
+  border: 1px solid var(--sb-border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--sb-text-muted);
+  cursor: pointer;
+}
+.sb-avcal__nav--prev {
+  grid-column: 1;
+}
+.sb-avcal__nav--next {
+  grid-column: 3;
+}
+/* At the navigation bound react-day-picker marks the button aria-disabled
+   rather than disabled ("previous" on the current month). */
+.sb-avcal__nav[aria-disabled='true'] {
+  opacity: 0.3;
+  cursor: default;
+}
+/* react-day-picker's stylesheet is not shipped; the chevron has no own fill. */
+.sb-avcal__chevron {
+  width: 0.9rem;
+  height: 0.9rem;
+  fill: currentColor;
+}
+.sb-avcal__grid {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 2px;
+  table-layout: fixed;
+}
+.sb-avcal__weekday {
+  padding: 0.25rem 0;
+  color: #6b7280;
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-align: center;
+}
+.sb-avcal__day {
+  width: 14.285%;
+  padding: 0;
+  text-align: center;
+}
+.sb-avcal__day-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #fff;
+  font: 500 0.82rem var(--sb-font);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.sb-avcal__day-button:hover {
+  border-color: rgba(255, 204, 51, 0.5);
+}
+.sb-avcal__day-button:focus-visible,
+.sb-avcal__nav:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.sb-avcal__day.is-outside .sb-avcal__day-button {
+  visibility: hidden;
+}
+.sb-avcal__day.is-today .sb-avcal__day-button {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+/* Days past the latest possible return for the picked pick-up day: dimmed, but
+   still clickable. */
+.sb-avcal__day.is-unreachable .sb-avcal__day-button {
+  color: #5a5a5a;
+}
+.sb-avcal__day.is-busy .sb-avcal__day-button {
+  color: #666;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  background: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255, 255, 255, 0.05) 4px 6px);
+}
+.sb-avcal__day.is-disabled .sb-avcal__day-button {
+  border-color: transparent;
+  background: transparent;
+  color: #454545;
+  text-decoration: none;
+  cursor: default;
+}
+.sb-avcal__day.is-middle .sb-avcal__day-button {
+  border-radius: 0;
+  background: rgba(255, 204, 51, 0.15);
+  color: #fff;
+}
+.sb-avcal__day.is-start .sb-avcal__day-button,
+.sb-avcal__day.is-end .sb-avcal__day-button {
+  border-color: transparent;
+  background: var(--sb-accent);
+  color: var(--sb-accent-ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+/* A period no single unit covers: dashed outline instead of the accent fill. */
+.sb-avcal.is-conflict .sb-avcal__day.is-start .sb-avcal__day-button,
+.sb-avcal.is-conflict .sb-avcal__day.is-end .sb-avcal__day-button {
+  border: 1.5px dashed #fbbf24;
+  background: transparent;
+  color: #fbbf24;
+}
+.sb-avcal.is-conflict .sb-avcal__day.is-middle .sb-avcal__day-button {
+  background: rgba(251, 191, 36, 0.1);
+  color: #bdbdbd;
+}
+/* A busy day inside the picked period keeps its strike-through and hatching. */
+.sb-avcal .sb-avcal__day.is-busy.is-start .sb-avcal__day-button,
+.sb-avcal .sb-avcal__day.is-busy.is-end .sb-avcal__day-button,
+.sb-avcal .sb-avcal__day.is-busy.is-middle .sb-avcal__day-button {
+  color: #fbbf24;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  background: repeating-linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0 4px, rgba(251, 191, 36, 0.3) 4px 6px);
+}
+.sb-avcal__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+  color: var(--sb-text-muted);
+  font-size: 0.74rem;
+}
+.sb-avcal__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.sb-avcal__legend i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  font-size: 0.62rem;
+  font-style: normal;
+}
+.sb-avcal__legend-free {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+.sb-avcal__legend-busy {
+  color: #666;
+  text-decoration: line-through;
+  background: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255, 255, 255, 0.08) 4px 6px);
+}
+.sb-avcal__legend-yours {
+  background: var(--sb-accent);
+  color: var(--sb-accent-ink);
+}
+.sb-avcal__status {
+  min-height: 2.6em;
+  margin: 0;
+  color: var(--sb-text);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.sb-avcal-block.is-collapsed .sb-avcal__status {
+  min-height: 0;
+}
+.sb-avcal__status.is-ok {
+  color: #4ade80;
+}
+.sb-avcal__status.is-warn {
+  color: #fbbf24;
+}
+/* "We'll find a replacement" line above the two booking buttons. */
+.sb-avcal__ask {
+  margin: 0;
+  color: #fbbf24;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+@media (max-width: 640px) {
+  .sb-avcal--two .sb-avcal__months {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .sb-vd__tg {
   background: #229ed9;
   color: #fff;
