@@ -2491,6 +2491,7 @@ function VehicleBookingModal({
                         setStart(d.free_from);
                         setEnd("");
                         setDatesExpanded(true);
+                        setStage("choice");
                       },
                       children: [
                         t.bookFrom,

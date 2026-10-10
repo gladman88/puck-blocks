@@ -1257,6 +1257,7 @@ export function VehicleBookingModal({
                         setStart(d.free_from!);
                         setEnd('');
                         setDatesExpanded(true);
+                        setStage('choice');
                       }}
                     >
                       {t.bookFrom} {d.free_from}

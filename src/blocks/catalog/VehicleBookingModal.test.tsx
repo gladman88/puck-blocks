@@ -1535,7 +1535,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
     expect(button('1-click booking via Telegram').disabled).toBe(false);
   });
 
-  it('«Book from <date>» on the detail screen sets the pick-up day and clears the return day', async () => {
+  it('«Book from <date>» on the detail screen opens the booking step with that pick-up day and no return day', async () => {
     const busyVehicle: CatalogVehicle = { ...vehicle, is_available: false, free_from: '2026-10-14' };
     stubApi({ detail: { ...baseDetail, is_available: false, free_from: '2026-10-14' } });
     render(
@@ -1550,7 +1550,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
       />,
     );
     fireEvent.click(await screen.findByText('Book from 2026-10-14'));
-    fireEvent.click(screen.getByText('Book'));
+    // The button itself leads to the step with the calendar — no extra «Book» click.
     await screen.findByText('How to book?');
 
     // The seeded period is replaced: calendar open, return day to be picked.
