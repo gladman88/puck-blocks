@@ -1535,7 +1535,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
     expect(button('1-click booking via Telegram').disabled).toBe(false);
   });
 
-  it('«Book from <date>» on the detail screen opens the booking step with that pick-up day and no return day', async () => {
+  it('«Book» next to «Frees up <date>» on the detail screen opens the booking step with that pick-up day and no return day', async () => {
     const busyVehicle: CatalogVehicle = { ...vehicle, is_available: false, free_from: '2026-10-14' };
     stubApi({ detail: { ...baseDetail, is_available: false, free_from: '2026-10-14' } });
     render(
@@ -1549,7 +1549,11 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
         onClose={vi.fn()}
       />,
     );
-    fireEvent.click(await screen.findByText('Book from 2026-10-14'));
+    // The date is shown once, human-readable, in the status line; the button carries no date.
+    await screen.findByText('Frees up 14 October');
+    const bookFree = document.querySelector<HTMLButtonElement>('.sb-vd__avail-btn')!;
+    expect(bookFree.textContent).toBe('Book');
+    fireEvent.click(bookFree);
     // The button itself leads to the step with the calendar — no extra «Book» click.
     await screen.findByText('How to book?');
 
@@ -1759,6 +1763,13 @@ describe('VehicleBookingModal — specs from typed fields (CD-114)', () => {
     // В строке «30 дней» множителя нет — только «по тарифу 28+».
     expect(screen.getByText('по тарифу 28+')).toBeTruthy();
     expect(screen.queryByText(/30 ×/)).toBeNull();
+  });
+
+  it('labels the price table «current month», never the season name (owner data, Russian only)', async () => {
+    renderModal({ ...pricingDetail, pricing_season_name: 'Октябрь' }, 'en');
+    await screen.findByText('BMW Z4');
+    expect(screen.getByText('· current month')).toBeTruthy();
+    expect(screen.queryByText(/Октябрь/)).toBeNull();
   });
 
   it('hides the 30-day row when the API does not send price_30_days', async () => {

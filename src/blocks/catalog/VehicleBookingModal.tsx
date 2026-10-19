@@ -8,6 +8,7 @@ import {
   formatDayMonth,
   formatDayMonthRange,
   formatShortDate,
+  formatShortDateWithYear,
   money,
   pluralDays,
   todayISO,
@@ -101,8 +102,9 @@ const S = {
     days: 'дней',
     thirtyDays: '30 дней',
     thirtyDaysCalc: 'по тарифу 28+',
-    spansSeasons: 'Цены показаны за текущий сезон',
-    bookFrom: 'Забронировать с',
+    currentMonth: 'текущий месяц',
+    spansSeasons: 'Аренда захватывает несколько месяцев — в другие месяцы цены могут отличаться',
+    bookFrom: 'Забронировать',
     loading: 'Загрузка…',
     error: 'Не удалось загрузить',
     name: 'Ваше имя',
@@ -194,8 +196,9 @@ const S = {
     days: 'days',
     thirtyDays: '30 days',
     thirtyDaysCalc: 'at the 28+ rate',
-    spansSeasons: 'Prices shown for the current season',
-    bookFrom: 'Book from',
+    currentMonth: 'current month',
+    spansSeasons: 'Your rental covers several months — prices may differ in other months',
+    bookFrom: 'Book',
     loading: 'Loading…',
     error: 'Failed to load',
     name: 'Your name',
@@ -1245,7 +1248,7 @@ export function VehicleBookingModal({
                     {d.is_available
                       ? t.available
                       : d.free_from
-                        ? `${t.freesUp}: ${d.free_from}`
+                        ? `${t.freesUp} ${formatShortDateWithYear(d.free_from, locale)}`
                         : t.busy}
                   </span>
                   {!d.is_available && d.free_from && d.free_from !== start ? (
@@ -1260,7 +1263,7 @@ export function VehicleBookingModal({
                         setStage('choice');
                       }}
                     >
-                      {t.bookFrom} {d.free_from}
+                      {t.bookFrom}
                     </button>
                   ) : null}
                 </div>
@@ -1280,9 +1283,10 @@ export function VehicleBookingModal({
                   <div className="sb-vd__prices">
                     <div className="sb-vd__prices-head">
                       <span className="sb-vd__section-label">{t.prices}</span>
-                      {d.pricing_season_name ? (
-                        <span className="sb-vd__season">· {d.pricing_season_name}</span>
-                      ) : null}
+                      {/* The detail is fetched without dates, so the table is
+                          always today's season. The season's own name is owner
+                          data in Russian only — never shown to clients. */}
+                      <span className="sb-vd__season">· {t.currentMonth}</span>
                     </div>
                     <div className="sb-vd__prices-grid">
                       {d.pricing_table!.map((row, i) => (

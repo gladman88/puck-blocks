@@ -777,6 +777,12 @@ function formatShortDate(isoDate, lang) {
     timeZone: "UTC"
   });
 }
+function formatShortDateWithYear(isoDate, lang) {
+  const short = formatShortDate(isoDate, lang);
+  if (!short) return "";
+  const year = isoDate.slice(0, 4);
+  return year === todayISO().slice(0, 4) ? short : `${short} ${year}`;
+}
 function pluralDays(n, lang) {
   if (lang === "en") return `${n} ${n === 1 ? "day" : "days"}`;
   const a = Math.abs(n) % 10;
@@ -1647,8 +1653,9 @@ var S = {
     days: "\u0434\u043D\u0435\u0439",
     thirtyDays: "30 \u0434\u043D\u0435\u0439",
     thirtyDaysCalc: "\u043F\u043E \u0442\u0430\u0440\u0438\u0444\u0443 28+",
-    spansSeasons: "\u0426\u0435\u043D\u044B \u043F\u043E\u043A\u0430\u0437\u0430\u043D\u044B \u0437\u0430 \u0442\u0435\u043A\u0443\u0449\u0438\u0439 \u0441\u0435\u0437\u043E\u043D",
-    bookFrom: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441",
+    currentMonth: "\u0442\u0435\u043A\u0443\u0449\u0438\u0439 \u043C\u0435\u0441\u044F\u0446",
+    spansSeasons: "\u0410\u0440\u0435\u043D\u0434\u0430 \u0437\u0430\u0445\u0432\u0430\u0442\u044B\u0432\u0430\u0435\u0442 \u043D\u0435\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u043C\u0435\u0441\u044F\u0446\u0435\u0432 \u2014 \u0432 \u0434\u0440\u0443\u0433\u0438\u0435 \u043C\u0435\u0441\u044F\u0446\u044B \u0446\u0435\u043D\u044B \u043C\u043E\u0433\u0443\u0442 \u043E\u0442\u043B\u0438\u0447\u0430\u0442\u044C\u0441\u044F",
+    bookFrom: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
     loading: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026",
     error: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C",
     name: "\u0412\u0430\u0448\u0435 \u0438\u043C\u044F",
@@ -1739,8 +1746,9 @@ var S = {
     days: "days",
     thirtyDays: "30 days",
     thirtyDaysCalc: "at the 28+ rate",
-    spansSeasons: "Prices shown for the current season",
-    bookFrom: "Book from",
+    currentMonth: "current month",
+    spansSeasons: "Your rental covers several months \u2014 prices may differ in other months",
+    bookFrom: "Book",
     loading: "Loading\u2026",
     error: "Failed to load",
     name: "Your name",
@@ -2481,8 +2489,8 @@ function VehicleBookingModal({
                 ] }),
                 /* @__PURE__ */ jsxs("div", { className: `sb-vd__avail ${d.is_available ? "is-free" : "is-busy"}`, children: [
                   /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-dot", "aria-hidden": true }),
-                  /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-text", children: d.is_available ? t.available : d.free_from ? `${t.freesUp}: ${d.free_from}` : t.busy }),
-                  !d.is_available && d.free_from && d.free_from !== start ? /* @__PURE__ */ jsxs(
+                  /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-text", children: d.is_available ? t.available : d.free_from ? `${t.freesUp} ${formatShortDateWithYear(d.free_from, locale)}` : t.busy }),
+                  !d.is_available && d.free_from && d.free_from !== start ? /* @__PURE__ */ jsx(
                     "button",
                     {
                       type: "button",
@@ -2493,11 +2501,7 @@ function VehicleBookingModal({
                         setDatesExpanded(true);
                         setStage("choice");
                       },
-                      children: [
-                        t.bookFrom,
-                        " ",
-                        d.free_from
-                      ]
+                      children: t.bookFrom
                     }
                   ) : null
                 ] }),
@@ -2505,10 +2509,10 @@ function VehicleBookingModal({
                 (d.pricing_table ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices", children: [
                   /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices-head", children: [
                     /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.prices }),
-                    d.pricing_season_name ? /* @__PURE__ */ jsxs("span", { className: "sb-vd__season", children: [
+                    /* @__PURE__ */ jsxs("span", { className: "sb-vd__season", children: [
                       "\xB7 ",
-                      d.pricing_season_name
-                    ] }) : null
+                      t.currentMonth
+                    ] })
                   ] }),
                   /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices-grid", children: [
                     d.pricing_table.map((row, i) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__price-row", children: [

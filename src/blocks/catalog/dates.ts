@@ -78,6 +78,14 @@ export function formatShortDate(isoDate: string, lang: 'en' | 'ru'): string {
   });
 }
 
+/** «19 октября» / “19 October”; the year is added only when it isn't the current one. */
+export function formatShortDateWithYear(isoDate: string, lang: 'en' | 'ru'): string {
+  const short = formatShortDate(isoDate, lang);
+  if (!short) return '';
+  const year = isoDate.slice(0, 4);
+  return year === todayISO().slice(0, 4) ? short : `${short} ${year}`;
+}
+
 /** «4 дня» / “4 days” — число со склонённым словом «день». */
 export function pluralDays(n: number, lang: 'en' | 'ru'): string {
   if (lang === 'en') return `${n} ${n === 1 ? 'day' : 'days'}`;
