@@ -2360,8 +2360,12 @@ button.sb-lang__flag {
   color: var(--sb-text-muted);
 }
 .sb-vd__section-label--accent {
-  font-size: 0.9rem;
-  color: var(--sb-text-strong);
+  /* Same look as the step heading «Как забронировать?» (.sb-bk__title). */
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: normal;
+  color: inherit;
 }
 .sb-vd__prices {
   display: flex;
