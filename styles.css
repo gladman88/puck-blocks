@@ -2359,6 +2359,10 @@ button.sb-lang__flag {
   letter-spacing: 0.04em;
   color: var(--sb-text-muted);
 }
+.sb-vd__section-label--accent {
+  font-size: 0.9rem;
+  color: var(--sb-text-strong);
+}
 .sb-vd__prices {
   display: flex;
   flex-direction: column;

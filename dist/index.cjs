@@ -2232,7 +2232,7 @@ function VehicleBookingModal({
   const renderAccessories = () => {
     if (!d || (d.accessories ?? []).length === 0) return null;
     return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__accessories", children: [
-      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__section-label", children: t.accessories }),
+      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vd__section-label sb-vd__section-label--accent", children: t.accessories }),
       /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-acc__row", children: d.accessories.flatMap(
         (group) => group.items.map((item) => {
           const qty = accessories[item.id] || 0;
@@ -2619,7 +2619,6 @@ function VehicleBookingModal({
                   ] }) : null
                 ] })
               ] }),
-              renderAccessories(),
               /* @__PURE__ */ jsxRuntime.jsxs("div", { className: `sb-avcal-block${datesCollapsed ? " is-collapsed" : ""}`, children: [
                 datesCollapsed ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-filterbar__availability is-ready is-compact sb-avcal__summary", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__availability-compact", children: [
                   /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-filterbar__availability-summary", children: [
@@ -2687,6 +2686,7 @@ function VehicleBookingModal({
                 ] }),
                 renderDatesStatus()
               ] }),
+              renderAccessories(),
               /* @__PURE__ */ jsxRuntime.jsx(
                 DeliveryAddressSection,
                 {

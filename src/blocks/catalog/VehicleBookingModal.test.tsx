@@ -145,7 +145,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     expect(screen.getByText('Кресло')).toBeTruthy();
   });
 
-  it('the carousel sits directly under the vehicle, before the dates', async () => {
+  it('the carousel sits after the dates (vehicle → dates → add-ons)', async () => {
     const detail = {
       ...baseDetail,
       accessories: [
@@ -168,8 +168,8 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     const accessoriesIdx = children.indexOf('sb-vd__accessories');
     const datesIdx = children.indexOf('sb-avcal-block'); // value fields + calendar
     expect(vehicleIdx).toBeGreaterThanOrEqual(0);
-    expect(accessoriesIdx).toBeGreaterThan(vehicleIdx);
-    expect(datesIdx).toBeGreaterThan(accessoriesIdx);
+    expect(datesIdx).toBeGreaterThan(vehicleIdx);
+    expect(accessoriesIdx).toBeGreaterThan(datesIdx);
   });
 
   it('+ increases the quantity, sold-out items are marked and cannot be incremented', async () => {

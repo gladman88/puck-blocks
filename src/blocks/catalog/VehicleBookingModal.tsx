@@ -941,7 +941,7 @@ export function VehicleBookingModal({
     if (!d || (d.accessories ?? []).length === 0) return null;
     return (
       <div className="sb-vd__accessories">
-        <span className="sb-vd__section-label">{t.accessories}</span>
+        <span className="sb-vd__section-label sb-vd__section-label--accent">{t.accessories}</span>
         <div className="sb-acc__row">
           {d.accessories!.flatMap((group) =>
             group.items.map((item) => {
@@ -1427,13 +1427,6 @@ export function VehicleBookingModal({
                 </div>
               </div>
 
-              {/* Paid-accessory picker — moved here from the vehicle-detail
-                  screen (owner feedback 2026-07-16): the customer picks add-ons
-                  in the very place they choose how to book, right under the
-                  vehicle, so there's no separate detail-screen block and no
-                  read-only summary anymore. Same interactive carousel. */}
-              {renderAccessories()}
-
               {/* Dates: two read-only value fields + the availability calendar
                   (no native date inputs — the customer must SEE which days the
                   model is taken). Dates seeded from the catalog filter and free
@@ -1508,6 +1501,11 @@ export function VehicleBookingModal({
                 )}
                 {renderDatesStatus()}
               </div>
+
+              {/* Paid-accessory picker — after the dates (owner feedback
+                  2026-10-29): vehicle → dates → add-ons. Same interactive
+                  carousel. */}
+              {renderAccessories()}
 
               {/* Delivery/collection by address (Stage 6) — moved here from the
                   manual-form-only screen (owner feedback 2026-07-16: the
