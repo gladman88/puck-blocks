@@ -8,6 +8,11 @@ interface HeroProps {
     subheading?: string;
     /** Optional background image URL. */
     backgroundImage?: string;
+    /** Phone-only background video (HEVC first, H.264 fallback); desktop keeps the image. */
+    mobileVideoHevc?: string;
+    mobileVideo?: string;
+    /** Poster frame shown until the video plays (first frame of the video). */
+    mobileVideoPoster?: string;
     ctaLabel?: string;
     ctaHref?: string;
     /** Optional round social buttons shown next to the CTA. */
@@ -19,7 +24,7 @@ interface HeroProps {
  * an uppercase heading (one word accented) and a CTA row that can carry round
  * WhatsApp/Telegram buttons. Framework-neutral; styled by the shipped CSS.
  */
-declare function Hero({ heading, accentWord, subheading, backgroundImage, ctaLabel, ctaHref, whatsapp, telegram, }: HeroProps): react.JSX.Element;
+declare function Hero({ heading, accentWord, subheading, backgroundImage, mobileVideoHevc, mobileVideo, mobileVideoPoster, ctaLabel, ctaHref, whatsapp, telegram, }: HeroProps): react.JSX.Element;
 
 interface RichTextProps {
     /** Plain text. Blank lines separate paragraphs; single newlines are preserved. */

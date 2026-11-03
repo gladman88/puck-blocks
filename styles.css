@@ -164,6 +164,28 @@
   background-color: var(--sb-bg);
   background-size: cover;
   background-position: center;
+  font-family: var(--sb-hero-font, var(--sb-font));
+}
+.sb-hero__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.3s;
+  display: none;
+}
+@media (max-width: 767px) and (orientation: portrait) {
+  .sb-hero__video {
+    display: block;
+  }
+  .sb-hero--has-poster {
+    background-image: var(--sb-hero-poster, none) !important;
+  }
+}
+.sb-hero__video--playing {
+  opacity: 1;
 }
 .sb-hero__overlay {
   position: absolute;
@@ -190,12 +212,17 @@
   max-width: 52rem;
   text-transform: uppercase;
   text-wrap: balance;
+  overflow-wrap: break-word;
   /* Uppercase Cyrillic with Й/Ё carries a breve/diaeresis above the cap line —
      give the lines room so the accent never touches the row above. */
   line-height: 1.18;
+  font-weight: 650;
+  font-variation-settings: "opsz" 144;
+  letter-spacing: 0.023em;
 }
 .sb-hero__inner .sb-lead {
   max-width: 40rem;
+  font-weight: 400;
 }
 .sb-hero__accent {
   color: var(--sb-accent);

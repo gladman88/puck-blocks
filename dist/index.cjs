@@ -7,6 +7,8 @@ var reactDom = require('react-dom');
 var reactDayPicker = require('react-day-picker');
 var locale = require('react-day-picker/locale');
 
+// src/blocks/Hero.tsx
+
 // src/sanitize.ts
 var SAFE_HREF = /^(https?:\/\/|\/|#|mailto:|tel:)/i;
 var SAFE_IMAGE = /^(https?:\/\/|\/)/i;
@@ -60,6 +62,7 @@ function ContactIcon({ kind, className }) {
   }
   return /* @__PURE__ */ jsxRuntime.jsx("svg", { ...base, className: iconClass, "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" }) });
 }
+var HERO_VIDEO_MEDIA = "(max-width: 767px) and (orientation: portrait)";
 function renderHeading(heading, accent) {
   const word = accent?.trim();
   if (!word) return heading;
@@ -76,23 +79,117 @@ function Hero({
   accentWord,
   subheading,
   backgroundImage,
+  mobileVideoHevc,
+  mobileVideo,
+  mobileVideoPoster,
   ctaLabel,
   ctaHref,
   whatsapp,
   telegram
 }) {
   const bg = safeImageUrl(backgroundImage);
+  const hevc = safeImageUrl(mobileVideoHevc);
+  const h264 = safeImageUrl(mobileVideo);
+  const poster = safeImageUrl(mobileVideoPoster);
+  const hasVideo = Boolean(hevc || h264);
+  const videoRef = react.useRef(null);
+  const [playing, setPlaying] = react.useState(false);
+  react.useEffect(() => {
+    const video = videoRef.current;
+    if (!video || typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia(HERO_VIDEO_MEDIA);
+    const rm = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const allowed = () => {
+      if (!mq.matches) return false;
+      if (rm.matches) return false;
+      const conn = navigator.connection;
+      return !conn?.saveData;
+    };
+    const addSources = () => {
+      if (video.querySelector("source")) return;
+      const add = (src, type) => {
+        if (!src) return;
+        const el = document.createElement("source");
+        el.src = src;
+        el.type = type;
+        video.appendChild(el);
+      };
+      add(hevc, 'video/mp4; codecs="hvc1"');
+      add(h264, "video/mp4");
+      video.load();
+    };
+    const start = () => {
+      if (!allowed()) return;
+      addSources();
+      const p = video.play();
+      if (p && typeof p.catch === "function") p.catch(() => {
+      });
+    };
+    const onChange = () => {
+      if (mq.matches) start();
+      else video.pause();
+    };
+    const onReducedChange = () => {
+      if (rm.matches) video.pause();
+      else onChange();
+    };
+    const onPlaying = () => setPlaying(true);
+    const onError = () => setPlaying(false);
+    video.addEventListener("playing", onPlaying);
+    video.addEventListener("error", onError, true);
+    if (typeof mq.addEventListener === "function") mq.addEventListener("change", onChange);
+    else mq.addListener?.(onChange);
+    if (typeof rm.addEventListener === "function") rm.addEventListener("change", onReducedChange);
+    else rm.addListener?.(onReducedChange);
+    start();
+    return () => {
+      video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("error", onError, true);
+      if (typeof mq.removeEventListener === "function") mq.removeEventListener("change", onChange);
+      else mq.removeListener?.(onChange);
+      if (typeof rm.removeEventListener === "function") rm.removeEventListener("change", onReducedChange);
+      else rm.removeListener?.(onReducedChange);
+      video.pause();
+      video.querySelectorAll("source").forEach((el) => el.remove());
+      video.removeAttribute("src");
+      video.load();
+      setPlaying(false);
+    };
+  }, [hevc, h264]);
   const href = safeHref(ctaHref);
   const hasCta = Boolean(ctaLabel && href);
   const wa = safeHref(whatsapp);
   const tg = safeHref(telegram);
+  const hasPoster = hasVideo && Boolean(poster);
+  const style = {};
+  if (bg) style.backgroundImage = `url("${encodeURI(bg)}")`;
+  if (hasPoster && poster) style["--sb-hero-poster"] = `url("${encodeURI(poster)}")`;
   return /* @__PURE__ */ jsxRuntime.jsxs(
     "section",
     {
-      className: "sb-hero",
-      style: bg ? { backgroundImage: `url("${encodeURI(bg)}")` } : void 0,
+      className: ["sb-hero", hasVideo ? "sb-hero--has-video" : "", hasPoster ? "sb-hero--has-poster" : ""].filter(Boolean).join(" "),
+      style: bg || hasPoster ? style : void 0,
       children: [
-        bg ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-hero__overlay", "aria-hidden": "true" }) : null,
+        hasVideo ? (
+          // No src/<source> in server markup: the client adds them only on a phone,
+          // so desktop never downloads the file.
+          /* @__PURE__ */ jsxRuntime.jsx(
+            "video",
+            {
+              ref: videoRef,
+              className: playing ? "sb-hero__video sb-hero__video--playing" : "sb-hero__video",
+              muted: true,
+              playsInline: true,
+              loop: true,
+              autoPlay: true,
+              preload: "none",
+              poster: poster ? encodeURI(poster) : void 0,
+              "aria-hidden": "true",
+              tabIndex: -1
+            }
+          )
+        ) : null,
+        bg || hasVideo ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-hero__overlay", "aria-hidden": "true" }) : null,
         /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-hero__inner", children: [
           /* @__PURE__ */ jsxRuntime.jsx("h1", { className: "sb-h1", children: renderHeading(heading, accentWord) }),
           subheading ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-lead", children: subheading }) : null,
@@ -3933,6 +4030,9 @@ var internalConfig = {
         accentWord: { type: "text", label: "\u0410\u043A\u0446\u0435\u043D\u0442\u043D\u043E\u0435 \u0441\u043B\u043E\u0432\u043E (\u0437\u043E\u043B\u043E\u0442\u043E\u043C)" },
         subheading: { type: "textarea", label: "\u041F\u043E\u0434\u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" },
         backgroundImage: imageField("\u0424\u043E\u043D\u043E\u0432\u043E\u0435 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435"),
+        mobileVideoHevc: { type: "text", label: "\u0412\u0438\u0434\u0435\u043E \u0434\u043B\u044F \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0430 \u2014 HEVC (\u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0435)" },
+        mobileVideo: { type: "text", label: "\u0412\u0438\u0434\u0435\u043E \u0434\u043B\u044F \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0430 \u2014 H.264 (\u0437\u0430\u043F\u0430\u0441\u043D\u043E\u0435)" },
+        mobileVideoPoster: imageField("\u0417\u0430\u0441\u0442\u0430\u0432\u043A\u0430 \u0432\u0438\u0434\u0435\u043E (\u043A\u0430\u0434\u0440 \u0438\u0437 \u0432\u0438\u0434\u0435\u043E)"),
         ctaLabel: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0442\u0435\u043A\u0441\u0442" },
         ctaHref: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" },
         whatsapp: { type: "text", label: "WhatsApp \u2014 \u0441\u0441\u044B\u043B\u043A\u0430 (\u043A\u043D\u043E\u043F\u043A\u0430 \u0443 CTA)" },
@@ -3943,6 +4043,9 @@ var internalConfig = {
         accentWord: "\u041F\u0445\u0443\u043A\u0435\u0442\u0435",
         subheading: "\u0421\u0432\u043E\u0431\u043E\u0434\u0430 \u043F\u0435\u0440\u0435\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u044F \u043F\u043E \u043E\u0441\u0442\u0440\u043E\u0432\u0443 \u2014 \u0432\u0430\u0448 \u043A\u043B\u044E\u0447 \u043A \u043D\u0435\u0437\u0430\u0431\u044B\u0432\u0430\u0435\u043C\u044B\u043C \u043F\u0440\u0438\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F\u043C",
         backgroundImage: "",
+        mobileVideoHevc: "",
+        mobileVideo: "",
+        mobileVideoPoster: "",
         ctaLabel: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441\u0435\u0439\u0447\u0430\u0441",
         ctaHref: "#leadform",
         whatsapp: "https://wa.me/66959657805",
