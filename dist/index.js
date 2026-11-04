@@ -2194,7 +2194,6 @@ var S2 = {
     tabSpecs: "\u041F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B",
     photoPrev: "\u041F\u0440\u0435\u0434\u044B\u0434\u0443\u0449\u0435\u0435 \u0444\u043E\u0442\u043E",
     photoNext: "\u0421\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u0435 \u0444\u043E\u0442\u043E",
-    photoN: (n) => `\u0424\u043E\u0442\u043E ${n}`,
     equipment: "\u041A\u043E\u043C\u043F\u043B\u0435\u043A\u0442\u0430\u0446\u0438\u044F",
     accessories: "\u0414\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u043E\u043F\u0446\u0438\u0438",
     perBooking: "\u0437\u0430 \u0431\u0440\u043E\u043D\u044C",
@@ -2293,7 +2292,6 @@ var S2 = {
     tabSpecs: "Specs",
     photoPrev: "Previous photo",
     photoNext: "Next photo",
-    photoN: (n) => `Photo ${n}`,
     equipment: "Equipment",
     accessories: "Additional Options",
     perBooking: "per booking",
@@ -3188,18 +3186,6 @@ function VehicleBookingModal({
                   }
                 ) : null
               ] }),
-              gallery.length > 1 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__thumbs", children: gallery.map((u, i) => /* @__PURE__ */ jsx(
-                "button",
-                {
-                  type: "button",
-                  className: `sb-vd__thumb ${i === gi ? "is-active" : ""}`,
-                  onClick: () => scrollToImage(i, gallery.length),
-                  "aria-label": t.photoN(i + 1),
-                  "aria-current": i === gi ? "true" : void 0,
-                  children: /* @__PURE__ */ jsx("img", { src: u, alt: "", loading: "lazy" })
-                },
-                i
-              )) }) : null,
               activeTab ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__info", children: [
                 /* @__PURE__ */ jsx(
                   "div",

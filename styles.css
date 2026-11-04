@@ -1477,9 +1477,9 @@ button.sb-lang__flag {
   position: absolute;
   z-index: 1;
   inset: 0 0 auto;
-  height: 32%;
+  height: 40%;
   pointer-events: none;
-  background: linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.26) 45%, rgba(0, 0, 0, 0.08) 78%, transparent);
+  background: linear-gradient(rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.42) 40%, rgba(0, 0, 0, 0.16) 75%, transparent);
 }
 .sb-vcard__ph::after {
   content: '';
@@ -1540,6 +1540,8 @@ button.sb-lang__flag {
   line-height: 1.05;
   color: #fff;
   text-wrap: balance;
+  /* Soft halo so the name stays readable over bright signboards and lights. */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 2px 14px rgba(0, 0, 0, 0.45);
 }
 .sb-vcard__sub {
   display: flex;
@@ -1548,6 +1550,7 @@ button.sb-lang__flag {
   margin: calc(6 * var(--sb-vcard-u)) 0 0;
   font-size: calc(13 * var(--sb-vcard-u));
   color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), 0 1px 8px rgba(0, 0, 0, 0.45);
 }
 .sb-vcard__sub i {
   width: calc(3 * var(--sb-vcard-u));
@@ -2396,8 +2399,8 @@ button.sb-lang__flag {
 }
 .sb-vd__hero::before {
   top: 0;
-  height: 32%;
-  background: linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.26) 45%, rgba(0, 0, 0, 0.08) 78%, transparent);
+  height: 40%;
+  background: linear-gradient(rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.42) 40%, rgba(0, 0, 0, 0.16) 75%, transparent);
 }
 .sb-vd__hero::after {
   bottom: 0;
@@ -2484,7 +2487,7 @@ button.sb-lang__flag {
 .sb-stephead::before {
   top: 0;
   height: 55%;
-  background: linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.2) 60%, transparent);
+  background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.32) 60%, transparent);
 }
 .sb-stephead::after {
   bottom: 0;
@@ -2607,8 +2610,7 @@ button.sb-lang__flag {
     margin: 0;
     border-radius: 0;
   }
-  .sb-vd__info,
-  .sb-vd__thumbs {
+  .sb-vd__info {
     padding-left: var(--sb-vd-side);
     padding-right: var(--sb-vd-side);
   }
@@ -2649,8 +2651,7 @@ button.sb-lang__flag {
 .sb-vd__nav--next {
   right: 10px;
 }
-.sb-vd__nav:focus-visible,
-.sb-vd__thumb:focus-visible {
+.sb-vd__nav:focus-visible {
   outline: 2px solid var(--sb-accent);
   outline-offset: 2px;
 }
@@ -2666,36 +2667,6 @@ button.sb-lang__flag {
   color: #fff;
   font-size: 12px;
   pointer-events: none;
-}
-.sb-vd__thumbs {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.sb-vd__thumb {
-  flex: 0 0 auto;
-  width: 56px;
-  height: 42px;
-  padding: 0;
-  border: 1px solid var(--sb-border);
-  border-radius: 8px;
-  overflow: hidden;
-  background: none;
-  opacity: 0.6;
-  cursor: pointer;
-  transition: opacity 0.15s ease, border-color 0.15s ease;
-}
-.sb-vd__thumb.is-active {
-  opacity: 1;
-  border-color: var(--sb-accent);
-}
-.sb-vd__thumb img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 .sb-vd__info {
   display: flex;

@@ -1929,7 +1929,7 @@ describe('VehicleBookingModal — vehicle window (detail)', () => {
   };
   const NB = '\u00a0';
 
-  it('gallery: back on «детали» the track, counter and thumbs are on the same photo as the step cover', async () => {
+  it('gallery: back on «детали» the track and counter are on the same photo as the step cover', async () => {
     // jsdom has no layout: give the track a width and keep its scroll offset.
     const desc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
     Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
@@ -1943,8 +1943,6 @@ describe('VehicleBookingModal — vehicle window (detail)', () => {
       await screen.findByText('BMW Z4');
       const track = () => document.querySelector('.sb-vd__frame') as HTMLElement;
       const counter = () => document.querySelector('.sb-vd__counter')?.textContent;
-      const activeThumb = () =>
-        Array.from(document.querySelectorAll('.sb-vd__thumb')).findIndex((b) => b.classList.contains('is-active'));
       expect(counter()).toBe('1/3');
       // Swipe to the third photo.
       track().scrollLeft = 600;
@@ -1958,7 +1956,6 @@ describe('VehicleBookingModal — vehicle window (detail)', () => {
       // The remounted track is scrolled back to that photo — not left at the first one.
       expect(track().scrollLeft).toBe(600);
       expect(counter()).toBe('3/3');
-      expect(activeThumb()).toBe(2);
     } finally {
       if (desc) Object.defineProperty(HTMLElement.prototype, 'clientWidth', desc);
     }
@@ -2088,13 +2085,12 @@ describe('VehicleBookingModal — vehicle window (detail)', () => {
       `55${NB}001${NB}฿`,
     ]);
     expect(hero.querySelector('.sb-vcard__flag')?.textContent).toBe('−35%');
-    // Gallery keeps arrows, the «1/N» counter and the thumbnails under the photo.
+    // Gallery: arrows, swipe and the «1/N» counter — no thumbnails (approved variant 3).
     expect(hero.querySelectorAll('.sb-vd__photo')).toHaveLength(3);
     expect(hero.querySelector('.sb-vd__counter')?.textContent).toBe('1/3');
     expect(screen.getByRole('button', { name: 'Следующее фото' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Предыдущее фото' })).toBeTruthy();
-    expect(document.querySelectorAll('.sb-vd__thumbs .sb-vd__thumb')).toHaveLength(3);
-    expect(screen.getByRole('button', { name: 'Фото 2' })).toBeTruthy();
+    expect(document.querySelector('.sb-vd__thumbs')).toBeNull();
     // No «THB» in the window header; the old share pill in the meta row is gone.
     expect(hero.textContent).not.toContain('THB');
     expect(document.querySelector('.sb-vd__meta-row')).toBeNull();

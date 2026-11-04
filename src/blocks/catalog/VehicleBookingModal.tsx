@@ -128,7 +128,6 @@ const S = {
     tabSpecs: 'Параметры',
     photoPrev: 'Предыдущее фото',
     photoNext: 'Следующее фото',
-    photoN: (n: number) => `Фото ${n}`,
     equipment: 'Комплектация',
     accessories: 'Дополнительные опции',
     perBooking: 'за бронь',
@@ -228,7 +227,6 @@ const S = {
     tabSpecs: 'Specs',
     photoPrev: 'Previous photo',
     photoNext: 'Next photo',
-    photoN: (n: number) => `Photo ${n}`,
     equipment: 'Equipment',
     accessories: 'Additional Options',
     perBooking: 'per booking',
@@ -1542,22 +1540,6 @@ export function VehicleBookingModal({
                   />
                 ) : null}
               </div>
-              {gallery.length > 1 ? (
-                <div className="sb-vd__thumbs">
-                  {gallery.map((u, i) => (
-                    <button
-                      type="button"
-                      key={i}
-                      className={`sb-vd__thumb ${i === gi ? 'is-active' : ''}`}
-                      onClick={() => scrollToImage(i, gallery.length)}
-                      aria-label={t.photoN(i + 1)}
-                      aria-current={i === gi ? 'true' : undefined}
-                    >
-                      <img src={u} alt="" loading="lazy" />
-                    </button>
-                  ))}
-                </div>
-              ) : null}
 
               {activeTab ? (
                 <div className="sb-vd__info">
