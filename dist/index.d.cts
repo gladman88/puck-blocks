@@ -15,7 +15,9 @@ interface HeroProps {
     mobileVideoPoster?: string;
     ctaLabel?: string;
     ctaHref?: string;
-    /** Optional round social buttons shown next to the CTA. */
+    /** Legacy: round WhatsApp/Telegram buttons by the CTA were removed (owner
+     *  2026-11-04 — the header already has them). Kept optional so pages saved
+     *  with these props still type-check; the block ignores them. */
     whatsapp?: string;
     telegram?: string;
 }
@@ -24,7 +26,7 @@ interface HeroProps {
  * an uppercase heading (one word accented) and a CTA row that can carry round
  * WhatsApp/Telegram buttons. Framework-neutral; styled by the shipped CSS.
  */
-declare function Hero({ heading, accentWord, subheading, backgroundImage, mobileVideoHevc, mobileVideo, mobileVideoPoster, ctaLabel, ctaHref, whatsapp, telegram, }: HeroProps): react.JSX.Element;
+declare function Hero({ heading, accentWord, subheading, backgroundImage, mobileVideoHevc, mobileVideo, mobileVideoPoster, ctaLabel, ctaHref, }: HeroProps): react.JSX.Element;
 
 interface RichTextProps {
     /** Plain text. Blank lines separate paragraphs; single newlines are preserved. */

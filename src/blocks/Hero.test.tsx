@@ -44,11 +44,12 @@ describe('Hero URL sanitization (public-page XSS guard)', () => {
     expect(container.querySelector('.sb-hero__accent')?.textContent).toBe('Пхукете');
   });
 
-  it('renders WhatsApp/Telegram round buttons next to the CTA', () => {
+  it('no WhatsApp/Telegram buttons by the CTA, even for pages saved with them (header has them)', () => {
     const { container } = render(
       <Hero heading="t" ctaLabel="c" ctaHref="#x" whatsapp="https://wa.me/1" telegram="https://t.me/x" />,
     );
-    expect(container.querySelectorAll('.sb-hero__social').length).toBe(2);
+    expect(container.querySelector('.sb-hero__socials')).toBeNull();
+    expect(container.querySelectorAll('.sb-hero__cta a')).toHaveLength(1);
   });
 });
 

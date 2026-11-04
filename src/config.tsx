@@ -97,8 +97,6 @@ const internalConfig: Config<Props, RootProps> = {
         mobileVideoPoster: imageField('Заставка видео (кадр из видео)'),
         ctaLabel: { type: 'text', label: 'Кнопка — текст' },
         ctaHref: { type: 'text', label: 'Кнопка — ссылка' },
-        whatsapp: { type: 'text', label: 'WhatsApp — ссылка (кнопка у CTA)' },
-        telegram: { type: 'text', label: 'Telegram — ссылка (кнопка у CTA)' },
       },
       defaultProps: {
         heading: 'Аренда автомобилей и байков на Пхукете',
@@ -110,8 +108,6 @@ const internalConfig: Config<Props, RootProps> = {
         mobileVideoPoster: '',
         ctaLabel: 'Забронировать сейчас',
         ctaHref: '#leadform',
-        whatsapp: 'https://wa.me/66959657805',
-        telegram: 'https://t.me/ShibaCars_Phuket',
       },
       render: Hero,
     },

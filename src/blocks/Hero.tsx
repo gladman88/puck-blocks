@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { safeHref, safeImageUrl } from '../sanitize';
-import { ContactIcon } from '../components/ContactIcon';
 
 export interface HeroProps {
   heading: string;
@@ -16,7 +15,9 @@ export interface HeroProps {
   mobileVideoPoster?: string;
   ctaLabel?: string;
   ctaHref?: string;
-  /** Optional round social buttons shown next to the CTA. */
+  /** Legacy: round WhatsApp/Telegram buttons by the CTA were removed (owner
+   *  2026-11-04 — the header already has them). Kept optional so pages saved
+   *  with these props still type-check; the block ignores them. */
   whatsapp?: string;
   telegram?: string;
 }
@@ -59,8 +60,6 @@ export function Hero({
   mobileVideoPoster,
   ctaLabel,
   ctaHref,
-  whatsapp,
-  telegram,
 }: HeroProps) {
   const bg = safeImageUrl(backgroundImage);
   const hevc = safeImageUrl(mobileVideoHevc);
@@ -136,8 +135,6 @@ export function Hero({
   }, [hevc, h264]);
   const href = safeHref(ctaHref);
   const hasCta = Boolean(ctaLabel && href);
-  const wa = safeHref(whatsapp);
-  const tg = safeHref(telegram);
 
   const hasPoster = hasVideo && Boolean(poster);
   const style: CSSProperties = {};
@@ -167,31 +164,11 @@ export function Hero({
       <div className="sb-hero__inner">
         <h1 className="sb-h1">{renderHeading(heading, accentWord)}</h1>
         {subheading ? <p className="sb-lead">{subheading}</p> : null}
-        {hasCta || wa || tg ? (
+        {hasCta ? (
           <div className="sb-hero__cta">
-            {hasCta ? (
-              <a className="sb-btn" href={href}>
-                {ctaLabel}
-              </a>
-            ) : null}
-            {wa || tg ? (
-              // WhatsApp + Telegram are one wrap unit: on a narrow phone the
-              // whole pair drops to the next line together (under the CTA)
-              // instead of WhatsApp sticking to the CTA and Telegram falling
-              // to a third line alone.
-              <div className="sb-hero__socials">
-                {wa ? (
-                  <a className="sb-hero__social" href={wa} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
-                    <ContactIcon kind="whatsapp" />
-                  </a>
-                ) : null}
-                {tg ? (
-                  <a className="sb-hero__social" href={tg} target="_blank" rel="noopener noreferrer" aria-label="Telegram">
-                    <ContactIcon kind="telegram" />
-                  </a>
-                ) : null}
-              </div>
-            ) : null}
+            <a className="sb-btn" href={href}>
+              {ctaLabel}
+            </a>
           </div>
         ) : null}
       </div>

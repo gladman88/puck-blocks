@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useMemo, useId, useCallback, useLayoutEffect } from 'react';
-import { siWhatsapp } from 'simple-icons';
-import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
+import { jsxs, jsx, Fragment } from 'react/jsx-runtime';
 import { createPortal } from 'react-dom';
+import { siWhatsapp } from 'simple-icons';
 import { DayPicker, labelDayButton } from 'react-day-picker';
 import { ru, enGB } from 'react-day-picker/locale';
 
@@ -17,48 +17,6 @@ function safeHref(href) {
 function safeImageUrl(url) {
   const value = url?.trim();
   return value && SAFE_IMAGE.test(value) ? value : void 0;
-}
-var base = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 2,
-  strokeLinecap: "round",
-  strokeLinejoin: "round"
-};
-var whatsappPath = siWhatsapp.path;
-var telegramPlanePath = "M16.906 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z";
-function iconClassName(className) {
-  return ["sb-ico", className].filter(Boolean).join(" ");
-}
-function InstagramMark({ className }) {
-  const gradientId = useId();
-  return /* @__PURE__ */ jsxs("svg", { className: `${className} sb-ico--instagram`, viewBox: "0 0 32 32", "aria-hidden": "true", children: [
-    /* @__PURE__ */ jsx("defs", { children: /* @__PURE__ */ jsxs("radialGradient", { id: gradientId, cx: "30%", cy: "107%", r: "150%", children: [
-      /* @__PURE__ */ jsx("stop", { offset: "0%", stopColor: "#fdf497" }),
-      /* @__PURE__ */ jsx("stop", { offset: "18%", stopColor: "#fd5949" }),
-      /* @__PURE__ */ jsx("stop", { offset: "48%", stopColor: "#d6249f" }),
-      /* @__PURE__ */ jsx("stop", { offset: "78%", stopColor: "#285aeb" }),
-      /* @__PURE__ */ jsx("stop", { offset: "100%", stopColor: "#833ab4" })
-    ] }) }),
-    /* @__PURE__ */ jsx("circle", { cx: "16", cy: "16", r: "16", fill: `url(#${gradientId})` }),
-    /* @__PURE__ */ jsx("rect", { x: "7", y: "7", width: "18", height: "18", rx: "5.5", fill: "none", stroke: "#fff", strokeWidth: "2.25" }),
-    /* @__PURE__ */ jsx("circle", { cx: "16", cy: "16", r: "4.1", fill: "none", stroke: "#fff", strokeWidth: "2.25" }),
-    /* @__PURE__ */ jsx("circle", { cx: "21.7", cy: "10.4", r: "1.45", fill: "#fff" })
-  ] });
-}
-function ContactIcon({ kind, className }) {
-  const iconClass = iconClassName(className);
-  if (kind === "instagram") {
-    return /* @__PURE__ */ jsx(InstagramMark, { className: iconClass });
-  }
-  if (kind === "telegram") {
-    return /* @__PURE__ */ jsx("svg", { className: iconClass, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: telegramPlanePath, transform: "translate(-9 -9) scale(1.75)" }) });
-  }
-  if (kind === "whatsapp") {
-    return /* @__PURE__ */ jsx("svg", { className: iconClass, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: whatsappPath }) });
-  }
-  return /* @__PURE__ */ jsx("svg", { ...base, className: iconClass, "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: "M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" }) });
 }
 var HERO_VIDEO_MEDIA = "(max-width: 767px) and (orientation: portrait)";
 function renderHeading(heading, accent) {
@@ -81,9 +39,7 @@ function Hero({
   mobileVideo,
   mobileVideoPoster,
   ctaLabel,
-  ctaHref,
-  whatsapp,
-  telegram
+  ctaHref
 }) {
   const bg = safeImageUrl(backgroundImage);
   const hevc = safeImageUrl(mobileVideoHevc);
@@ -156,8 +112,6 @@ function Hero({
   }, [hevc, h264]);
   const href = safeHref(ctaHref);
   const hasCta = Boolean(ctaLabel && href);
-  const wa = safeHref(whatsapp);
-  const tg = safeHref(telegram);
   const hasPoster = hasVideo && Boolean(poster);
   const style = {};
   if (bg) style.backgroundImage = `url("${encodeURI(bg)}")`;
@@ -191,19 +145,7 @@ function Hero({
         /* @__PURE__ */ jsxs("div", { className: "sb-hero__inner", children: [
           /* @__PURE__ */ jsx("h1", { className: "sb-h1", children: renderHeading(heading, accentWord) }),
           subheading ? /* @__PURE__ */ jsx("p", { className: "sb-lead", children: subheading }) : null,
-          hasCta || wa || tg ? /* @__PURE__ */ jsxs("div", { className: "sb-hero__cta", children: [
-            hasCta ? /* @__PURE__ */ jsx("a", { className: "sb-btn", href, children: ctaLabel }) : null,
-            wa || tg ? (
-              // WhatsApp + Telegram are one wrap unit: on a narrow phone the
-              // whole pair drops to the next line together (under the CTA)
-              // instead of WhatsApp sticking to the CTA and Telegram falling
-              // to a third line alone.
-              /* @__PURE__ */ jsxs("div", { className: "sb-hero__socials", children: [
-                wa ? /* @__PURE__ */ jsx("a", { className: "sb-hero__social", href: wa, target: "_blank", rel: "noopener noreferrer", "aria-label": "WhatsApp", children: /* @__PURE__ */ jsx(ContactIcon, { kind: "whatsapp" }) }) : null,
-                tg ? /* @__PURE__ */ jsx("a", { className: "sb-hero__social", href: tg, target: "_blank", rel: "noopener noreferrer", "aria-label": "Telegram", children: /* @__PURE__ */ jsx(ContactIcon, { kind: "telegram" }) }) : null
-              ] })
-            ) : null
-          ] }) : null
+          hasCta ? /* @__PURE__ */ jsx("div", { className: "sb-hero__cta", children: /* @__PURE__ */ jsx("a", { className: "sb-btn", href, children: ctaLabel }) }) : null
         ] })
       ]
     }
@@ -437,6 +379,48 @@ function ReviewsCarousel({ heading, anchorId, textReviews, mediaReviews }) {
     texts.length > 0 ? /* @__PURE__ */ jsx(Carousel, { title: heading ? /* @__PURE__ */ jsx("h2", { className: "sb-h2 sb-h2--inline", children: heading }) : null, children: texts.map((r, i) => /* @__PURE__ */ jsx("div", { className: "sb-carousel__cell sb-carousel__cell--text", children: /* @__PURE__ */ jsx(TextCard, { review: r }) }, i)) }) : heading ? /* @__PURE__ */ jsx("h2", { className: "sb-h2", children: heading }) : null,
     media.length > 0 ? /* @__PURE__ */ jsx(Carousel, { children: media.map((m, i) => /* @__PURE__ */ jsx("div", { className: "sb-carousel__cell sb-carousel__cell--media", children: /* @__PURE__ */ jsx(MediaCard, { item: m }) }, i)) }) : null
   ] });
+}
+var base = {
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+};
+var whatsappPath = siWhatsapp.path;
+var telegramPlanePath = "M16.906 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z";
+function iconClassName(className) {
+  return ["sb-ico", className].filter(Boolean).join(" ");
+}
+function InstagramMark({ className }) {
+  const gradientId = useId();
+  return /* @__PURE__ */ jsxs("svg", { className: `${className} sb-ico--instagram`, viewBox: "0 0 32 32", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsx("defs", { children: /* @__PURE__ */ jsxs("radialGradient", { id: gradientId, cx: "30%", cy: "107%", r: "150%", children: [
+      /* @__PURE__ */ jsx("stop", { offset: "0%", stopColor: "#fdf497" }),
+      /* @__PURE__ */ jsx("stop", { offset: "18%", stopColor: "#fd5949" }),
+      /* @__PURE__ */ jsx("stop", { offset: "48%", stopColor: "#d6249f" }),
+      /* @__PURE__ */ jsx("stop", { offset: "78%", stopColor: "#285aeb" }),
+      /* @__PURE__ */ jsx("stop", { offset: "100%", stopColor: "#833ab4" })
+    ] }) }),
+    /* @__PURE__ */ jsx("circle", { cx: "16", cy: "16", r: "16", fill: `url(#${gradientId})` }),
+    /* @__PURE__ */ jsx("rect", { x: "7", y: "7", width: "18", height: "18", rx: "5.5", fill: "none", stroke: "#fff", strokeWidth: "2.25" }),
+    /* @__PURE__ */ jsx("circle", { cx: "16", cy: "16", r: "4.1", fill: "none", stroke: "#fff", strokeWidth: "2.25" }),
+    /* @__PURE__ */ jsx("circle", { cx: "21.7", cy: "10.4", r: "1.45", fill: "#fff" })
+  ] });
+}
+function ContactIcon({ kind, className }) {
+  const iconClass = iconClassName(className);
+  if (kind === "instagram") {
+    return /* @__PURE__ */ jsx(InstagramMark, { className: iconClass });
+  }
+  if (kind === "telegram") {
+    return /* @__PURE__ */ jsx("svg", { className: iconClass, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: telegramPlanePath, transform: "translate(-9 -9) scale(1.75)" }) });
+  }
+  if (kind === "whatsapp") {
+    return /* @__PURE__ */ jsx("svg", { className: iconClass, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: whatsappPath }) });
+  }
+  return /* @__PURE__ */ jsx("svg", { ...base, className: iconClass, "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: "M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" }) });
 }
 function BrandLogo({ text = "SHIBA CARS", className = "" }) {
   const parts = text.trim().split(/\s+/);
@@ -4665,9 +4649,7 @@ var internalConfig = {
         mobileVideo: { type: "text", label: "\u0412\u0438\u0434\u0435\u043E \u0434\u043B\u044F \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0430 \u2014 H.264 (\u0437\u0430\u043F\u0430\u0441\u043D\u043E\u0435)" },
         mobileVideoPoster: imageField("\u0417\u0430\u0441\u0442\u0430\u0432\u043A\u0430 \u0432\u0438\u0434\u0435\u043E (\u043A\u0430\u0434\u0440 \u0438\u0437 \u0432\u0438\u0434\u0435\u043E)"),
         ctaLabel: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0442\u0435\u043A\u0441\u0442" },
-        ctaHref: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" },
-        whatsapp: { type: "text", label: "WhatsApp \u2014 \u0441\u0441\u044B\u043B\u043A\u0430 (\u043A\u043D\u043E\u043F\u043A\u0430 \u0443 CTA)" },
-        telegram: { type: "text", label: "Telegram \u2014 \u0441\u0441\u044B\u043B\u043A\u0430 (\u043A\u043D\u043E\u043F\u043A\u0430 \u0443 CTA)" }
+        ctaHref: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" }
       },
       defaultProps: {
         heading: "\u0410\u0440\u0435\u043D\u0434\u0430 \u0430\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u0435\u0439 \u0438 \u0431\u0430\u0439\u043A\u043E\u0432 \u043D\u0430 \u041F\u0445\u0443\u043A\u0435\u0442\u0435",
@@ -4678,9 +4660,7 @@ var internalConfig = {
         mobileVideo: "",
         mobileVideoPoster: "",
         ctaLabel: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441\u0435\u0439\u0447\u0430\u0441",
-        ctaHref: "#leadform",
-        whatsapp: "https://wa.me/66959657805",
-        telegram: "https://t.me/ShibaCars_Phuket"
+        ctaHref: "#leadform"
       },
       render: Hero
     },
