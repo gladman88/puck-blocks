@@ -1560,7 +1560,7 @@ button.sb-lang__flag {
   font-variation-settings: 'opsz' 144;
   letter-spacing: 0.023em;
   text-transform: uppercase;
-  font-size: calc(25 * var(--sb-vcard-u));
+  font-size: calc(21 * var(--sb-vcard-u));
   line-height: 1.05;
   color: #fff;
   text-wrap: balance;
