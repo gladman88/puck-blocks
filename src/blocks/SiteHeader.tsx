@@ -69,6 +69,15 @@ export function SiteHeader({
   const t = STRINGS[locale];
 
   const [open, setOpen] = useState(false);
+  // Over a hero the header starts transparent (CSS `.sb-header:has(+ .sb-hero)`)
+  // and turns solid once the page is scrolled.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -143,7 +152,7 @@ export function SiteHeader({
     .filter((l): l is { label: string; href: string } => Boolean(l.href));
 
   return (
-    <header className="sb-header">
+    <header className={`sb-header${scrolled ? ' is-scrolled' : ''}`}>
       <div className="sb-header__inner">
         <a className="sb-header__brand" href="/">
           {logoNode}

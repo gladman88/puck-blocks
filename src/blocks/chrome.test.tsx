@@ -10,6 +10,18 @@ import { LanguageSwitcher } from '../components/LanguageSwitcher';
 afterEach(cleanup);
 
 describe('SiteHeader', () => {
+  it('turns solid (is-scrolled) once the page is scrolled, transparent at the top', () => {
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true, writable: true });
+    const { container } = render(<SiteHeader logoText="SHIBA" links={[]} />);
+    const header = container.querySelector('header.sb-header')!;
+    expect(header.classList.contains('is-scrolled')).toBe(false);
+    (window as unknown as { scrollY: number }).scrollY = 120;
+    fireEvent.scroll(window);
+    expect(header.classList.contains('is-scrolled')).toBe(true);
+    (window as unknown as { scrollY: number }).scrollY = 0;
+    fireEvent.scroll(window);
+    expect(header.classList.contains('is-scrolled')).toBe(false);
+  });
   it('renders safe nav links and drops javascript: links', () => {
     const { container } = render(
       <SiteHeader

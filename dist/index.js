@@ -551,6 +551,13 @@ function SiteHeader({
   const locale = localeProp ?? (puck?.metadata?.locale === "en" ? "en" : "ru");
   const t = STRINGS[locale];
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const drawerRef = useRef(null);
   const closeRef = useRef(null);
   useEffect(() => {
@@ -604,7 +611,7 @@ function SiteHeader({
     }
   );
   const navLinks = (links ?? []).map((link) => ({ label: link.label, href: safeHref(link.href) })).filter((l) => Boolean(l.href));
-  return /* @__PURE__ */ jsxs("header", { className: "sb-header", children: [
+  return /* @__PURE__ */ jsxs("header", { className: `sb-header${scrolled ? " is-scrolled" : ""}`, children: [
     /* @__PURE__ */ jsxs("div", { className: "sb-header__inner", children: [
       /* @__PURE__ */ jsx("a", { className: "sb-header__brand", href: "/", children: logoNode }),
       /* @__PURE__ */ jsx("nav", { className: "sb-header__nav", children: navLinks.map((link, index) => /* @__PURE__ */ jsx("a", { href: link.href, children: link.label }, index)) }),

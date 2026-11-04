@@ -780,6 +780,23 @@ a.sb-map__line:hover {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
+/* Header right above the hero (the site page: siblings): it sits OVER the
+   photo/video, transparent with a soft top shade, and turns solid on scroll.
+   The editor wraps blocks, so there the pair never matches — layout unchanged.
+   Without :has (old browsers) the header simply stays solid. */
+.sb-header {
+  transition: background-color 0.25s ease, backdrop-filter 0.25s ease;
+}
+.sb-header:has(+ .sb-hero):not(.is-scrolled) {
+  background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.sb-header + .sb-hero {
+  margin-top: calc(-1 * var(--sb-header-h));
+  min-height: 100vh;
+  padding-top: calc(var(--sb-section-py) + var(--sb-header-h));
+}
 .sb-header__inner {
   display: flex;
   align-items: center;
