@@ -180,6 +180,14 @@
   .sb-hero .sb-h1 {
     line-height: 1.2;
   }
+  /* Phone: buttons a step smaller, in scale with the 24.8px title. */
+  .sb-hero__cta {
+    gap: 0.6rem;
+  }
+  .sb-hero__cta .sb-btn {
+    padding: 0.7rem 1.3rem;
+    font-size: 0.95rem;
+  }
 }
 @media (max-width: 767px) and (orientation: portrait) {
   .sb-hero__video {
