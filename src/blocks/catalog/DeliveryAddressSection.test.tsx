@@ -25,7 +25,7 @@ const strings: DeliveryAddressStrings = {
   costLoading: 'Calculating price…',
   costByRequest: 'on request',
   costTotal: 'Delivery & collection',
-  currency: 'THB',
+  currency: '฿',
 };
 
 interface SectionProps {
@@ -200,7 +200,7 @@ describe('DeliveryAddressSection (puck-blocks)', () => {
         strings={strings}
       />,
     );
-    expect(screen.getByText('600 THB')).toBeTruthy();
+    expect(screen.getByText('600 ฿')).toBeTruthy();
 
     rerender(
       <DeliveryAddressSection
@@ -254,7 +254,8 @@ describe('DeliveryAddressSection (puck-blocks)', () => {
         strings={strings}
       />,
     );
-    expect(screen.getByText('1,000 THB')).toBeTruthy();
+    // Groups are split by a non-breaking space, like every price in the window.
+    expect(document.querySelector('.sb-vd__addr-total b')!.textContent).toBe('1\u00a0000 ฿');
   });
   it('ask address focuses the pickup search input and sets is-attention', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -293,6 +294,35 @@ describe('DeliveryAddressSection (puck-blocks)', () => {
       HTMLElement.prototype.scrollIntoView = origScroll;
       delete (window as { google?: unknown }).google;
       vi.useRealTimers();
+    }
+  });
+
+  it('ask address while the search is still starting focuses the field once it is enabled', async () => {
+    let resolvePlaces: (lib: unknown) => void = () => {};
+    class FakeSessionToken {}
+    window.google = {
+      maps: { importLibrary: vi.fn(() => new Promise((resolve) => (resolvePlaces = resolve))) },
+    } as unknown as typeof window.google;
+    try {
+      const askAddressRef: AskAddressHandle = { current: null };
+      renderSection({ apiKey: 'test-key', pickupEnabled: true, askAddressRef });
+      const input = screen.getByTestId('delivery-address-input') as HTMLInputElement;
+      expect(input.disabled).toBe(true);
+
+      act(() => askAddressRef.current!('pickup'));
+      expect(document.activeElement).not.toBe(input);
+      expect(input.classList.contains('is-attention')).toBe(false);
+
+      await act(async () => {
+        resolvePlaces({
+          AutocompleteSuggestion: { fetchAutocompleteSuggestions: vi.fn() },
+          AutocompleteSessionToken: FakeSessionToken,
+        });
+      });
+      await waitFor(() => expect(document.activeElement).toBe(input));
+      expect(input.classList.contains('is-attention')).toBe(true);
+    } finally {
+      delete (window as { google?: unknown }).google;
     }
   });
 });

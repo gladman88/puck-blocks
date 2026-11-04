@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useMemo, useId, useLayoutEffect } from 'react';
+import { useRef, useState, useEffect, useMemo, useId, useCallback, useLayoutEffect } from 'react';
 import { siWhatsapp } from 'simple-icons';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { createPortal } from 'react-dom';
@@ -847,11 +847,6 @@ function addDays(isoDate, n) {
 function nextDay(isoDate) {
   return addDays(isoDate, 1);
 }
-function money(value) {
-  if (value == null || value === "") return "";
-  const n = typeof value === "number" ? value : parseFloat(value);
-  return Number.isFinite(n) ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "";
-}
 function openNativeDatePicker(el) {
   try {
     el.showPicker?.();
@@ -1073,6 +1068,32 @@ function AvailabilityCalendar({ units, today, start, end, onChange, locale, mont
       }
     }
   ) });
+}
+
+// src/blocks/catalog/price.ts
+var NBSP = "\xA0";
+function groupNbsp(formatted) {
+  return formatted.replace(/,/g, NBSP);
+}
+function formatDayPrice(value) {
+  const rounded = Math.round(value * 100) / 100;
+  const digits = Number.isInteger(rounded) ? 0 : 2;
+  return groupNbsp(
+    rounded.toLocaleString("en-US", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits
+    })
+  );
+}
+function formatMoney(value) {
+  if (value == null || value === "") return "";
+  const n = typeof value === "number" ? value : parseFloat(value);
+  return Number.isFinite(n) ? groupNbsp(n.toLocaleString("en-US", { maximumFractionDigits: 2 })) : "";
+}
+function formatBahtCeil(value) {
+  const n = typeof value === "number" ? value : parseFloat(value);
+  if (!Number.isFinite(n)) return "";
+  return Math.ceil(n - 1e-9).toLocaleString("en-US").replace(/,/g, "\xA0");
 }
 var DEFAULT_CENTER = { lat: 7.8804, lng: 98.3923 };
 var DEFAULT_ZOOM = 11;
@@ -1363,9 +1384,6 @@ var ATTENTION_MS = 1200;
 function isQuote(c) {
   return c != null && c !== "loading";
 }
-function money2(n) {
-  return Math.round(n).toLocaleString("en-US");
-}
 function CostLine({ cost, strings }) {
   if (cost == null) return null;
   if (cost === "loading") {
@@ -1383,7 +1401,7 @@ function CostLine({ cost, strings }) {
     ":",
     " ",
     /* @__PURE__ */ jsxs("b", { children: [
-      money2(cost.price),
+      formatMoney(cost.price),
       " ",
       strings.currency
     ] })
@@ -1462,12 +1480,8 @@ function DeliveryAddressSection({
     if (!askAddressRef) return;
     let timer = null;
     let flashed = null;
-    askAddressRef.current = (kind) => {
-      const row = (kind === "pickup" ? pickupRowRef : dropoffRowRef).current;
-      if (!row) return;
-      if (typeof row.scrollIntoView === "function") row.scrollIntoView({ block: "center", behavior: "smooth" });
-      const input = row.querySelector("[data-sb-addr-search]");
-      if (!input) return;
+    let waiting = null;
+    const focusAndFlash = (input) => {
       input.focus({ preventScroll: true });
       if (timer) clearTimeout(timer);
       flashed?.classList.remove("is-attention");
@@ -1479,8 +1493,30 @@ function DeliveryAddressSection({
         timer = null;
       }, ATTENTION_MS);
     };
+    askAddressRef.current = (kind) => {
+      const row = (kind === "pickup" ? pickupRowRef : dropoffRowRef).current;
+      if (!row) return;
+      if (typeof row.scrollIntoView === "function") row.scrollIntoView({ block: "center", behavior: "smooth" });
+      const input = row.querySelector("[data-sb-addr-search]");
+      if (!input) return;
+      waiting?.disconnect();
+      waiting = null;
+      if (!input.disabled || typeof MutationObserver === "undefined") {
+        focusAndFlash(input);
+        return;
+      }
+      const observer = new MutationObserver(() => {
+        if (input.disabled) return;
+        observer.disconnect();
+        if (waiting === observer) waiting = null;
+        focusAndFlash(input);
+      });
+      observer.observe(input, { attributes: true, attributeFilter: ["disabled"] });
+      waiting = observer;
+    };
     return () => {
       if (timer) clearTimeout(timer);
+      waiting?.disconnect();
       askAddressRef.current = null;
     };
   }, [askAddressRef]);
@@ -1534,7 +1570,7 @@ function DeliveryAddressSection({
       ":",
       " ",
       /* @__PURE__ */ jsxs("b", { children: [
-        money2(pickupCost.price + dropoffCost.price),
+        formatMoney(pickupCost.price + dropoffCost.price),
         " ",
         strings.currency
       ] })
@@ -1751,16 +1787,6 @@ function buildSpecRows(d, locale) {
   return rows;
 }
 
-// src/blocks/catalog/price.ts
-function formatDayPrice(value) {
-  const rounded = Math.round(value * 100) / 100;
-  const digits = Number.isInteger(rounded) ? 0 : 2;
-  return rounded.toLocaleString("en-US", {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits
-  });
-}
-
 // src/blocks/catalog/share.ts
 function buildVehicleShareUrl(vehicleId, referralCode) {
   const url = new URL(window.location.href);
@@ -1790,6 +1816,232 @@ async function shareVehicle({
     window.prompt(promptLabel, shareUrl);
     return "prompted";
   }
+}
+var COPIED_TOAST_MS = 2e3;
+var COPIED_TOAST_ANIM_MS = 220;
+function prefersReducedMotion() {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)").matches : false;
+}
+function useCopiedToast() {
+  const [phase, setPhase] = useState("hidden");
+  const mounted = useRef(true);
+  const timers = useRef([]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      timers.current.forEach(clearTimeout);
+      timers.current = [];
+    };
+  }, []);
+  const show = useCallback(() => {
+    if (!mounted.current) return;
+    timers.current.forEach(clearTimeout);
+    setPhase("shown");
+    const anim = prefersReducedMotion() ? 0 : COPIED_TOAST_ANIM_MS;
+    timers.current = [
+      setTimeout(() => setPhase("leaving"), COPIED_TOAST_MS),
+      setTimeout(() => setPhase("hidden"), COPIED_TOAST_MS + anim)
+    ];
+  }, []);
+  return { phase, shown: phase === "shown", show };
+}
+var STATUS_MOD = {
+  available: " sb-vcard__status--available",
+  free: " sb-vcard__status--free",
+  busy: ""
+};
+var LONG_SUM = 1e5;
+function CardPriceOverlay({
+  statusText,
+  statusTone,
+  prices,
+  minPricePerDay,
+  strings: t,
+  dimmed = false,
+  statusSlot
+}) {
+  const minDay = prices ? formatBahtCeil(prices.per_day_min) : "";
+  const maxDay = prices ? formatBahtCeil(prices.per_day_max) : "";
+  const discount = prices ? Math.round(prices.month_discount_pct) : 0;
+  return /* @__PURE__ */ jsxs("div", { className: "sb-vcard__over", children: [
+    /* @__PURE__ */ jsxs("div", { className: `sb-vcard__st${dimmed ? " is-copied" : ""}`, children: [
+      /* @__PURE__ */ jsxs("span", { className: `sb-vcard__status${STATUS_MOD[statusTone]}`, children: [
+        /* @__PURE__ */ jsx("span", { className: "sb-vcard__status-dot", "aria-hidden": true }),
+        statusText
+      ] }),
+      /* @__PURE__ */ jsx("span", { className: "sb-vcard__range", children: prices ? /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx("small", { children: t.perDay }),
+        /* @__PURE__ */ jsxs("b", { children: [
+          minDay === maxDay ? /* @__PURE__ */ jsx("span", { children: minDay }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+            /* @__PURE__ */ jsx("span", { children: minDay }),
+            " \u2013 ",
+            maxDay
+          ] }),
+          "\xA0\u0E3F"
+        ] })
+      ] }) : minPricePerDay !== null ? /* @__PURE__ */ jsxs("b", { className: "sb-vcard__from", children: [
+        /* @__PURE__ */ jsxs("small", { children: [
+          t.from,
+          " "
+        ] }),
+        /* @__PURE__ */ jsx("span", { children: formatBahtCeil(minPricePerDay) }),
+        /* @__PURE__ */ jsxs("small", { children: [
+          " ",
+          t.perDayUnit
+        ] })
+      ] }) : /* @__PURE__ */ jsx("b", { className: "sb-vcard__from", children: /* @__PURE__ */ jsx("small", { children: t.onRequest }) }) }),
+      statusSlot
+    ] }),
+    prices && prices.quotes.length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vcard__tiles", children: prices.quotes.map((q) => {
+      const best = q.days === 30;
+      const sum = Math.ceil(parseFloat(q.total) - 1e-9);
+      return /* @__PURE__ */ jsxs("div", { className: `sb-vcard__tile${best ? " sb-vcard__tile--best" : ""}`, children: [
+        best && discount > 0 ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__flag", children: `\u2212${discount}%` }) : null,
+        /* @__PURE__ */ jsx("span", { className: "sb-vcard__tile-days", children: t.days(q.days) }),
+        /* @__PURE__ */ jsx("span", { className: `sb-vcard__tile-sum${sum >= LONG_SUM ? " sb-vcard__tile-sum--long" : ""}`, children: `${formatBahtCeil(q.total)}\xA0\u0E3F` })
+      ] }, q.days);
+    }) }) : null
+  ] });
+}
+function CardTitle({
+  name,
+  year,
+  categoryName,
+  stepTitle = false
+}) {
+  return /* @__PURE__ */ jsxs("div", { className: "sb-vcard__title", children: [
+    /* @__PURE__ */ jsx(
+      "h3",
+      {
+        className: "sb-vcard__name",
+        tabIndex: stepTitle ? -1 : void 0,
+        "data-step-title": stepTitle ? "" : void 0,
+        children: name
+      }
+    ),
+    year || categoryName ? /* @__PURE__ */ jsxs("p", { className: "sb-vcard__sub", children: [
+      year ? /* @__PURE__ */ jsx("span", { children: year }) : null,
+      year && categoryName ? /* @__PURE__ */ jsx("i", { "aria-hidden": true }) : null,
+      categoryName ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__cat", children: categoryName }) : null
+    ] }) : null
+  ] });
+}
+function ShareIcon() {
+  return /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+    /* @__PURE__ */ jsx("circle", { cx: "18", cy: "5", r: "3" }),
+    /* @__PURE__ */ jsx("circle", { cx: "6", cy: "12", r: "3" }),
+    /* @__PURE__ */ jsx("circle", { cx: "18", cy: "19", r: "3" }),
+    /* @__PURE__ */ jsx("line", { x1: "8.6", y1: "13.5", x2: "15.4", y2: "17.5" }),
+    /* @__PURE__ */ jsx("line", { x1: "15.4", y1: "6.5", x2: "8.6", y2: "10.5" })
+  ] });
+}
+function CheckIcon() {
+  return /* @__PURE__ */ jsx("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.4", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: /* @__PURE__ */ jsx("path", { d: "M20 6 9 17l-5-5" }) });
+}
+function CalendarIcon() {
+  return /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+    /* @__PURE__ */ jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
+    /* @__PURE__ */ jsx("path", { d: "M16 2v4M8 2v4M3 10h18" })
+  ] });
+}
+var S = {
+  ru: {
+    title: "\u0426\u0435\u043D\u044B \u043F\u043E \u0441\u0435\u0437\u043E\u043D\u0430\u043C",
+    unit: "\u0437\u0430 \u0441\u0443\u0442\u043A\u0438, \u0E3F",
+    season: "\u0421\u0435\u0437\u043E\u043D",
+    legend: ["\u0421\u0442\u043E\u043B\u0431\u0435\u0446 \u2014 \u0441\u0440\u043E\u043A ", "\u0432\u0441\u0435\u0439", " \u0430\u0440\u0435\u043D\u0434\u044B \u0432 \u0434\u043D\u044F\u0445, \u0441\u0442\u0440\u043E\u043A\u0430 \u2014 \u0441\u0435\u0437\u043E\u043D. \u0415\u0441\u043B\u0438 \u0430\u0440\u0435\u043D\u0434\u0430 \u0437\u0430\u0445\u0432\u0430\u0442\u044B\u0432\u0430\u0435\u0442 \u0434\u0432\u0430 \u0441\u0435\u0437\u043E\u043D\u0430, \u0434\u043D\u0438 \u043A\u0430\u0436\u0434\u043E\u0433\u043E \u0441\u0435\u0437\u043E\u043D\u0430 \u0441\u0447\u0438\u0442\u0430\u044E\u0442\u0441\u044F \u043F\u043E \u0435\u0433\u043E \u0446\u0435\u043D\u0435."],
+    months: ["\u042F\u043D\u0432\u0430\u0440\u044C", "\u0424\u0435\u0432\u0440\u0430\u043B\u044C", "\u041C\u0430\u0440\u0442", "\u0410\u043F\u0440\u0435\u043B\u044C", "\u041C\u0430\u0439", "\u0418\u044E\u043D\u044C", "\u0418\u044E\u043B\u044C", "\u0410\u0432\u0433\u0443\u0441\u0442", "\u0421\u0435\u043D\u0442\u044F\u0431\u0440\u044C", "\u041E\u043A\u0442\u044F\u0431\u0440\u044C", "\u041D\u043E\u044F\u0431\u0440\u044C", "\u0414\u0435\u043A\u0430\u0431\u0440\u044C"],
+    monthsShort: ["\u044F\u043D\u0432", "\u0444\u0435\u0432", "\u043C\u0430\u0440", "\u0430\u043F\u0440", "\u043C\u0430\u0439", "\u0438\u044E\u043D", "\u0438\u044E\u043B", "\u0430\u0432\u0433", "\u0441\u0435\u043D", "\u043E\u043A\u0442", "\u043D\u043E\u044F", "\u0434\u0435\u043A"]
+  },
+  en: {
+    title: "Prices by season",
+    unit: "per day, \u0E3F",
+    season: "Season",
+    legend: ["Column \u2014 length of the ", "whole", " rental in days, row \u2014 season. If a rental spans two seasons, the days of each season are charged at its price."],
+    months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    monthsShort: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  }
+};
+function periodLabel(p, locale) {
+  if (p.max_days === null) return `${p.min_days}+`;
+  if (p.min_days === p.max_days) return pluralDays(p.min_days, locale);
+  return `${p.min_days}\u2013${p.max_days}`;
+}
+function parseISO(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return y && m && d ? { y, m, d } : null;
+}
+function lastDayOfMonth(y, m) {
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+function seasonLabel(start, end, locale) {
+  const t = S[locale];
+  const a = parseISO(start);
+  const b = parseISO(end);
+  if (!a || !b) return { name: `${start} \u2013 ${end}`, years: "" };
+  const years = a.y === b.y ? String(a.y) : `${a.y}\u2013${b.y}`;
+  const wholeMonths = a.d === 1 && b.d === lastDayOfMonth(b.y, b.m);
+  const sameMonth = a.y === b.y && a.m === b.m;
+  if (wholeMonths) {
+    return {
+      name: sameMonth ? t.months[a.m - 1] : `${t.monthsShort[a.m - 1]} \u2013 ${t.monthsShort[b.m - 1]}`,
+      years
+    };
+  }
+  const name = sameMonth ? `${a.d}\u2013${b.d} ${t.monthsShort[b.m - 1]}` : `${a.d} ${t.monthsShort[a.m - 1]} \u2013 ${b.d} ${t.monthsShort[b.m - 1]}`;
+  return { name, years };
+}
+function isCurrentSeason(season, day) {
+  return !!day && season.start_date <= day && day <= season.end_date;
+}
+function PriceGrid({ periods, seasons, referenceDate, locale }) {
+  const t = S[locale];
+  const titleId = useId();
+  if (periods.length === 0 || seasons.length === 0) return null;
+  const last = periods.length - 1;
+  return /* @__PURE__ */ jsxs("div", { className: "sb-pgrid", children: [
+    /* @__PURE__ */ jsxs("p", { className: "sb-vd__lab", id: titleId, children: [
+      t.title,
+      " ",
+      /* @__PURE__ */ jsxs("em", { children: [
+        "\xB7 ",
+        t.unit
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx("div", { className: "sb-pgrid__wrap", children: /* @__PURE__ */ jsxs("table", { className: "sb-pgrid__table", "aria-labelledby": titleId, children: [
+      /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { children: [
+        /* @__PURE__ */ jsx("th", { scope: "col", children: t.season }),
+        periods.map((p, i) => /* @__PURE__ */ jsx("th", { scope: "col", children: periodLabel(p, locale) }, i))
+      ] }) }),
+      /* @__PURE__ */ jsx("tbody", { children: seasons.map((s) => {
+        const label = seasonLabel(s.start_date, s.end_date, locale);
+        return /* @__PURE__ */ jsxs(
+          "tr",
+          {
+            className: isCurrentSeason(s, referenceDate) ? "is-now" : void 0,
+            children: [
+              /* @__PURE__ */ jsxs("th", { scope: "row", children: [
+                label.name,
+                label.years ? /* @__PURE__ */ jsx("small", { children: label.years }) : null
+              ] }),
+              periods.map((_, i) => {
+                const raw = s.prices[i];
+                const value = raw === null || raw === void 0 || raw === "" ? "" : formatBahtCeil(raw);
+                return /* @__PURE__ */ jsx("td", { className: i === last ? "is-best" : void 0, children: value || "\u2014" }, i);
+              })
+            ]
+          },
+          `${s.start_date}-${s.end_date}`
+        );
+      }) })
+    ] }) }),
+    /* @__PURE__ */ jsxs("p", { className: "sb-pgrid__legend", children: [
+      t.legend[0],
+      /* @__PURE__ */ jsx("b", { children: t.legend[1] }),
+      t.legend[2]
+    ] })
+  ] });
 }
 function isMoney(v) {
   return typeof v === "string" && Number.isFinite(parseFloat(v));
@@ -1831,19 +2083,41 @@ function legView(leg) {
   if (c != null && c !== "loading" && c.matched) return { kind: "priced", satang: toSatang(c.price) };
   return null;
 }
-function PriceSummary({ quote, accessoryNames, pickup, dropoff, locale, strings, onAskAddress, stale = false }) {
-  if (quote.accessories.some((acc) => !accessoryNames[acc.accessory_id])) return null;
+function priceSummaryTotalSatang(quote, pickup, dropoff) {
+  let total = toSatang(quote.total);
+  for (const view of [legView(pickup), legView(dropoff)]) {
+    if (view?.kind === "priced") total += view.satang;
+  }
+  return total;
+}
+function formatSummaryAmount(satang, currency) {
+  return `${formatMoney(satang / 100)}${NBSP}${currency}`;
+}
+function isPriceSummaryVisible(quote, accessoryNames) {
+  if (!quote) return false;
+  return quote.accessories.every((acc) => Boolean(accessoryNames[acc.accessory_id]));
+}
+function PriceSummary({
+  quote,
+  accessoryNames,
+  pickup,
+  dropoff,
+  locale,
+  strings,
+  onAskAddress,
+  stale = false,
+  askDisabled = false
+}) {
+  if (!isPriceSummaryVisible(quote, accessoryNames)) return null;
   const pickupView = legView(pickup);
   const dropoffView = legView(dropoff);
-  let totalSatang = toSatang(quote.total);
-  if (pickupView?.kind === "priced") totalSatang += pickupView.satang;
-  if (dropoffView?.kind === "priced") totalSatang += dropoffView.satang;
-  const amount = (satang) => `${money(satang / 100)} ${strings.currency}`;
+  const totalSatang = priceSummaryTotalSatang(quote, pickup, dropoff);
+  const amount = (satang) => formatSummaryAmount(satang, strings.currency);
   const legRow = (kind, label, view) => {
     if (!view) return null;
     return /* @__PURE__ */ jsxs("div", { className: "sb-vd__sum-row", "data-sum": kind, children: [
       /* @__PURE__ */ jsx("span", { className: "sb-vd__sum-label", children: label }),
-      view.kind === "ask" ? /* @__PURE__ */ jsx("button", { type: "button", className: "sb-vd__sum-ask", onClick: () => onAskAddress(kind), children: strings.ask }) : /* @__PURE__ */ jsx("span", { className: "sb-vd__sum-value", children: amount(view.satang) })
+      view.kind === "ask" ? /* @__PURE__ */ jsx("button", { type: "button", className: "sb-vd__sum-ask", disabled: askDisabled, onClick: () => onAskAddress(kind), children: strings.ask }) : /* @__PURE__ */ jsx("span", { className: "sb-vd__sum-value", children: amount(view.satang) })
     ] });
   };
   return /* @__PURE__ */ jsxs("div", { className: `sb-vd__sum${stale ? " is-stale" : ""}`, "aria-busy": stale || void 0, children: [
@@ -1856,7 +2130,7 @@ function PriceSummary({ quote, accessoryNames, pickup, dropoff, locale, strings,
           pluralDays(line.days, locale),
           " \xD7 ",
           formatDayPrice(parseFloat(line.rate_per_day)),
-          " ",
+          NBSP,
           strings.currency
         ] }),
         /* @__PURE__ */ jsx("span", { className: "sb-vd__sum-value", children: amount(toSatang(line.amount)) })
@@ -1881,40 +2155,59 @@ function PriceSummary({ quote, accessoryNames, pickup, dropoff, locale, strings,
     ] })
   ] });
 }
-var S = {
+function StepHeader({
+  photoUrl,
+  name,
+  year,
+  categoryName,
+  backLabel,
+  closeLabel,
+  onBack,
+  onClose
+}) {
+  return /* @__PURE__ */ jsxs("div", { className: "sb-stephead", children: [
+    photoUrl ? /* @__PURE__ */ jsx("img", { className: "sb-stephead__photo", src: photoUrl, alt: "", draggable: false }) : null,
+    /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-stephead__back", onClick: onBack, children: [
+      /* @__PURE__ */ jsx("span", { "aria-hidden": true, children: "\u2039" }),
+      " ",
+      backLabel
+    ] }),
+    /* @__PURE__ */ jsx("button", { type: "button", className: "sb-modal__close sb-stephead__close", "aria-label": closeLabel, onClick: onClose, children: "\xD7" }),
+    /* @__PURE__ */ jsx("div", { className: "sb-stephead__title", children: /* @__PURE__ */ jsx(CardTitle, { name, year, categoryName }) })
+  ] });
+}
+var S2 = {
   ru: {
     close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
     closePhoto: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u0444\u043E\u0442\u043E",
     share: "\u041F\u043E\u0434\u0435\u043B\u0438\u0442\u044C\u0441\u044F",
     copied: "\u0421\u0441\u044B\u043B\u043A\u0430 \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D\u0430",
-    from: "\u043E\u0442",
     perDay: "/\u0434\u0435\u043D\u044C",
-    priceUnit: "THB",
+    priceUnit: "\u0E3F",
     available: "\u0421\u0432\u043E\u0431\u043E\u0434\u043D\u0430 \u0441\u0435\u0439\u0447\u0430\u0441",
     freesUp: "\u041E\u0441\u0432\u043E\u0431\u043E\u0434\u0438\u0442\u0441\u044F",
     busy: "\u0417\u0430\u043D\u044F\u0442\u0430",
-    specs: "\u0425\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438",
-    allSpecs: "\u0412\u0441\u0435 \u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438",
+    // Окно машины: вкладки (владелец 2026-11-04).
+    tabsLabel: "\u041E\u0431 \u0430\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u0435",
+    tabAbout: "\u041E\u0431 \u0430\u0432\u0442\u043E",
+    tabPrices: "\u0412\u0441\u0435 \u0446\u0435\u043D\u044B",
+    tabSpecs: "\u041F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B",
+    photoPrev: "\u041F\u0440\u0435\u0434\u044B\u0434\u0443\u0449\u0435\u0435 \u0444\u043E\u0442\u043E",
+    photoNext: "\u0421\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u0435 \u0444\u043E\u0442\u043E",
+    photoN: (n) => `\u0424\u043E\u0442\u043E ${n}`,
     equipment: "\u041A\u043E\u043C\u043F\u043B\u0435\u043A\u0442\u0430\u0446\u0438\u044F",
     accessories: "\u0414\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u043E\u043F\u0446\u0438\u0438",
     perBooking: "\u0437\u0430 \u0431\u0440\u043E\u043D\u044C",
     accUnavailable: "\u041D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E \u043D\u0430 \u044D\u0442\u0438 \u0434\u0430\u0442\u044B",
     deposit: "\u0414\u0435\u043F\u043E\u0437\u0438\u0442",
-    prices: "\u0426\u0435\u043D\u044B",
-    day: "\u0434\u0435\u043D\u044C",
-    days: "\u0434\u043D\u0435\u0439",
-    thirtyDays: "30 \u0434\u043D\u0435\u0439",
-    thirtyDaysCalc: "\u043F\u043E \u0442\u0430\u0440\u0438\u0444\u0443 28+",
-    currentMonth: "\u0442\u0435\u043A\u0443\u0449\u0438\u0439 \u043C\u0435\u0441\u044F\u0446",
-    spansSeasons: "\u0410\u0440\u0435\u043D\u0434\u0430 \u0437\u0430\u0445\u0432\u0430\u0442\u044B\u0432\u0430\u0435\u0442 \u043D\u0435\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u043C\u0435\u0441\u044F\u0446\u0435\u0432 \u2014 \u0432 \u0434\u0440\u0443\u0433\u0438\u0435 \u043C\u0435\u0441\u044F\u0446\u044B \u0446\u0435\u043D\u044B \u043C\u043E\u0433\u0443\u0442 \u043E\u0442\u043B\u0438\u0447\u0430\u0442\u044C\u0441\u044F",
-    bookFrom: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
     loading: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026",
     error: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C",
     name: "\u0412\u0430\u0448\u0435 \u0438\u043C\u044F",
     send: "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u043F\u0440\u043E\u0441",
     sending: "\u041E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C\u2026",
-    tgQuick: "\u0411\u0440\u043E\u043D\u044C \u0432 1 \u043A\u043B\u0438\u043A \u0447\u0435\u0440\u0435\u0437 Telegram",
-    tgQuickSub: "\u0411\u0435\u0437 \u0444\u043E\u0440\u043C \u2014 \u0434\u0430\u043D\u043D\u044B\u0435 \u0437\u0430\u043F\u043E\u043B\u043D\u044F\u0442\u0441\u044F \u0441\u0430\u043C\u0438",
+    // Кнопки брони (владелец 2026-11-04): коротко, одинаково на телефоне и компьютере.
+    tgQuick: "\u0411\u0440\u043E\u043D\u044C \u0432 1 \u043A\u043B\u0438\u043A",
+    tgQuickSub: "\u0447\u0435\u0440\u0435\u0437 Telegram, \u0431\u0435\u0437 \u0444\u043E\u0440\u043C",
     or: "\u0438\u043B\u0438",
     howToBook: "\u041A\u0430\u043A \u0437\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C?",
     back: "\u041D\u0430\u0437\u0430\u0434",
@@ -1926,11 +2219,12 @@ var S = {
     // же клиент заводился повторно, каждый раз с новым реф-агентом. Telegram
     // остаётся доступен, но только через гарантированно-настоящий chat_id из
     // кнопки «в 1 клик» выше.
-    manual: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0432\u0440\u0443\u0447\u043D\u0443\u044E",
-    manualSub: "\u0417\u0430\u043F\u043E\u043B\u043D\u0438\u0442\u0435 \u0444\u043E\u0440\u043C\u0443 \u0432\u0440\u0443\u0447\u043D\u0443\u044E",
+    manual: "\u0411\u0440\u043E\u043D\u044C \u0432\u0440\u0443\u0447\u043D\u0443\u044E",
+    manualSub: "\u0437\u0430\u043F\u043E\u043B\u043D\u0438\u0442\u0435 \u0444\u043E\u0440\u043C\u0443",
     dateGet: "\u0414\u0430\u0442\u0430 \u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u044F",
     dateReturn: "\u0414\u0430\u0442\u0430 \u0432\u043E\u0437\u0432\u0440\u0430\u0442\u0430",
     phoneLabel: "\u041D\u043E\u043C\u0435\u0440 WhatsApp",
+    yourData: "\u0412\u0430\u0448\u0438 \u0434\u0430\u043D\u043D\u044B\u0435",
     successTitle: "\u0417\u0430\u044F\u0432\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0430!",
     successText: "\u041C\u044B \u0441\u043A\u043E\u0440\u043E \u0441\u0432\u044F\u0436\u0435\u043C\u0441\u044F \u0441 \u0432\u0430\u043C\u0438.",
     tooMany: "\u0421\u043B\u0438\u0448\u043A\u043E\u043C \u043C\u043D\u043E\u0433\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u043E\u0432, \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u043F\u043E\u0437\u0436\u0435",
@@ -1988,44 +2282,41 @@ var S = {
     closePhoto: "Close photo",
     share: "Share",
     copied: "Link copied",
-    from: "from",
     perDay: "/day",
-    priceUnit: "THB",
+    priceUnit: "\u0E3F",
     available: "Available now",
     freesUp: "Frees up",
     busy: "Busy",
-    specs: "Specs",
-    allSpecs: "All specs",
+    tabsLabel: "About the vehicle",
+    tabAbout: "About",
+    tabPrices: "All prices",
+    tabSpecs: "Specs",
+    photoPrev: "Previous photo",
+    photoNext: "Next photo",
+    photoN: (n) => `Photo ${n}`,
     equipment: "Equipment",
     accessories: "Additional Options",
     perBooking: "per booking",
     accUnavailable: "Not available for these dates",
     deposit: "Deposit",
-    prices: "Prices",
-    day: "day",
-    days: "days",
-    thirtyDays: "30 days",
-    thirtyDaysCalc: "at the 28+ rate",
-    currentMonth: "current month",
-    spansSeasons: "Your rental covers several months \u2014 prices may differ in other months",
-    bookFrom: "Book",
     loading: "Loading\u2026",
     error: "Failed to load",
     name: "Your name",
     send: "Send request",
     sending: "Sending\u2026",
-    tgQuick: "1-click booking via Telegram",
-    tgQuickSub: "No forms \u2014 your details fill in automatically",
+    tgQuick: "1-click booking",
+    tgQuickSub: "via Telegram, no forms",
     or: "or",
     howToBook: "How to book?",
     back: "Back",
     bookCta: "Book",
     formTitle: "Booking request",
     manual: "Book manually",
-    manualSub: "Fill in the form manually",
+    manualSub: "fill in the form",
     dateGet: "Pick-up date",
     dateReturn: "Return date",
     phoneLabel: "WhatsApp number",
+    yourData: "Your details",
     successTitle: "Request sent!",
     successText: "We will contact you shortly.",
     tooMany: "Too many requests, try later",
@@ -2076,6 +2367,15 @@ var S = {
     successBusyText: (vehicleName, dates) => `${vehicleName} is booked for ${dates}. A manager will find options and contact you.`
   }
 };
+function InfoIcon() {
+  return /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+    /* @__PURE__ */ jsx("circle", { cx: "12", cy: "12", r: "10" }),
+    /* @__PURE__ */ jsx("path", { d: "M12 16v-4M12 8h.01" })
+  ] });
+}
+function SlidersIcon() {
+  return /* @__PURE__ */ jsx("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: /* @__PURE__ */ jsx("path", { d: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" }) });
+}
 var HEADERS = { "ngrok-skip-browser-warning": "true" };
 function classifyIntentPollResponse(res, body) {
   if (res.status === 404) return "gone";
@@ -2168,11 +2468,13 @@ function VehicleBookingModal({
   unitIds,
   onClose
 }) {
-  const t = S[locale];
+  const t = S2[locale];
   const [detail, setDetail] = useState(null);
   const [state, setState] = useState("loading");
   const [gi, setGi] = useState(0);
-  const [specsExpanded, setSpecsExpanded] = useState(false);
+  const [tab, setTab] = useState("about");
+  const tabsId = useId();
+  const tabRefs = useRef({});
   const [serverToday, setServerToday] = useState(null);
   const today = serverToday ?? todayISO();
   const [seeded] = useState(
@@ -2188,7 +2490,8 @@ function VehicleBookingModal({
   const [units, setUnits] = useState([]);
   const [availLoading, setAvailLoading] = useState(true);
   const [datesExpanded, setDatesExpanded] = useState(!seeded);
-  const [successBusy, setSuccessBusy] = useState(false);
+  const [success, setSuccess] = useState(null);
+  const pollSnapshotRef = useRef(null);
   const [name, setName] = useState(telegramUser?.first_name || "");
   const [contact, setContact] = useState("");
   const [contactError, setContactError] = useState("");
@@ -2207,7 +2510,7 @@ function VehicleBookingModal({
   const tgSubmittingRef = useRef(false);
   const [tgErr, setTgErr] = useState("");
   const [pollToken, setPollToken] = useState(null);
-  const [copied, setCopied] = useState(false);
+  const copiedToast = useCopiedToast();
   const dialogRef = useRef(null);
   useIsomorphicLayoutEffect(() => {
     const dialog = dialogRef.current;
@@ -2217,6 +2520,12 @@ function VehicleBookingModal({
     const body = dialog.querySelector(".sb-modal__body");
     if (body) body.scrollTop = 0;
   }, [stage]);
+  const focusedStageRef = useRef(stage);
+  useEffect(() => {
+    if (focusedStageRef.current === stage) return;
+    focusedStageRef.current = stage;
+    dialogRef.current?.querySelector("[data-step-title]")?.focus({ preventScroll: true });
+  }, [stage]);
   const handleShare = async () => {
     const outcome = await shareVehicle({
       vehicleId: vehicle.id,
@@ -2224,10 +2533,7 @@ function VehicleBookingModal({
       referralCode,
       promptLabel: t.share
     });
-    if (outcome === "copied") {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2e3);
-    }
+    if (outcome === "copied") copiedToast.show();
   };
   const SHEET_DISMISS_PX = 120;
   const dragStartY = useRef(0);
@@ -2272,12 +2578,20 @@ function VehicleBookingModal({
     const clamped = Math.max(0, Math.min(count - 1, i));
     el.scrollTo({ left: clamped * el.clientWidth, behavior: "smooth" });
   };
+  useIsomorphicLayoutEffect(() => {
+    if (stage !== "detail" || state !== "ready") return;
+    const el = trackRef.current;
+    if (!el) return;
+    if (el.clientWidth) el.scrollLeft = gi * el.clientWidth;
+    else if (gi !== 0) setGi(0);
+  }, [stage, state]);
   useEffect(() => {
     let cancelled = false;
     setState("loading");
     setAccessories({});
     setAccessoryLightbox(null);
-    fetch(`${apiBase}/api/v1/catalog/vehicles/${vehicle.id}/`, { headers: HEADERS }).then((r) => {
+    const windowQuery = seeded ? `?available_from=${encodeURIComponent(initialFrom)}&available_to=${encodeURIComponent(initialTo)}` : "";
+    fetch(`${apiBase}/api/v1/catalog/vehicles/${vehicle.id}/${windowQuery}`, { headers: HEADERS }).then((r) => {
       if (!r.ok) throw new Error(String(r.status));
       return r.json();
     }).then((d2) => {
@@ -2376,6 +2690,55 @@ function VehicleBookingModal({
   for (const group of detail?.accessories ?? []) {
     for (const item of group.items) accessoryNames[item.id] = locale === "ru" ? item.name_ru : item.name_en;
   }
+  const pendingAskRef = useRef(null);
+  useEffect(() => {
+    if (stage !== "choice" || !pendingAskRef.current) return;
+    const kind = pendingAskRef.current;
+    pendingAskRef.current = null;
+    askAddressRef.current?.(kind);
+  }, [stage]);
+  const askAddress = (kind) => {
+    if (submittingRef.current) return;
+    if (stage === "choice") {
+      askAddressRef.current?.(kind);
+      return;
+    }
+    pendingAskRef.current = kind;
+    setStage("choice");
+  };
+  const pickupLeg = { enabled: pickupEnabled, hasLocation: effectivePickupLocation != null, cost: pickupCost };
+  const dropoffLeg = { enabled: dropoffEnabled, hasLocation: effectiveDropoffLocation != null, cost: dropoffCost };
+  const currentQuote = priceQuoteActive ? priceQuote : null;
+  const renderPriceSummary = () => currentQuote ? /* @__PURE__ */ jsx(
+    PriceSummary,
+    {
+      quote: currentQuote.quote,
+      stale: currentQuote.key !== priceQuoteKey,
+      accessoryNames,
+      pickup: pickupLeg,
+      dropoff: dropoffLeg,
+      locale,
+      strings: {
+        title: t.sumTitle,
+        rental: t.sumRental,
+        free: t.sumFree,
+        delivery: t.sumDelivery,
+        collection: t.sumCollection,
+        ask: t.sumAsk,
+        total: t.sumTotal,
+        currency: t.priceUnit
+      },
+      onAskAddress: askAddress,
+      askDisabled: submitting
+    }
+  ) : null;
+  const periodLine = datesValid ? `${formatDayMonth(start, locale)} \u2192 ${formatDayMonth(end, locale)} \xB7 ${pluralDays(daysBetween(start, end), locale)}` : "";
+  const takeSuccessSnapshot = (withTotal) => ({
+    total: withTotal && !conflict && currentQuote && currentQuote.key === priceQuoteKey && isPriceSummaryVisible(currentQuote.quote, accessoryNames) ? formatSummaryAmount(priceSummaryTotalSatang(currentQuote.quote, pickupLeg, dropoffLeg), t.priceUnit) : null,
+    periodLine,
+    busyRange: datesValid ? `${formatShortDate(start, locale)} \u2013 ${formatShortDate(end, locale)}` : "",
+    busy: conflict
+  });
   const submit = async (e) => {
     e.preventDefault();
     if (submittingRef.current || submitting || !datesValid || !name.trim() || !contact.trim()) return;
@@ -2386,6 +2749,7 @@ function VehicleBookingModal({
     submittingRef.current = true;
     setSubmitting(true);
     setErr("");
+    const snapshot = takeSuccessSnapshot(true);
     try {
       const res = await fetch(`${apiBase}/api/v1/catalog/booking-requests/`, {
         method: "POST",
@@ -2410,7 +2774,8 @@ function VehicleBookingModal({
       });
       if (res.ok) {
         const body = await res.json().catch(() => null);
-        setSuccessBusy(typeof body?.dates_busy === "boolean" ? body.dates_busy : conflict);
+        const busy = typeof body?.dates_busy === "boolean" ? body.dates_busy : snapshot.busy;
+        setSuccess({ ...snapshot, busy, total: busy ? null : snapshot.total });
         setStage("success");
       } else {
         setErr(res.status === 429 ? t.tooMany : t.sendErr);
@@ -2441,6 +2806,7 @@ function VehicleBookingModal({
         if (verdict === "used") {
           stopped = true;
           setPollToken(null);
+          setSuccess(pollSnapshotRef.current);
           setStage("success");
         } else if (verdict === "expired" || verdict === "gone") {
           stopped = true;
@@ -2473,7 +2839,7 @@ function VehicleBookingModal({
     tgSubmittingRef.current = true;
     setTgSubmitting(true);
     setTgErr("");
-    setSuccessBusy(conflict);
+    const snapshot = takeSuccessSnapshot(false);
     let popup = null;
     try {
       popup = onTelegramLink || typeof window === "undefined" ? null : window.open("", "_blank");
@@ -2507,6 +2873,7 @@ function VehicleBookingModal({
         popup?.close();
         return;
       }
+      pollSnapshotRef.current = snapshot;
       setPollToken(token);
       if (onTelegramLink) {
         onTelegramLink(href);
@@ -2530,10 +2897,60 @@ function VehicleBookingModal({
   const gallery = galleryUrls.length ? galleryUrls : fallbackImg ? [fallbackImg] : [];
   const mainImg = gallery[gi] || fallbackImg || "";
   const price = d?.min_price_per_day ?? vehicle.min_price_per_day;
+  const priceGrid = (() => {
+    if (!d) return null;
+    if ((d.pricing_periods ?? []).length > 0 && (d.pricing_seasons ?? []).length > 0) {
+      return { periods: d.pricing_periods, seasons: d.pricing_seasons, referenceDate: seeded ? initialFrom : today };
+    }
+    const table = d.pricing_table ?? [];
+    if (table.length === 0) return null;
+    const [y, m] = today.split("-").map(Number);
+    const monthStart = `${today.slice(0, 7)}-01`;
+    const monthEnd = `${today.slice(0, 7)}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`;
+    return {
+      periods: table.map((row) => ({ min_days: row.min_days, max_days: row.max_days })),
+      seasons: [{ start_date: monthStart, end_date: monthEnd, prices: table.map((row) => row.price_per_day) }],
+      // Today's ladder — its row is today's month.
+      referenceDate: today
+    };
+  })();
+  const hasAbout = !!d && ((d.advantages ?? []).length > 0 || (d.options ?? []).length > 0 || (d.deposits ?? []).length > 0);
+  const tabs = [
+    ...hasAbout ? [{ key: "about", label: t.tabAbout, icon: /* @__PURE__ */ jsx(InfoIcon, {}) }] : [],
+    ...priceGrid ? [{ key: "prices", label: t.tabPrices, icon: /* @__PURE__ */ jsx(CalendarIcon, {}) }] : [],
+    ...specRows.length > 0 ? [{ key: "specs", label: t.tabSpecs, icon: /* @__PURE__ */ jsx(SlidersIcon, {}) }] : []
+  ];
+  const activeTab = tabs.some((x) => x.key === tab) ? tab : tabs[0]?.key ?? null;
+  const tabId = (key) => `${tabsId}-tab-${key}`;
+  const panelId = (key) => `${tabsId}-panel-${key}`;
+  const onTabKeyDown = (e) => {
+    const i = tabs.findIndex((x) => x.key === activeTab);
+    let next = -1;
+    if (e.key === "ArrowRight") next = (i + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") next = (i - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = tabs.length - 1;
+    if (next < 0) return;
+    e.preventDefault();
+    const key = tabs[next].key;
+    setTab(key);
+    tabRefs.current[key]?.focus();
+  };
+  const isBusy = !!d && !d.is_available;
+  const freeFrom = isBusy ? d.free_from : null;
+  const coverStatus = !d ? null : d.is_available ? { text: t.available, tone: "available" } : freeFrom ? { text: `${t.freesUp} ${formatShortDateWithYear(freeFrom, locale)}`, tone: "free" } : { text: t.busy, tone: "busy" };
+  const onBook = () => {
+    if (freeFrom && (!start || start < freeFrom)) {
+      setStart(freeFrom);
+      setEnd("");
+      setDatesExpanded(true);
+    }
+    setStage("choice");
+  };
   const renderAccessories = () => {
     if (!d || (d.accessories ?? []).length === 0) return null;
     return /* @__PURE__ */ jsxs("div", { className: "sb-vd__accessories", children: [
-      /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label sb-vd__section-label--accent", children: t.accessories }),
+      /* @__PURE__ */ jsx("p", { className: "sb-vd__lab", children: t.accessories }),
       /* @__PURE__ */ jsx("div", { className: "sb-acc__row", children: d.accessories.flatMap(
         (group) => group.items.map((item) => {
           const qty = accessories[item.id] || 0;
@@ -2541,78 +2958,85 @@ function VehicleBookingModal({
           const atMax = !unavailable && item.available_stock !== null && qty >= item.available_stock;
           const itemName = locale === "ru" ? item.name_ru : item.name_en;
           const categoryName = locale === "ru" ? group.name_ru : group.name_en;
-          return /* @__PURE__ */ jsxs("div", { className: `sb-acc__item ${unavailable ? "is-unavailable" : ""}`, children: [
-            /* @__PURE__ */ jsx("span", { className: "sb-acc__item-category", children: categoryName }),
-            item.photo_url ? (
-              // Tapping the photo OR the expand badge opens the same
-              // fullscreen preview — the badge is purely a visual
-              // "you can tap this" affordance, no separate handler.
-              /* @__PURE__ */ jsxs(
-                "button",
-                {
-                  type: "button",
-                  className: "sb-acc__item-photo sb-acc__item-photo--clickable",
-                  onClick: () => setAccessoryLightbox({
-                    // Prefer the large display variant for a crisp
-                    // fullscreen; fall back to the thumb (sanitize each
-                    // independently so a bad full URL still falls back).
-                    photoUrl: safeImageUrl(item.photo_full_url ?? void 0) ?? safeImageUrl(item.photo_url ?? void 0) ?? "",
-                    description: item.description,
-                    name: itemName
-                  }),
-                  "aria-label": itemName,
-                  children: [
-                    /* @__PURE__ */ jsx("img", { src: safeImageUrl(item.photo_url ?? void 0), alt: itemName }),
-                    /* @__PURE__ */ jsx("span", { className: "sb-acc__item-expand", "aria-hidden": "true", children: /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
-                      /* @__PURE__ */ jsx("path", { d: "m21 21-6-6m6 6v-4.8m0 4.8h-4.8" }),
-                      /* @__PURE__ */ jsx("path", { d: "M3 16.2V21m0 0h4.8M3 21l6-6" }),
-                      /* @__PURE__ */ jsx("path", { d: "M21 7.8V3m0 0h-4.8M21 3l-6 6" }),
-                      /* @__PURE__ */ jsx("path", { d: "M3 7.8V3m0 0h4.8M3 3l6 6" })
-                    ] }) })
-                  ]
-                }
-              )
-            ) : /* @__PURE__ */ jsx("div", { className: "sb-acc__item-photo" }),
-            /* @__PURE__ */ jsxs("div", { className: "sb-acc__item-info", children: [
-              /* @__PURE__ */ jsx("span", { className: "sb-acc__item-name", children: itemName }),
-              item.price != null ? /* @__PURE__ */ jsxs("span", { className: "sb-acc__item-price", children: [
-                Math.round(item.price).toLocaleString("en-US"),
-                " ",
-                t.priceUnit,
-                " ",
-                item.price_unit === "per_day" ? t.perDay : t.perBooking
-              ] }) : null,
-              unavailable ? /* @__PURE__ */ jsx("span", { className: "sb-acc__item-unavailable", children: t.accUnavailable }) : null
-            ] }),
-            /* @__PURE__ */ jsxs("div", { className: "sb-acc__stepper", children: [
-              /* @__PURE__ */ jsx(
-                "button",
-                {
-                  type: "button",
-                  "aria-label": "-",
-                  disabled: qty === 0,
-                  onClick: () => setAccessories((prev) => {
-                    const next = { ...prev };
-                    if (qty - 1 <= 0) delete next[item.id];
-                    else next[item.id] = qty - 1;
-                    return next;
-                  }),
-                  children: "\u2212"
-                }
-              ),
-              /* @__PURE__ */ jsx("span", { className: "sb-acc__stepper-value", children: qty }),
-              /* @__PURE__ */ jsx(
-                "button",
-                {
-                  type: "button",
-                  "aria-label": "+",
-                  disabled: unavailable || atMax,
-                  onClick: () => setAccessories((prev) => ({ ...prev, [item.id]: qty + 1 })),
-                  children: "+"
-                }
-              )
-            ] })
-          ] }, item.id);
+          return /* @__PURE__ */ jsxs(
+            "div",
+            {
+              className: `sb-acc__item${unavailable ? " is-unavailable" : ""}${qty > 0 ? " is-selected" : ""}`,
+              children: [
+                item.photo_url ? (
+                  // Tapping the photo OR the expand badge opens the same
+                  // fullscreen preview — the badge is purely a visual
+                  // "you can tap this" affordance, no separate handler.
+                  /* @__PURE__ */ jsxs(
+                    "button",
+                    {
+                      type: "button",
+                      className: "sb-acc__item-photo sb-acc__item-photo--clickable",
+                      onClick: () => setAccessoryLightbox({
+                        // Prefer the large display variant for a crisp
+                        // fullscreen; fall back to the thumb (sanitize each
+                        // independently so a bad full URL still falls back).
+                        photoUrl: safeImageUrl(item.photo_full_url ?? void 0) ?? safeImageUrl(item.photo_url ?? void 0) ?? "",
+                        description: item.description,
+                        name: itemName
+                      }),
+                      "aria-label": itemName,
+                      children: [
+                        /* @__PURE__ */ jsx("img", { src: safeImageUrl(item.photo_url ?? void 0), alt: itemName }),
+                        /* @__PURE__ */ jsx("span", { className: "sb-acc__item-expand", "aria-hidden": "true", children: /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "12", height: "12", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+                          /* @__PURE__ */ jsx("path", { d: "m21 21-6-6m6 6v-4.8m0 4.8h-4.8" }),
+                          /* @__PURE__ */ jsx("path", { d: "M3 16.2V21m0 0h4.8M3 21l6-6" }),
+                          /* @__PURE__ */ jsx("path", { d: "M21 7.8V3m0 0h-4.8M21 3l-6 6" }),
+                          /* @__PURE__ */ jsx("path", { d: "M3 7.8V3m0 0h4.8M3 3l6 6" })
+                        ] }) })
+                      ]
+                    }
+                  )
+                ) : /* @__PURE__ */ jsx("div", { className: "sb-acc__item-photo" }),
+                /* @__PURE__ */ jsxs("div", { className: "sb-acc__item-info", children: [
+                  /* @__PURE__ */ jsx("span", { className: "sb-acc__item-category", children: categoryName }),
+                  /* @__PURE__ */ jsx("span", { className: "sb-acc__item-name", children: itemName }),
+                  item.price != null ? /* @__PURE__ */ jsxs("span", { className: "sb-acc__item-price", children: [
+                    formatMoney(Math.round(item.price)),
+                    NBSP,
+                    t.priceUnit,
+                    " ",
+                    item.price_unit === "per_day" ? t.perDay : t.perBooking
+                  ] }) : null,
+                  unavailable ? /* @__PURE__ */ jsx("span", { className: "sb-acc__item-unavailable", children: t.accUnavailable }) : null
+                ] }),
+                /* @__PURE__ */ jsxs("div", { className: "sb-acc__stepper", children: [
+                  /* @__PURE__ */ jsx(
+                    "button",
+                    {
+                      type: "button",
+                      "aria-label": "-",
+                      disabled: qty === 0,
+                      onClick: () => setAccessories((prev) => {
+                        const next = { ...prev };
+                        if (qty - 1 <= 0) delete next[item.id];
+                        else next[item.id] = qty - 1;
+                        return next;
+                      }),
+                      children: "\u2212"
+                    }
+                  ),
+                  /* @__PURE__ */ jsx("span", { className: "sb-acc__stepper-value", children: qty }),
+                  /* @__PURE__ */ jsx(
+                    "button",
+                    {
+                      type: "button",
+                      "aria-label": "+",
+                      disabled: unavailable || atMax,
+                      onClick: () => setAccessories((prev) => ({ ...prev, [item.id]: qty + 1 })),
+                      children: "+"
+                    }
+                  )
+                ] })
+              ]
+            },
+            item.id
+          );
         })
       ) })
     ] });
@@ -2649,6 +3073,20 @@ function VehicleBookingModal({
     }
     return /* @__PURE__ */ jsx("p", { className: `sb-avcal__status ${tone}`, "aria-live": "polite", children: text });
   };
+  const stepWithHeader = state === "ready" && !!d && (stage === "choice" || stage === "form");
+  const renderStepHeader = (onBack) => d ? /* @__PURE__ */ jsx(
+    StepHeader,
+    {
+      photoUrl: mainImg,
+      name: d.display_name,
+      year: d.year,
+      categoryName: d.category ? categoryLabel(d.category, locale) : null,
+      backLabel: t.back,
+      closeLabel: t.close,
+      onBack,
+      onClose
+    }
+  ) : null;
   return createPortal(
     // Wrap in .sb-root so the design tokens (--sb-*) cascade into the portal,
     // which lives outside the page's .sb-root.
@@ -2671,255 +3109,203 @@ function VehicleBookingModal({
                 children: /* @__PURE__ */ jsx("span", { className: "sb-modal__grabber-bar", "aria-hidden": true })
               }
             ),
-            /* @__PURE__ */ jsx("button", { type: "button", className: "sb-modal__close", "aria-label": t.close, onClick: onClose, children: "\xD7" }),
+            stepWithHeader ? null : /* @__PURE__ */ jsx("button", { type: "button", className: "sb-modal__close", "aria-label": t.close, onClick: onClose, children: "\xD7" }),
             state === "loading" ? /* @__PURE__ */ jsx("p", { className: "sb-modal__state", children: t.loading }) : null,
             state === "error" ? /* @__PURE__ */ jsx("p", { className: "sb-modal__state", children: t.error }) : null,
             state === "ready" && d ? stage === "success" ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__success", children: [
-              /* @__PURE__ */ jsx("div", { className: "sb-modal__check", "aria-hidden": true, children: "\u2713" }),
-              /* @__PURE__ */ jsx("h3", { children: successBusy ? t.successBusyTitle : t.successTitle }),
-              /* @__PURE__ */ jsx("p", { children: successBusy ? t.successBusyText(
-                d.display_name,
-                `${formatShortDate(start, locale)} \u2013 ${formatShortDate(end, locale)}`
-              ) : t.successText }),
-              /* @__PURE__ */ jsx("button", { type: "button", className: "sb-btn", onClick: onClose, children: "OK" })
-            ] }) : stage === "detail" ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__body", children: [
-              gallery.length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__media", children: [
-                /* @__PURE__ */ jsxs("div", { className: "sb-vd__gallery", children: [
-                  /* @__PURE__ */ jsx("div", { className: "sb-vd__frame", ref: trackRef, onScroll: onTrackScroll, children: gallery.map((u, i) => /* @__PURE__ */ jsx(
-                    "img",
-                    {
-                      className: "sb-vd__photo",
-                      src: u,
-                      alt: d.display_name,
-                      loading: i === 0 ? void 0 : "lazy",
-                      draggable: false
-                    },
-                    i
-                  )) }),
-                  gallery.length > 1 ? /* @__PURE__ */ jsxs(Fragment, { children: [
-                    /* @__PURE__ */ jsx(
-                      "button",
-                      {
-                        type: "button",
-                        className: "sb-vd__nav sb-vd__nav--prev",
-                        "aria-label": "\u2039",
-                        onClick: () => scrollToImage(gi - 1, gallery.length),
-                        children: "\u2039"
-                      }
-                    ),
-                    /* @__PURE__ */ jsx(
-                      "button",
-                      {
-                        type: "button",
-                        className: "sb-vd__nav sb-vd__nav--next",
-                        "aria-label": "\u203A",
-                        onClick: () => scrollToImage(gi + 1, gallery.length),
-                        children: "\u203A"
-                      }
-                    ),
-                    /* @__PURE__ */ jsxs("span", { className: "sb-vd__counter", children: [
-                      gi + 1,
-                      "/",
-                      gallery.length
-                    ] })
-                  ] }) : null
+              /* @__PURE__ */ jsx("div", { className: "sb-modal__check", "aria-hidden": true, children: /* @__PURE__ */ jsx(CheckIcon, {}) }),
+              /* @__PURE__ */ jsx("h3", { tabIndex: -1, "data-step-title": "", children: success?.busy ? t.successBusyTitle : t.successTitle }),
+              /* @__PURE__ */ jsx("p", { children: success?.busy ? t.successBusyText(d.display_name, success.busyRange) : t.successText }),
+              /* @__PURE__ */ jsxs("div", { className: "sb-vd__recap", children: [
+                mainImg ? /* @__PURE__ */ jsx("img", { className: "sb-vd__recap-photo", src: mainImg, alt: "" }) : null,
+                /* @__PURE__ */ jsxs("span", { className: "sb-vd__recap-main", children: [
+                  /* @__PURE__ */ jsx("b", { children: d.display_name }),
+                  success?.periodLine ? /* @__PURE__ */ jsx("span", { children: success.periodLine }) : null
                 ] }),
-                gallery.length > 1 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__thumbs", children: gallery.map((u, i) => /* @__PURE__ */ jsx(
-                  "button",
+                success?.total ? /* @__PURE__ */ jsxs("span", { className: "sb-vd__recap-total", children: [
+                  /* @__PURE__ */ jsx("small", { children: t.sumTotal }),
+                  /* @__PURE__ */ jsx("b", { children: success.total })
+                ] }) : null
+              ] }),
+              /* @__PURE__ */ jsx("button", { type: "button", className: "sb-btn sb-vd__submit", onClick: onClose, children: "OK" })
+            ] }) : stage === "detail" ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__body sb-vd", children: [
+              /* @__PURE__ */ jsxs("div", { className: "sb-vd__hero", children: [
+                /* @__PURE__ */ jsx("div", { className: "sb-vd__frame", ref: trackRef, onScroll: onTrackScroll, children: gallery.map((u, i) => /* @__PURE__ */ jsx(
+                  "img",
                   {
-                    type: "button",
-                    className: `sb-vd__thumb ${i === gi ? "is-active" : ""}`,
-                    onClick: () => scrollToImage(i, gallery.length),
-                    "aria-label": `${i + 1}`,
-                    children: /* @__PURE__ */ jsx("img", { src: u, alt: "", loading: "lazy" })
+                    className: "sb-vd__photo",
+                    src: u,
+                    alt: d.display_name,
+                    loading: i === 0 ? void 0 : "lazy",
+                    draggable: false
                   },
                   i
-                )) }) : null
-              ] }) : null,
-              /* @__PURE__ */ jsxs("div", { className: "sb-vd__info", children: [
-                /* @__PURE__ */ jsxs("div", { className: "sb-vd__header", children: [
-                  /* @__PURE__ */ jsx("h3", { className: "sb-vd__name", children: d.display_name }),
-                  price != null ? /* @__PURE__ */ jsxs("p", { className: "sb-vd__price", children: [
-                    /* @__PURE__ */ jsxs("small", { children: [
-                      t.from,
-                      " "
-                    ] }),
-                    formatDayPrice(price),
-                    /* @__PURE__ */ jsxs("small", { children: [
-                      " ",
-                      t.priceUnit,
-                      t.perDay
-                    ] })
-                  ] }) : null
-                ] }),
-                /* @__PURE__ */ jsxs("div", { className: "sb-vd__meta-row", children: [
-                  d.year ? /* @__PURE__ */ jsx("span", { className: "sb-vd__year", children: d.year }) : null,
-                  d.category ? /* @__PURE__ */ jsx("span", { className: "sb-vd__badge", style: { backgroundColor: d.category.color }, children: categoryLabel(d.category, locale) }) : null,
-                  /* @__PURE__ */ jsxs(
+                )) }),
+                /* @__PURE__ */ jsx("div", { className: "sb-vd__top", children: /* @__PURE__ */ jsx(
+                  CardTitle,
+                  {
+                    name: d.display_name,
+                    year: d.year,
+                    categoryName: d.category ? categoryLabel(d.category, locale) : null,
+                    stepTitle: true
+                  }
+                ) }),
+                gallery.length > 1 ? /* @__PURE__ */ jsxs(Fragment, { children: [
+                  /* @__PURE__ */ jsx(
                     "button",
                     {
                       type: "button",
-                      className: `sb-vd__share ${copied ? "is-copied" : ""}`,
-                      onClick: handleShare,
-                      "aria-label": t.share,
-                      children: [
-                        /* @__PURE__ */ jsxs(
-                          "svg",
-                          {
-                            className: "sb-vd__share-ico",
-                            viewBox: "0 0 24 24",
-                            width: "14",
-                            height: "14",
-                            fill: "none",
-                            stroke: "currentColor",
-                            strokeWidth: "2",
-                            strokeLinecap: "round",
-                            strokeLinejoin: "round",
-                            "aria-hidden": true,
-                            children: [
-                              /* @__PURE__ */ jsx("circle", { cx: "18", cy: "5", r: "3" }),
-                              /* @__PURE__ */ jsx("circle", { cx: "6", cy: "12", r: "3" }),
-                              /* @__PURE__ */ jsx("circle", { cx: "18", cy: "19", r: "3" }),
-                              /* @__PURE__ */ jsx("line", { x1: "8.6", y1: "13.5", x2: "15.4", y2: "17.5" }),
-                              /* @__PURE__ */ jsx("line", { x1: "15.4", y1: "6.5", x2: "8.6", y2: "10.5" })
-                            ]
-                          }
-                        ),
-                        copied ? t.copied : t.share
-                      ]
+                      className: "sb-vd__nav sb-vd__nav--prev",
+                      "aria-label": t.photoPrev,
+                      onClick: () => scrollToImage(gi - 1, gallery.length),
+                      children: "\u2039"
                     }
-                  )
-                ] }),
-                /* @__PURE__ */ jsxs("div", { className: `sb-vd__avail ${d.is_available ? "is-free" : "is-busy"}`, children: [
-                  /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-dot", "aria-hidden": true }),
-                  /* @__PURE__ */ jsx("span", { className: "sb-vd__avail-text", children: d.is_available ? t.available : d.free_from ? `${t.freesUp} ${formatShortDateWithYear(d.free_from, locale)}` : t.busy }),
-                  !d.is_available && d.free_from && d.free_from !== start ? /* @__PURE__ */ jsx(
+                  ),
+                  /* @__PURE__ */ jsx(
                     "button",
                     {
                       type: "button",
-                      className: "sb-vd__avail-btn",
-                      onClick: () => {
-                        setStart(d.free_from);
-                        setEnd("");
-                        setDatesExpanded(true);
-                        setStage("choice");
-                      },
-                      children: t.bookFrom
+                      className: "sb-vd__nav sb-vd__nav--next",
+                      "aria-label": t.photoNext,
+                      onClick: () => scrollToImage(gi + 1, gallery.length),
+                      children: "\u203A"
                     }
-                  ) : null
-                ] }),
-                (d.advantages ?? []).length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.advantages.map((a, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip", children: a }, i)) }) : null,
-                (d.pricing_table ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices", children: [
-                  /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices-head", children: [
-                    /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.prices }),
-                    /* @__PURE__ */ jsxs("span", { className: "sb-vd__season", children: [
-                      "\xB7 ",
-                      t.currentMonth
-                    ] })
-                  ] }),
-                  /* @__PURE__ */ jsxs("div", { className: "sb-vd__prices-grid", children: [
-                    d.pricing_table.map((row, i) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__price-row", children: [
-                      /* @__PURE__ */ jsx("span", { className: "sb-vd__price-period", children: row.min_days === row.max_days ? `${row.period_label} ${row.min_days === 1 ? t.day : t.days}` : `${row.period_label} ${t.days}` }),
-                      /* @__PURE__ */ jsxs("span", { className: "sb-vd__price-value", children: [
-                        formatDayPrice(row.price_per_day),
-                        /* @__PURE__ */ jsxs("small", { children: [
-                          " ",
-                          t.priceUnit,
-                          t.perDay
-                        ] })
-                      ] })
-                    ] }, i)),
-                    (() => {
-                      const last = d.pricing_table[d.pricing_table.length - 1];
-                      if (!last || last.price_30_days == null) return null;
-                      return /* @__PURE__ */ jsxs("div", { className: "sb-vd__price-row sb-vd__price-row--total", children: [
-                        /* @__PURE__ */ jsxs("span", { className: "sb-vd__price-period", children: [
-                          /* @__PURE__ */ jsx("b", { children: t.thirtyDays }),
-                          t.thirtyDaysCalc
-                        ] }),
-                        /* @__PURE__ */ jsxs("span", { className: "sb-vd__price-value", children: [
-                          last.price_30_days.toLocaleString("en-US"),
-                          /* @__PURE__ */ jsxs("small", { children: [
-                            " ",
-                            t.priceUnit
-                          ] })
-                        ] })
-                      ] });
-                    })()
-                  ] }),
-                  d.pricing_spans_seasons ? /* @__PURE__ */ jsx("p", { className: "sb-vd__season-note", children: t.spansSeasons }) : null
+                  ),
+                  /* @__PURE__ */ jsxs("span", { className: "sb-vd__counter", children: [
+                    gi + 1,
+                    "/",
+                    gallery.length
+                  ] })
                 ] }) : null,
-                (d.deposits ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__deposits", children: [
-                  /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.deposit }),
-                  /* @__PURE__ */ jsx("div", { className: "sb-vd__deposit-pills", children: d.deposits.map((dep, i) => /* @__PURE__ */ jsxs("span", { className: "sb-vd__deposit-pill", children: [
-                    money(dep.amount),
-                    " ",
-                    dep.currency_code
-                  ] }, i)) })
-                ] }) : null,
-                (d.options ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__equipment-wrap", children: [
-                  /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.equipment }),
-                  /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.options.map((o, i) => /* @__PURE__ */ jsx("span", { className: "sb-chip sb-chip--ghost", children: o }, i)) })
-                ] }) : null,
-                specRows.length ? (() => {
-                  const visible = specsExpanded ? specRows : specRows.slice(0, 4);
-                  return /* @__PURE__ */ jsxs("div", { className: "sb-vd__specs-wrap", children: [
-                    /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: t.specs }),
-                    /* @__PURE__ */ jsxs("div", { className: "sb-vd__specs-card", children: [
-                      /* @__PURE__ */ jsx("div", { className: "sb-vd__specs", children: visible.map((row) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__spec", children: [
-                        /* @__PURE__ */ jsx("span", { children: row.label }),
-                        /* @__PURE__ */ jsx("b", { children: row.value })
-                      ] }, row.key)) }),
-                      specRows.length > 4 ? /* @__PURE__ */ jsxs(
-                        "button",
-                        {
-                          type: "button",
-                          className: "sb-vd__specs-toggle",
-                          onClick: () => setSpecsExpanded((v) => !v),
-                          children: [
-                            t.allSpecs,
-                            " ",
-                            specsExpanded ? "\u25B2" : "\u25BC"
-                          ]
-                        }
-                      ) : null
-                    ] })
-                  ] });
-                })() : null
+                coverStatus ? /* @__PURE__ */ jsx(
+                  CardPriceOverlay,
+                  {
+                    statusText: coverStatus.text,
+                    statusTone: coverStatus.tone,
+                    prices: d.card_prices ?? vehicle.card_prices ?? null,
+                    minPricePerDay: price ?? null,
+                    strings: STRINGS2[locale]
+                  }
+                ) : null
               ] }),
-              /* @__PURE__ */ jsx("div", { className: "sb-vd__cta", children: /* @__PURE__ */ jsx(
+              gallery.length > 1 ? /* @__PURE__ */ jsx("div", { className: "sb-vd__thumbs", children: gallery.map((u, i) => /* @__PURE__ */ jsx(
                 "button",
                 {
                   type: "button",
-                  className: "sb-btn sb-vd__cta-btn",
-                  onClick: () => setStage("choice"),
-                  children: t.bookCta
-                }
-              ) })
+                  className: `sb-vd__thumb ${i === gi ? "is-active" : ""}`,
+                  onClick: () => scrollToImage(i, gallery.length),
+                  "aria-label": t.photoN(i + 1),
+                  "aria-current": i === gi ? "true" : void 0,
+                  children: /* @__PURE__ */ jsx("img", { src: u, alt: "", loading: "lazy" })
+                },
+                i
+              )) }) : null,
+              activeTab ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__info", children: [
+                /* @__PURE__ */ jsx(
+                  "div",
+                  {
+                    className: `sb-vd__tabs sb-vd__tabs--n${tabs.length}`,
+                    role: "tablist",
+                    "aria-label": t.tabsLabel,
+                    children: tabs.map((x) => /* @__PURE__ */ jsxs(
+                      "button",
+                      {
+                        ref: (el) => {
+                          tabRefs.current[x.key] = el;
+                        },
+                        type: "button",
+                        role: "tab",
+                        id: tabId(x.key),
+                        "aria-selected": x.key === activeTab,
+                        "aria-controls": panelId(x.key),
+                        tabIndex: x.key === activeTab ? 0 : -1,
+                        className: `sb-vd__tab${x.key === activeTab ? " is-active" : ""}`,
+                        onClick: () => setTab(x.key),
+                        onKeyDown: onTabKeyDown,
+                        children: [
+                          x.icon,
+                          x.label
+                        ]
+                      },
+                      x.key
+                    ))
+                  }
+                ),
+                tabs.map((x) => /* @__PURE__ */ jsx(
+                  "div",
+                  {
+                    role: "tabpanel",
+                    id: panelId(x.key),
+                    "aria-labelledby": tabId(x.key),
+                    tabIndex: 0,
+                    hidden: x.key !== activeTab,
+                    className: "sb-vd__panel",
+                    children: x.key === "about" ? /* @__PURE__ */ jsxs(Fragment, { children: [
+                      (d.advantages ?? []).length > 0 ? /* @__PURE__ */ jsx("ul", { className: "sb-vd__adv", children: d.advantages.map((a, i) => /* @__PURE__ */ jsxs("li", { children: [
+                        /* @__PURE__ */ jsx(CheckIcon, {}),
+                        a
+                      ] }, i)) }) : null,
+                      (d.options ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__group", children: [
+                        /* @__PURE__ */ jsx("p", { className: "sb-vd__lab", children: t.equipment }),
+                        /* @__PURE__ */ jsx("div", { className: "sb-vd__chips", children: d.options.map((o, i) => /* @__PURE__ */ jsx("span", { className: "sb-vd__chip", children: o }, i)) })
+                      ] }) : null,
+                      (d.deposits ?? []).length > 0 ? /* @__PURE__ */ jsxs("div", { className: "sb-vd__group", children: [
+                        /* @__PURE__ */ jsx("p", { className: "sb-vd__lab", children: t.deposit }),
+                        /* @__PURE__ */ jsx("div", { className: "sb-vd__deposit-pills", children: d.deposits.map((dep, i) => /* @__PURE__ */ jsxs("span", { className: "sb-vd__deposit-pill", children: [
+                          formatMoney(dep.amount),
+                          NBSP,
+                          dep.currency_code === "THB" ? t.priceUnit : dep.currency_code
+                        ] }, i)) })
+                      ] }) : null
+                    ] }) : x.key === "prices" && priceGrid ? /* @__PURE__ */ jsx(
+                      PriceGrid,
+                      {
+                        periods: priceGrid.periods,
+                        seasons: priceGrid.seasons,
+                        referenceDate: priceGrid.referenceDate,
+                        locale
+                      }
+                    ) : x.key === "specs" ? (
+                      // Every spec row at once; rows and units: ./specs.ts
+                      /* @__PURE__ */ jsx("div", { className: "sb-vd__specs", children: specRows.map((row) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__spec", children: [
+                        /* @__PURE__ */ jsx("span", { children: row.label }),
+                        /* @__PURE__ */ jsx("b", { children: row.value })
+                      ] }, row.key)) })
+                    ) : null
+                  },
+                  x.key
+                ))
+              ] }) : null,
+              /* @__PURE__ */ jsxs("div", { className: "sb-vd__cta", children: [
+                /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-vcard__book", onClick: onBook, children: [
+                  /* @__PURE__ */ jsx(CalendarIcon, {}),
+                  t.bookCta
+                ] }),
+                /* @__PURE__ */ jsx(
+                  "button",
+                  {
+                    type: "button",
+                    className: `sb-vcard__share${copiedToast.shown ? " is-done" : ""}`,
+                    "aria-label": t.share,
+                    onClick: handleShare,
+                    children: copiedToast.shown ? /* @__PURE__ */ jsx(CheckIcon, {}) : /* @__PURE__ */ jsx(ShareIcon, {})
+                  }
+                ),
+                /* @__PURE__ */ jsx("div", { className: "sb-vd__toast-slot", role: "status", "aria-live": "polite", children: /* @__PURE__ */ jsx(
+                  "span",
+                  {
+                    className: `sb-vd__toast${copiedToast.shown ? " is-shown" : ""}`,
+                    "aria-hidden": copiedToast.phase === "hidden",
+                    children: copiedToast.phase !== "hidden" ? /* @__PURE__ */ jsxs(Fragment, { children: [
+                      /* @__PURE__ */ jsx(CheckIcon, {}),
+                      t.copied
+                    ] }) : null
+                  }
+                ) })
+              ] })
             ] }) : stage === "choice" ? /* @__PURE__ */ jsxs("div", { className: "sb-modal__body sb-modal__body--book", children: [
-              /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-vd__back", onClick: () => setStage("detail"), children: [
-                "\u2039 ",
-                t.back
-              ] }),
-              /* @__PURE__ */ jsx("h3", { className: "sb-bk__title", children: t.howToBook }),
-              /* @__PURE__ */ jsxs("div", { className: "sb-bk__vehicle", children: [
-                mainImg ? /* @__PURE__ */ jsx("img", { className: "sb-bk__photo", src: mainImg, alt: "" }) : null,
-                /* @__PURE__ */ jsxs("div", { className: "sb-bk__meta", children: [
-                  /* @__PURE__ */ jsx("p", { className: "sb-bk__name", children: d.display_name }),
-                  price != null ? /* @__PURE__ */ jsxs("p", { className: "sb-bk__price", children: [
-                    /* @__PURE__ */ jsxs("small", { children: [
-                      t.from,
-                      " "
-                    ] }),
-                    formatDayPrice(price),
-                    /* @__PURE__ */ jsxs("small", { children: [
-                      " ",
-                      t.priceUnit,
-                      t.perDay
-                    ] })
-                  ] }) : null
-                ] })
-              ] }),
+              renderStepHeader(() => setStage("detail")),
+              /* @__PURE__ */ jsx("h3", { className: "sb-bk__title", tabIndex: -1, "data-step-title": "", children: t.howToBook }),
               /* @__PURE__ */ jsxs("div", { className: `sb-avcal-block${datesCollapsed ? " is-collapsed" : ""}`, children: [
                 datesCollapsed ? /* @__PURE__ */ jsx("div", { className: "sb-filterbar__availability is-ready is-compact sb-avcal__summary", children: /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__availability-compact", children: [
                   /* @__PURE__ */ jsxs("div", { className: "sb-filterbar__availability-summary", children: [
@@ -2947,13 +3333,13 @@ function VehicleBookingModal({
                   )
                 ] }) }) : /* @__PURE__ */ jsxs(Fragment, { children: [
                   /* @__PURE__ */ jsxs("div", { className: "sb-vd__dates", children: [
-                    /* @__PURE__ */ jsxs("div", { className: "sb-avcal__field", children: [
-                      /* @__PURE__ */ jsx("span", { children: t.dateGet }),
-                      /* @__PURE__ */ jsx("span", { className: `sb-input sb-avcal__value${start ? "" : " is-placeholder"}`, children: start ? formatDDMMYYYY(start) : t.datePlaceholder })
+                    /* @__PURE__ */ jsxs("div", { className: `sb-avcal__field${!start ? " is-active" : ""}`, children: [
+                      /* @__PURE__ */ jsx("span", { className: "sb-avcal__field-label", children: t.dateGet }),
+                      /* @__PURE__ */ jsx("span", { className: `sb-avcal__value${start ? "" : " is-placeholder"}`, children: start ? formatDDMMYYYY(start) : t.datePlaceholder })
                     ] }),
-                    /* @__PURE__ */ jsxs("div", { className: "sb-avcal__field", children: [
-                      /* @__PURE__ */ jsx("span", { children: t.dateReturn }),
-                      /* @__PURE__ */ jsx("span", { className: `sb-input sb-avcal__value${end ? "" : " is-placeholder"}`, children: end ? formatDDMMYYYY(end) : t.datePlaceholder })
+                    /* @__PURE__ */ jsxs("div", { className: `sb-avcal__field${start && !end ? " is-active" : ""}`, children: [
+                      /* @__PURE__ */ jsx("span", { className: "sb-avcal__field-label", children: t.dateReturn }),
+                      /* @__PURE__ */ jsx("span", { className: `sb-avcal__value${end ? "" : " is-placeholder"}`, children: end ? formatDDMMYYYY(end) : t.datePlaceholder })
                     ] })
                   ] }),
                   /* @__PURE__ */ jsx(
@@ -3033,157 +3419,74 @@ function VehicleBookingModal({
                   askAddressRef
                 }
               ),
-              priceQuoteActive && priceQuote ? /* @__PURE__ */ jsx(
-                PriceSummary,
-                {
-                  quote: priceQuote.quote,
-                  stale: priceQuote.key !== priceQuoteKey,
-                  accessoryNames,
-                  pickup: { enabled: pickupEnabled, hasLocation: effectivePickupLocation != null, cost: pickupCost },
-                  dropoff: { enabled: dropoffEnabled, hasLocation: effectiveDropoffLocation != null, cost: dropoffCost },
-                  locale,
-                  strings: {
-                    title: t.sumTitle,
-                    rental: t.sumRental,
-                    free: t.sumFree,
-                    delivery: t.sumDelivery,
-                    collection: t.sumCollection,
-                    ask: t.sumAsk,
-                    total: t.sumTotal,
-                    currency: t.priceUnit
-                  },
-                  onAskAddress: (kind) => askAddressRef.current?.(kind)
-                }
-              ) : null,
+              renderPriceSummary(),
               /* @__PURE__ */ jsxs("div", { className: "sb-vd__book-actions", children: [
                 conflict ? /* @__PURE__ */ jsx("p", { className: "sb-avcal__ask", children: t.askHint }) : null,
-                /* @__PURE__ */ jsxs(
-                  "button",
-                  {
-                    type: "button",
-                    className: "sb-vd__tg-card",
-                    disabled: !datesValid || availLoading || tgSubmitting,
-                    onClick: handleTelegramBooking,
-                    children: [
-                      /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-icon", "aria-hidden": true, children: /* @__PURE__ */ jsx(ContactIcon, { kind: "telegram" }) }),
-                      /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
-                        /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: conflict ? t.tgAsk : t.tgQuick }),
-                        /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: tgSubmitting ? t.loading : conflict ? t.tgAskSub : t.tgQuickSub })
-                      ] }),
-                      /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
-                    ]
-                  }
-                ),
-                tgErr ? /* @__PURE__ */ jsx("p", { className: "sb-form__status sb-form__status--err", children: tgErr }) : null,
-                /* @__PURE__ */ jsx("div", { className: "sb-vd__or", children: t.or }),
-                /* @__PURE__ */ jsxs(
-                  "button",
-                  {
-                    type: "button",
-                    className: "sb-vd__option-card",
-                    disabled: !datesValid || availLoading,
-                    onClick: () => setStage("form"),
-                    children: [
-                      /* @__PURE__ */ jsx("span", { className: "sb-vd__option-icon", "aria-hidden": true, children: /* @__PURE__ */ jsxs(
-                        "svg",
-                        {
-                          viewBox: "0 0 24 24",
-                          width: "22",
-                          height: "22",
-                          fill: "none",
-                          stroke: "currentColor",
-                          strokeWidth: "2",
-                          strokeLinecap: "round",
-                          strokeLinejoin: "round",
-                          "aria-hidden": "true",
-                          children: [
-                            /* @__PURE__ */ jsx("rect", { width: "8", height: "4", x: "8", y: "2", rx: "1" }),
-                            /* @__PURE__ */ jsx("path", { d: "M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4" }),
-                            /* @__PURE__ */ jsx("path", { d: "M16 4h2a2 2 0 0 1 2 2v2" }),
-                            /* @__PURE__ */ jsx("path", { d: "M8 11h5" }),
-                            /* @__PURE__ */ jsx("path", { d: "M8 15h2" }),
-                            /* @__PURE__ */ jsx("path", { d: "M21.378 13.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" })
-                          ]
-                        }
-                      ) }),
-                      /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
-                        /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: conflict ? t.manualAsk : t.manual }),
-                        /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: conflict ? t.manualAskSub : t.manualSub })
-                      ] }),
-                      /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
-                    ]
-                  }
-                )
-              ] })
-            ] }) : /* @__PURE__ */ jsxs("div", { className: "sb-modal__body sb-modal__body--book", children: [
-              /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-vd__back", onClick: () => setStage("choice"), children: [
-                "\u2039 ",
-                t.back
-              ] }),
-              /* @__PURE__ */ jsx("h3", { className: "sb-bk__title", children: t.formTitle }),
-              /* @__PURE__ */ jsxs("div", { className: "sb-bk__vehicle", children: [
-                mainImg ? /* @__PURE__ */ jsx("img", { className: "sb-bk__photo", src: mainImg, alt: "" }) : null,
-                /* @__PURE__ */ jsxs("div", { className: "sb-bk__meta", children: [
-                  /* @__PURE__ */ jsx("p", { className: "sb-bk__name", children: d.display_name }),
-                  price != null ? /* @__PURE__ */ jsxs("p", { className: "sb-bk__price", children: [
-                    /* @__PURE__ */ jsxs("small", { children: [
-                      t.from,
-                      " "
-                    ] }),
-                    formatDayPrice(price),
-                    /* @__PURE__ */ jsxs("small", { children: [
-                      " ",
-                      t.priceUnit,
-                      t.perDay
-                    ] })
-                  ] }) : null
-                ] })
-              ] }),
-              /* @__PURE__ */ jsxs("form", { className: "sb-vd__book", onSubmit: submit, children: [
-                /* @__PURE__ */ jsxs("label", { className: "sb-vd__field", children: [
-                  /* @__PURE__ */ jsx("span", { className: "sb-vd__field-label", children: t.name }),
-                  /* @__PURE__ */ jsx(
-                    "input",
+                /* @__PURE__ */ jsxs("div", { className: "sb-vd__book-row", children: [
+                  /* @__PURE__ */ jsxs(
+                    "button",
                     {
-                      className: "sb-input",
-                      type: "text",
-                      required: true,
-                      value: name,
-                      onChange: (e) => setName(e.target.value)
+                      type: "button",
+                      className: "sb-vd__tg-card",
+                      disabled: !datesValid || availLoading || tgSubmitting,
+                      onClick: handleTelegramBooking,
+                      children: [
+                        /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-icon", "aria-hidden": true, children: /* @__PURE__ */ jsx(ContactIcon, { kind: "telegram" }) }),
+                        /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
+                          /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: conflict ? t.tgAsk : t.tgQuick }),
+                          /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: tgSubmitting ? t.loading : conflict ? t.tgAskSub : t.tgQuickSub })
+                        ] }),
+                        /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
+                      ]
+                    }
+                  ),
+                  /* @__PURE__ */ jsx("div", { className: "sb-vd__or", children: t.or }),
+                  /* @__PURE__ */ jsxs(
+                    "button",
+                    {
+                      type: "button",
+                      className: "sb-vd__option-card",
+                      disabled: !datesValid || availLoading,
+                      onClick: () => setStage("form"),
+                      children: [
+                        /* @__PURE__ */ jsx("span", { className: "sb-vd__option-icon", "aria-hidden": true, children: /* @__PURE__ */ jsxs(
+                          "svg",
+                          {
+                            viewBox: "0 0 24 24",
+                            width: "22",
+                            height: "22",
+                            fill: "none",
+                            stroke: "currentColor",
+                            strokeWidth: "2",
+                            strokeLinecap: "round",
+                            strokeLinejoin: "round",
+                            "aria-hidden": "true",
+                            children: [
+                              /* @__PURE__ */ jsx("rect", { width: "8", height: "4", x: "8", y: "2", rx: "1" }),
+                              /* @__PURE__ */ jsx("path", { d: "M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4" }),
+                              /* @__PURE__ */ jsx("path", { d: "M16 4h2a2 2 0 0 1 2 2v2" }),
+                              /* @__PURE__ */ jsx("path", { d: "M8 11h5" }),
+                              /* @__PURE__ */ jsx("path", { d: "M8 15h2" }),
+                              /* @__PURE__ */ jsx("path", { d: "M21.378 13.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" })
+                            ]
+                          }
+                        ) }),
+                        /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
+                          /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: conflict ? t.manualAsk : t.manual }),
+                          /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: conflict ? t.manualAskSub : t.manualSub })
+                        ] }),
+                        /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-arrow", "aria-hidden": true, children: "\u203A" })
+                      ]
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsxs("div", { className: "sb-vd__field", children: [
-                  /* @__PURE__ */ jsxs("label", { className: "sb-vd__field", children: [
-                    /* @__PURE__ */ jsx("span", { className: "sb-vd__field-label", children: t.phoneLabel }),
-                    /* @__PURE__ */ jsx(
-                      "input",
-                      {
-                        className: "sb-input",
-                        type: "text",
-                        placeholder: t.phonePh,
-                        required: true,
-                        value: contact,
-                        onChange: (e) => {
-                          setContact(e.target.value);
-                          setContactError("");
-                        },
-                        "aria-invalid": !!contactError,
-                        "aria-describedby": contactError ? "sb-vd-contact-error" : void 0
-                      }
-                    )
-                  ] }),
-                  contactError ? /* @__PURE__ */ jsx("span", { id: "sb-vd-contact-error", className: "sb-vd__field-error", children: contactError }) : null
-                ] }),
-                /* @__PURE__ */ jsxs("p", { className: "sb-vd__dates-summary", children: [
-                  t.dateGet,
-                  ": ",
-                  /* @__PURE__ */ jsx("b", { children: formatShortDate(start, locale) }),
-                  " \u2014 ",
-                  t.dateReturn,
-                  ": ",
-                  /* @__PURE__ */ jsx("b", { children: formatShortDate(end, locale) })
-                ] }),
+                tgErr ? /* @__PURE__ */ jsx("p", { className: "sb-form__status sb-form__status--err", children: tgErr }) : null
+              ] })
+            ] }) : /* @__PURE__ */ jsxs("div", { className: "sb-modal__body sb-modal__body--book", children: [
+              renderStepHeader(() => setStage("choice")),
+              /* @__PURE__ */ jsxs("form", { className: "sb-vd__form", onSubmit: submit, children: [
+                /* @__PURE__ */ jsx("h3", { className: "sb-bk__title", tabIndex: -1, "data-step-title": "", children: t.formTitle }),
+                /* @__PURE__ */ jsx("p", { className: "sb-vd__datesline", children: periodLine }),
                 effectivePickupLocation ? /* @__PURE__ */ jsxs("p", { className: "sb-vd__dates-summary", children: [
                   t.deliveryPickup,
                   ": ",
@@ -3194,10 +3497,51 @@ function VehicleBookingModal({
                   ": ",
                   /* @__PURE__ */ jsx("b", { children: effectiveDropoffLocation.address })
                 ] }) : null,
+                renderPriceSummary(),
+                /* @__PURE__ */ jsxs("div", { className: "sb-vd__you", children: [
+                  /* @__PURE__ */ jsx("p", { className: "sb-vd__lab", children: t.yourData }),
+                  /* @__PURE__ */ jsxs("div", { className: "sb-vd__you-row", children: [
+                    /* @__PURE__ */ jsxs("label", { className: "sb-vd__field", children: [
+                      /* @__PURE__ */ jsx("span", { className: "sb-vd__field-label", children: t.name }),
+                      /* @__PURE__ */ jsx(
+                        "input",
+                        {
+                          className: "sb-input",
+                          type: "text",
+                          required: true,
+                          value: name,
+                          onChange: (e) => setName(e.target.value)
+                        }
+                      )
+                    ] }),
+                    /* @__PURE__ */ jsxs("div", { className: "sb-vd__field", children: [
+                      /* @__PURE__ */ jsxs("label", { className: "sb-vd__field", children: [
+                        /* @__PURE__ */ jsx("span", { className: "sb-vd__field-label", children: t.phoneLabel }),
+                        /* @__PURE__ */ jsx(
+                          "input",
+                          {
+                            className: "sb-input",
+                            type: "text",
+                            placeholder: t.phonePh,
+                            required: true,
+                            value: contact,
+                            onChange: (e) => {
+                              setContact(e.target.value);
+                              setContactError("");
+                            },
+                            "aria-invalid": !!contactError,
+                            "aria-describedby": contactError ? "sb-vd-contact-error" : void 0
+                          }
+                        )
+                      ] }),
+                      contactError ? /* @__PURE__ */ jsx("span", { id: "sb-vd-contact-error", className: "sb-vd__field-error", children: contactError }) : null
+                    ] })
+                  ] })
+                ] }),
                 /* @__PURE__ */ jsx(
                   "button",
                   {
-                    className: "sb-btn sb-btn--block",
+                    className: "sb-btn sb-btn--block sb-vd__submit",
                     type: "submit",
                     disabled: submitting || !datesValid,
                     children: submitting ? /* @__PURE__ */ jsxs(Fragment, { children: [
@@ -3248,8 +3592,6 @@ function VehicleBookingModal({
     document.body
   );
 }
-var SHARE_TOAST_MS = 2e3;
-var SHARE_TOAST_ANIM_MS = 220;
 function formatCardDate(iso, locale) {
   try {
     return new Date(iso).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-GB", {
@@ -3260,25 +3602,6 @@ function formatCardDate(iso, locale) {
   } catch {
     return iso;
   }
-}
-function formatWholeSum(value) {
-  return Math.round(parseFloat(value)).toLocaleString("en-US").replace(/,/g, "\xA0");
-}
-function formatSum(value) {
-  const n = typeof value === "number" ? value : parseFloat(value);
-  return formatDayPrice(n).replace(/,/g, "\xA0");
-}
-function ShareIcon() {
-  return /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-    /* @__PURE__ */ jsx("circle", { cx: "18", cy: "5", r: "3" }),
-    /* @__PURE__ */ jsx("circle", { cx: "6", cy: "12", r: "3" }),
-    /* @__PURE__ */ jsx("circle", { cx: "18", cy: "19", r: "3" }),
-    /* @__PURE__ */ jsx("line", { x1: "8.6", y1: "13.5", x2: "15.4", y2: "17.5" }),
-    /* @__PURE__ */ jsx("line", { x1: "15.4", y1: "6.5", x2: "8.6", y2: "10.5" })
-  ] });
-}
-function CheckIcon() {
-  return /* @__PURE__ */ jsx("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.4", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: /* @__PURE__ */ jsx("path", { d: "M20 6 9 17l-5-5" }) });
 }
 function VehicleCard({
   vehicle: v,
@@ -3291,19 +3614,7 @@ function VehicleCard({
   referralCode,
   onOpen
 }) {
-  const mounted = useRef(true);
-  const [toast, setToast] = useState("hidden");
-  const timers = useRef([]);
-  useEffect(
-    () => {
-      mounted.current = true;
-      return () => {
-        mounted.current = false;
-        timers.current.forEach(clearTimeout);
-      };
-    },
-    []
-  );
+  const toast = useCopiedToast();
   const handleShare = async () => {
     const outcome = await shareVehicle({
       vehicleId: v.id,
@@ -3311,92 +3622,39 @@ function VehicleCard({
       referralCode,
       promptLabel: t.share
     });
-    if (outcome !== "copied" || !mounted.current) return;
-    timers.current.forEach(clearTimeout);
-    setToast("shown");
-    timers.current = [
-      setTimeout(() => setToast("leaving"), SHARE_TOAST_MS),
-      setTimeout(() => setToast("hidden"), SHARE_TOAST_MS + SHARE_TOAST_ANIM_MS)
-    ];
+    if (outcome === "copied") toast.show();
   };
   const countLabel = total > 1 ? availableCount > 0 ? `${availableCount} ${t.available}` : `${total} ${t.total}` : null;
   const statusText = v.is_available ? hasCompleteDateRange ? t.availableSelected : t.availableToday : v.free_from ? `${t.freeFrom} ${formatCardDate(v.free_from, locale)}` : t.busy;
-  const statusMod = v.is_available ? " sb-vcard__status--available" : v.free_from ? " sb-vcard__status--free" : "";
-  const prices = v.card_prices ?? null;
-  const minDay = prices ? formatSum(prices.per_day_min) : "";
-  const maxDay = prices ? formatSum(prices.per_day_max) : "";
-  const discount = prices ? Math.round(prices.month_discount_pct) : 0;
-  const shown = toast === "shown";
+  const statusTone = v.is_available ? "available" : v.free_from ? "free" : "busy";
+  const shown = toast.shown;
   return /* @__PURE__ */ jsx("article", { className: "sb-vcard", children: /* @__PURE__ */ jsxs("div", { className: "sb-vcard__inner", children: [
     /* @__PURE__ */ jsxs("div", { className: "sb-vcard__ph", children: [
       v.photo_url ? /* @__PURE__ */ jsx("img", { src: v.photo_url, alt: v.display_name, loading: "lazy" }) : null,
       /* @__PURE__ */ jsx("button", { type: "button", className: "sb-vcard__open", "aria-label": v.display_name, onClick: onOpen }),
       /* @__PURE__ */ jsxs("div", { className: "sb-vcard__top", children: [
-        /* @__PURE__ */ jsxs("div", { className: "sb-vcard__title", children: [
-          /* @__PURE__ */ jsx("h3", { className: "sb-vcard__name", children: v.display_name }),
-          v.year || categoryName ? /* @__PURE__ */ jsxs("p", { className: "sb-vcard__sub", children: [
-            v.year ? /* @__PURE__ */ jsx("span", { children: v.year }) : null,
-            v.year && categoryName ? /* @__PURE__ */ jsx("i", { "aria-hidden": true }) : null,
-            categoryName ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__cat", children: categoryName }) : null
-          ] }) : null
-        ] }),
+        /* @__PURE__ */ jsx(CardTitle, { name: v.display_name, year: v.year, categoryName }),
         countLabel ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__count", children: countLabel }) : null
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "sb-vcard__over", children: [
-        /* @__PURE__ */ jsxs("div", { className: `sb-vcard__st${shown ? " is-copied" : ""}`, children: [
-          /* @__PURE__ */ jsxs("span", { className: `sb-vcard__status${statusMod}`, children: [
-            /* @__PURE__ */ jsx("span", { className: "sb-vcard__status-dot", "aria-hidden": true }),
-            statusText
-          ] }),
-          /* @__PURE__ */ jsx(
-            "span",
-            {
-              className: `sb-vcard__range${prices && (minDay.includes(".") || maxDay.includes(".")) ? " sb-vcard__range--fraction" : ""}`,
-              children: prices ? /* @__PURE__ */ jsxs(Fragment, { children: [
-                /* @__PURE__ */ jsx("small", { children: t.perDay }),
-                /* @__PURE__ */ jsxs("b", { children: [
-                  prices.per_day_min === prices.per_day_max ? /* @__PURE__ */ jsx("span", { children: minDay }) : /* @__PURE__ */ jsxs(Fragment, { children: [
-                    /* @__PURE__ */ jsx("span", { children: minDay }),
-                    " \u2013 ",
-                    maxDay
-                  ] }),
-                  "\xA0\u0E3F"
-                ] })
-              ] }) : v.min_price_per_day !== null ? /* @__PURE__ */ jsxs("b", { className: "sb-vcard__from", children: [
-                /* @__PURE__ */ jsxs("small", { children: [
-                  t.from,
-                  " "
-                ] }),
-                /* @__PURE__ */ jsx("span", { children: formatDayPrice(v.min_price_per_day) }),
-                /* @__PURE__ */ jsxs("small", { children: [
-                  " ",
-                  t.perDayUnit
-                ] })
-              ] }) : /* @__PURE__ */ jsx("b", { className: "sb-vcard__from", children: /* @__PURE__ */ jsx("small", { children: t.onRequest }) })
-            }
-          ),
-          /* @__PURE__ */ jsx("div", { className: "sb-vcard__toast-slot", role: "status", "aria-live": "polite", children: /* @__PURE__ */ jsx("span", { className: `sb-vcard__toast${shown ? " is-shown" : ""}`, "aria-hidden": toast === "hidden", children: toast !== "hidden" ? /* @__PURE__ */ jsxs(Fragment, { children: [
+      /* @__PURE__ */ jsx(
+        CardPriceOverlay,
+        {
+          statusText,
+          statusTone,
+          prices: v.card_prices ?? null,
+          minPricePerDay: v.min_price_per_day,
+          strings: t,
+          dimmed: shown,
+          statusSlot: /* @__PURE__ */ jsx("div", { className: "sb-vcard__toast-slot", role: "status", "aria-live": "polite", children: /* @__PURE__ */ jsx("span", { className: `sb-vcard__toast${shown ? " is-shown" : ""}`, "aria-hidden": toast.phase === "hidden", children: toast.phase !== "hidden" ? /* @__PURE__ */ jsxs(Fragment, { children: [
             /* @__PURE__ */ jsx(CheckIcon, {}),
             t.linkCopied
           ] }) : null }) })
-        ] }),
-        prices && prices.quotes.length > 0 ? /* @__PURE__ */ jsx("div", { className: "sb-vcard__tiles", children: prices.quotes.map((q) => {
-          const best = q.days === 30;
-          const long = Math.round(parseFloat(q.total)) >= 1e5;
-          return /* @__PURE__ */ jsxs("div", { className: `sb-vcard__tile${best ? " sb-vcard__tile--best" : ""}`, children: [
-            best && discount > 0 ? /* @__PURE__ */ jsx("span", { className: "sb-vcard__flag", children: `\u2212${discount}%` }) : null,
-            /* @__PURE__ */ jsx("span", { className: "sb-vcard__tile-days", children: t.days(q.days) }),
-            /* @__PURE__ */ jsx("span", { className: `sb-vcard__tile-sum${long ? " sb-vcard__tile-sum--long" : ""}`, children: `${formatWholeSum(q.total)}\xA0\u0E3F` })
-          ] }, q.days);
-        }) }) : null
-      ] })
+        }
+      )
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "sb-vcard__body", children: [
       /* @__PURE__ */ jsxs("button", { type: "button", className: "sb-vcard__book", onClick: onOpen, children: [
-        /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
-          /* @__PURE__ */ jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
-          /* @__PURE__ */ jsx("path", { d: "M16 2v4M8 2v4M3 10h18" })
-        ] }),
+        /* @__PURE__ */ jsx(CalendarIcon, {}),
         t.book
       ] }),
       /* @__PURE__ */ jsx(

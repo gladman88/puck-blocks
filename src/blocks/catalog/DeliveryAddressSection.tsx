@@ -1,4 +1,5 @@
 import { useEffect, useRef, type MutableRefObject } from 'react';
+import { formatMoney } from './price';
 import { DeliveryAddressPicker, type PickedLocation } from './DeliveryAddressPicker';
 
 export type { PickedLocation };
@@ -25,9 +26,6 @@ export type DeliveryCost = DeliveryQuote | 'loading' | null;
 
 function isQuote(c: DeliveryCost): c is DeliveryQuote {
   return c != null && c !== 'loading';
-}
-function money(n: number): string {
-  return Math.round(n).toLocaleString('en-US');
 }
 
 export interface DeliveryAddressStrings {
@@ -70,7 +68,7 @@ function CostLine({ cost, strings }: { cost: DeliveryCost; strings: DeliveryAddr
     <p className="sb-vd__addr-cost">
       {strings.costPrefix}:{' '}
       <b>
-        {money(cost.price)} {strings.currency}
+        {formatMoney(cost.price)} {strings.currency}
       </b>
     </p>
   );
@@ -206,14 +204,8 @@ export function DeliveryAddressSection({
     if (!askAddressRef) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let flashed: HTMLInputElement | null = null;
-    askAddressRef.current = (kind) => {
-      const row = (kind === 'pickup' ? pickupRowRef : dropoffRowRef).current;
-      if (!row) return;
-      if (typeof row.scrollIntoView === 'function') row.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      // The row's own search field (marked by DeliveryAddressPicker); absent
-      // when address search is unavailable → scrolling to the row is all we do.
-      const input = row.querySelector<HTMLInputElement>('[data-sb-addr-search]');
-      if (!input) return;
+    let waiting: MutationObserver | null = null;
+    const focusAndFlash = (input: HTMLInputElement) => {
       input.focus({ preventScroll: true });
       if (timer) clearTimeout(timer);
       flashed?.classList.remove('is-attention');
@@ -226,8 +218,35 @@ export function DeliveryAddressSection({
         timer = null;
       }, ATTENTION_MS);
     };
+    askAddressRef.current = (kind) => {
+      const row = (kind === 'pickup' ? pickupRowRef : dropoffRowRef).current;
+      if (!row) return;
+      if (typeof row.scrollIntoView === 'function') row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      // The row's own search field (marked by DeliveryAddressPicker); absent
+      // when address search is unavailable → scrolling to the row is all we do.
+      const input = row.querySelector<HTMLInputElement>('[data-sb-addr-search]');
+      if (!input) return;
+      waiting?.disconnect();
+      waiting = null;
+      if (!input.disabled || typeof MutationObserver === 'undefined') {
+        focusAndFlash(input);
+        return;
+      }
+      // The search is still starting up (e.g. the section has just mounted on
+      // the way back from the manual form) — a disabled field can't take focus,
+      // so wait until the picker enables it.
+      const observer = new MutationObserver(() => {
+        if (input.disabled) return;
+        observer.disconnect();
+        if (waiting === observer) waiting = null;
+        focusAndFlash(input);
+      });
+      observer.observe(input, { attributes: true, attributeFilter: ['disabled'] });
+      waiting = observer;
+    };
     return () => {
       if (timer) clearTimeout(timer);
+      waiting?.disconnect();
       askAddressRef.current = null;
     };
   }, [askAddressRef]);
@@ -283,7 +302,7 @@ export function DeliveryAddressSection({
         <p className="sb-vd__addr-total">
           {strings.costTotal}:{' '}
           <b>
-            {money((pickupCost as DeliveryQuote).price + (dropoffCost as DeliveryQuote).price)} {strings.currency}
+            {formatMoney((pickupCost as DeliveryQuote).price + (dropoffCost as DeliveryQuote).price)} {strings.currency}
           </b>
         </p>
       ) : null}

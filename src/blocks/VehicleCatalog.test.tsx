@@ -72,7 +72,7 @@ describe('VehicleCatalog', () => {
     expect(container.querySelector('article.sb-vcard')).not.toBeNull();
     expect(container.querySelector('.sb-vcard__open')).not.toBeNull();
     expect(container.querySelector('a.sb-vcard')).toBeNull();
-    expect(container.textContent).toContain('5,000');
+    expect(container.textContent).toContain('5\u00a0000');
     expect(container.querySelector('.sb-vcard__status--available')?.textContent).toContain('Свободно сегодня');
   });
 
@@ -94,8 +94,8 @@ describe('VehicleCatalog', () => {
       }),
     );
     // The booking modal opens for v1 → its «Поделиться» button is rendered.
-    const { findByText } = render(<VehicleCatalog vehicleType="car" />);
-    await findByText('Поделиться');
+    render(<VehicleCatalog vehicleType="car" />);
+    await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Поделиться' });
   });
 
   it('gives the "free from <date>" chip the amber highlight treatment (owner feedback 2026-07-15: the plain dark chip looked worse than the old catalog\'s)', async () => {
@@ -168,38 +168,39 @@ describe('VehicleCatalog', () => {
     const { container } = render(<VehicleCatalog vehicleType="car" />);
     await screen.findByText('BMW Z4');
 
-    // step 1 (detail): price table («1 день» = period_label + day word) + «Забронировать» CTA
+    // step 1 (detail): «Все цены» tab (columns «1 день» / «1–29») + «Забронировать» CTA
     fireEvent.click(container.querySelector('.sb-vcard__open')!);
     await screen.findByRole('dialog');
     await dialog().findByText('Забронировать');
-    expect(screen.getByText('1 день')).toBeTruthy(); // min===max===1 → singular
-    expect(screen.getByText('1-29 дней')).toBeTruthy(); // range with min 1 → plural (HIGH fix)
-    expect(screen.queryByText('Забронировать вручную')).toBeNull();
+    fireEvent.click(dialog().getByRole('tab', { name: 'Все цены' }));
+    expect(dialog().getByRole('columnheader', { name: '1 день' })).toBeTruthy(); // min===max===1 → singular
+    expect(dialog().getByRole('columnheader', { name: '1–29' })).toBeTruthy();
+    expect(screen.queryByText('Бронь вручную')).toBeNull();
     expect(screen.queryByText('Отправить запрос')).toBeNull();
 
-    // step 2 (choice): dates + Telegram + «Забронировать вручную» — still no manual form
+    // step 2 (choice): dates + Telegram + «Бронь вручную» — still no manual form
     fireEvent.click(dialog().getByText('Забронировать'));
-    await screen.findByText('Забронировать вручную');
+    await screen.findByText('Бронь вручную');
     expect(screen.queryByText('Отправить запрос')).toBeNull();
 
     // No period picked yet → both booking buttons are inactive (no more
     // "today – tomorrow" default); the period is picked in the calendar.
-    expect((screen.getByText('Забронировать вручную').closest('button') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('Бронь вручную').closest('button') as HTMLButtonElement).disabled).toBe(true);
     const days = Array.from(
       document.querySelectorAll<HTMLButtonElement>('.sb-avcal__day:not(.is-outside) .sb-avcal__day-button'),
     ).filter((b) => !b.disabled);
     fireEvent.click(days[0]);
     fireEvent.click(document.querySelector('.sb-avcal__nav--next')!);
     fireEvent.click(document.querySelector<HTMLButtonElement>('.sb-avcal__day:not(.is-outside) .sb-avcal__day-button')!);
-    expect((screen.getByText('Забронировать вручную').closest('button') as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByText('Бронь вручную').closest('button') as HTMLButtonElement).disabled).toBe(false);
 
     // step 3 (form): the manual request form
-    fireEvent.click(screen.getByText('Забронировать вручную'));
+    fireEvent.click(screen.getByText('Бронь вручную'));
     expect(await screen.findByText('Отправить запрос')).toBeTruthy();
 
     // ‹ Назад returns to the choice step
     fireEvent.click(screen.getByText(/Назад/));
-    await screen.findByText('Забронировать вручную');
+    await screen.findByText('Бронь вручную');
     expect(screen.queryByText('Отправить запрос')).toBeNull();
   });
 
@@ -305,7 +306,7 @@ describe('VehicleCatalog — SSR preload via puck metadata (catalogPreload)', ()
       <VehicleCatalog vehicleType="car" puck={{ metadata: { catalogPreload: preload } }} />,
     );
     expect(html).toContain('BMW Z4');
-    expect(html).toContain('5,000');
+    expect(html).toContain('5\u00a0000');
     expect(html).not.toContain('Загрузка…');
   });
 
@@ -365,11 +366,9 @@ describe('VehicleCatalog — SSR preload via puck metadata (catalogPreload)', ()
         );
       }),
     );
-    const { findByText } = render(
-      <VehicleCatalog vehicleType="car" puck={{ metadata: { catalogPreload: preload } }} />,
-    );
+    render(<VehicleCatalog vehicleType="car" puck={{ metadata: { catalogPreload: preload } }} />);
     // The booking modal opens for v9 → its «Поделиться» button appears.
-    await findByText('Поделиться');
+    await within(await screen.findByRole('dialog', {}, { timeout: 3000 })).findByRole('button', { name: 'Поделиться' });
   });
 
   it('StrictMode double-invoked effects do not burn the preload into a loading flash (dev parity with prod)', async () => {

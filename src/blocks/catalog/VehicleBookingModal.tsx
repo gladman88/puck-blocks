@@ -1,6 +1,15 @@
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type TouchEvent as ReactTouchEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type TouchEvent as ReactTouchEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
-import { categoryLabel, type CatalogVehicle } from '../VehicleCatalog';
+import { STRINGS as CATALOG_STRINGS, categoryLabel, type CatalogVehicle } from '../VehicleCatalog';
 import { safeHref, safeImageUrl } from '../../sanitize';
 import {
   daysBetween,
@@ -9,7 +18,6 @@ import {
   formatDayMonthRange,
   formatShortDate,
   formatShortDateWithYear,
-  money,
   pluralDays,
   todayISO,
 } from './dates';
@@ -22,9 +30,21 @@ import {
   type DeliveryCost,
 } from './DeliveryAddressSection';
 import { buildSpecRows, type VehicleSpecs } from './specs';
-import { formatDayPrice } from './price';
 import { shareVehicle } from './share';
-import { PriceSummary, parsePriceQuote, type PriceQuote } from './PriceSummary';
+import { useCopiedToast } from './useCopiedToast';
+import { CalendarIcon, CardPriceOverlay, CardTitle, CheckIcon, ShareIcon } from './CardPriceOverlay';
+import { PriceGrid, type PricingPeriod, type PricingSeason } from './PriceGrid';
+import {
+  PriceSummary,
+  formatSummaryAmount,
+  isPriceSummaryVisible,
+  parsePriceQuote,
+  priceSummaryTotalSatang,
+  type AddressKind,
+  type PriceQuote,
+} from './PriceSummary';
+import { StepHeader } from './StepHeader';
+import { formatMoney, NBSP } from './price';
 import { ContactIcon } from '../../components/ContactIcon';
 
 interface GalleryImage {
@@ -83,6 +103,10 @@ export interface CatalogVehicleDetail extends CatalogVehicle, Omit<VehicleSpecs,
   pricing_table?: PricingRow[];
   pricing_season_name?: string | null;
   pricing_spans_seasons?: boolean;
+  /** Columns of «Все цены» (rental periods) — absent on an older backend. */
+  pricing_periods?: PricingPeriod[];
+  /** Up to 6 nearest seasons, per-day price per period — absent on an older backend. */
+  pricing_seasons?: PricingSeason[];
   accessories?: CatalogAccessoryGroup[];
 }
 
@@ -92,34 +116,32 @@ const S = {
     closePhoto: 'Закрыть фото',
     share: 'Поделиться',
     copied: 'Ссылка скопирована',
-    from: 'от',
     perDay: '/день',
-    priceUnit: 'THB',
+    priceUnit: '฿',
     available: 'Свободна сейчас',
     freesUp: 'Освободится',
     busy: 'Занята',
-    specs: 'Характеристики',
-    allSpecs: 'Все характеристики',
+    // Окно машины: вкладки (владелец 2026-11-04).
+    tabsLabel: 'Об автомобиле',
+    tabAbout: 'Об авто',
+    tabPrices: 'Все цены',
+    tabSpecs: 'Параметры',
+    photoPrev: 'Предыдущее фото',
+    photoNext: 'Следующее фото',
+    photoN: (n: number) => `Фото ${n}`,
     equipment: 'Комплектация',
     accessories: 'Дополнительные опции',
     perBooking: 'за бронь',
     accUnavailable: 'Недоступно на эти даты',
     deposit: 'Депозит',
-    prices: 'Цены',
-    day: 'день',
-    days: 'дней',
-    thirtyDays: '30 дней',
-    thirtyDaysCalc: 'по тарифу 28+',
-    currentMonth: 'текущий месяц',
-    spansSeasons: 'Аренда захватывает несколько месяцев — в другие месяцы цены могут отличаться',
-    bookFrom: 'Забронировать',
     loading: 'Загрузка…',
     error: 'Не удалось загрузить',
     name: 'Ваше имя',
     send: 'Отправить запрос',
     sending: 'Отправляем…',
-    tgQuick: 'Бронь в 1 клик через Telegram',
-    tgQuickSub: 'Без форм — данные заполнятся сами',
+    // Кнопки брони (владелец 2026-11-04): коротко, одинаково на телефоне и компьютере.
+    tgQuick: 'Бронь в 1 клик',
+    tgQuickSub: 'через Telegram, без форм',
     or: 'или',
     howToBook: 'Как забронировать?',
     back: 'Назад',
@@ -131,11 +153,12 @@ const S = {
     // же клиент заводился повторно, каждый раз с новым реф-агентом. Telegram
     // остаётся доступен, но только через гарантированно-настоящий chat_id из
     // кнопки «в 1 клик» выше.
-    manual: 'Забронировать вручную',
-    manualSub: 'Заполните форму вручную',
+    manual: 'Бронь вручную',
+    manualSub: 'заполните форму',
     dateGet: 'Дата получения',
     dateReturn: 'Дата возврата',
     phoneLabel: 'Номер WhatsApp',
+    yourData: 'Ваши данные',
     successTitle: 'Заявка отправлена!',
     successText: 'Мы скоро свяжемся с вами.',
     tooMany: 'Слишком много запросов, попробуйте позже',
@@ -194,44 +217,41 @@ const S = {
     closePhoto: 'Close photo',
     share: 'Share',
     copied: 'Link copied',
-    from: 'from',
     perDay: '/day',
-    priceUnit: 'THB',
+    priceUnit: '฿',
     available: 'Available now',
     freesUp: 'Frees up',
     busy: 'Busy',
-    specs: 'Specs',
-    allSpecs: 'All specs',
+    tabsLabel: 'About the vehicle',
+    tabAbout: 'About',
+    tabPrices: 'All prices',
+    tabSpecs: 'Specs',
+    photoPrev: 'Previous photo',
+    photoNext: 'Next photo',
+    photoN: (n: number) => `Photo ${n}`,
     equipment: 'Equipment',
     accessories: 'Additional Options',
     perBooking: 'per booking',
     accUnavailable: 'Not available for these dates',
     deposit: 'Deposit',
-    prices: 'Prices',
-    day: 'day',
-    days: 'days',
-    thirtyDays: '30 days',
-    thirtyDaysCalc: 'at the 28+ rate',
-    currentMonth: 'current month',
-    spansSeasons: 'Your rental covers several months — prices may differ in other months',
-    bookFrom: 'Book',
     loading: 'Loading…',
     error: 'Failed to load',
     name: 'Your name',
     send: 'Send request',
     sending: 'Sending…',
-    tgQuick: '1-click booking via Telegram',
-    tgQuickSub: 'No forms — your details fill in automatically',
+    tgQuick: '1-click booking',
+    tgQuickSub: 'via Telegram, no forms',
     or: 'or',
     howToBook: 'How to book?',
     back: 'Back',
     bookCta: 'Book',
     formTitle: 'Booking request',
     manual: 'Book manually',
-    manualSub: 'Fill in the form manually',
+    manualSub: 'fill in the form',
     dateGet: 'Pick-up date',
     dateReturn: 'Return date',
     phoneLabel: 'WhatsApp number',
+    yourData: 'Your details',
     successTitle: 'Request sent!',
     successText: 'We will contact you shortly.',
     tooMany: 'Too many requests, try later',
@@ -283,6 +303,25 @@ const S = {
       `${vehicleName} is booked for ${dates}. A manager will find options and contact you.`,
   },
 } as const;
+
+type DetailTab = 'about' | 'prices' | 'specs';
+
+/** Tab icons («Об авто» — i, «Параметры» — sliders; «Все цены» reuses the calendar). */
+function InfoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4M12 8h.01" />
+    </svg>
+  );
+}
+function SlidersIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+    </svg>
+  );
+}
 
 const HEADERS = { 'ngrok-skip-browser-warning': 'true' };
 
@@ -452,6 +491,17 @@ interface Props {
   onClose: () => void;
 }
 
+/** What the success screen shows — fixed when the request is sent. */
+interface SuccessSnapshot {
+  /** «Итого» of the «Стоимость» block the customer saw; null → no total. */
+  total: string | null;
+  /** «5 нояб. → 10 дек. · 35 дней». */
+  periodLine: string;
+  /** «5 нояб. – 10 дек.» for the busy-dates text. */
+  busyRange: string;
+  busy: boolean;
+}
+
 // WhatsApp-only phone validation (owner decision 2026-09-14 — Telegram was
 // removed from this manual form entirely; see the `manual`/`manualSub` copy
 // above for why). MUST start with a country code (`+`): a number typed in
@@ -496,7 +546,11 @@ export function VehicleBookingModal({
   const [detail, setDetail] = useState<CatalogVehicleDetail | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [gi, setGi] = useState(0);
-  const [specsExpanded, setSpecsExpanded] = useState(false);
+  // Detail tabs («Об авто» / «Все цены» / «Параметры»); an absent tab falls
+  // back to the first one shown.
+  const [tab, setTab] = useState<DetailTab>('about');
+  const tabsId = useId();
+  const tabRefs = useRef<Partial<Record<DetailTab, HTMLButtonElement | null>>>({});
 
   // «Сегодня» — по ответу ручки занятости (Пхукет), пока она не пришла — по устройству.
   const [serverToday, setServerToday] = useState<string | null>(null);
@@ -522,8 +576,13 @@ export function VehicleBookingModal({
   // Seeded dates start collapsed into one row; «Изменить» (or a seeded period
   // that turned out busy) opens the calendar for good.
   const [datesExpanded, setDatesExpanded] = useState(!seeded);
-  // Whether the request that led to the success screen was for busy dates.
-  const [successBusy, setSuccessBusy] = useState(false);
+  // The success screen draws ONLY from this snapshot, taken when the request
+  // left (manual form) or the intent was created (1-click): the customer may
+  // change the selection while the request is on its way or while the bot
+  // works, and the screen must show what was SENT, not the current state.
+  const [success, setSuccess] = useState<SuccessSnapshot | null>(null);
+  // Snapshot of the live 1-click intent (see `pollToken`).
+  const pollSnapshotRef = useRef<SuccessSnapshot | null>(null);
   // Prefill the name from the Telegram Mini App user, if the host passed one
   // — still just a starting point, editable. The contact field is WhatsApp-
   // only now (2026-09-14: Telegram was removed from this manual form — see
@@ -581,7 +640,8 @@ export function VehicleBookingModal({
   // booking is created out-of-band and the app otherwise can't know. Non-null
   // = a redemption poll is live for this token; see the effect below.
   const [pollToken, setPollToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  // «Ссылка скопирована» over «Поделиться» (shared logic with the catalog card).
+  const copiedToast = useCopiedToast();
   const dialogRef = useRef<HTMLDivElement>(null);
 
   // Land at the TOP of each stage. The detail / "how to book?" / form stages
@@ -602,6 +662,19 @@ export function VehicleBookingModal({
     if (body) body.scrollTop = 0;
   }, [stage]);
 
+  // A new step moves focus to its title (`[data-step-title]`, tabIndex -1), so
+  // keyboard and screen-reader users land at the top of the step instead of on
+  // the button that is gone. Not on the first open of the window (it opens as
+  // before). Runs before the «Укажите адрес» effect below, which then moves
+  // focus on to the address field. A stage ref, not a «first run» flag, keeps
+  // StrictMode's double effect from focusing on open.
+  const focusedStageRef = useRef(stage);
+  useEffect(() => {
+    if (focusedStageRef.current === stage) return;
+    focusedStageRef.current = stage;
+    dialogRef.current?.querySelector<HTMLElement>('[data-step-title]')?.focus({ preventScroll: true });
+  }, [stage]);
+
   // «Поделиться» — a deep link (`?vehicle=<id>` on the current page/locale) that
   // reopens this card. Native share sheet (mobile) → clipboard → prompt fallback.
   // Logic lives in `shareVehicle` (shared with the catalog card).
@@ -612,10 +685,7 @@ export function VehicleBookingModal({
       referralCode,
       promptLabel: t.share,
     });
-    if (outcome === 'copied') {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    if (outcome === 'copied') copiedToast.show();
   };
 
   // Mobile bottom-sheet drag-to-dismiss (mirrors frontend_catalog's ResponsiveDialog).
@@ -671,6 +741,19 @@ export function VehicleBookingModal({
     const clamped = Math.max(0, Math.min(count - 1, i));
     el.scrollTo({ left: clamped * el.clientWidth, behavior: 'smooth' });
   };
+  // The track remounts on every return to «детали» (a booking step in
+  // between): put it back on the photo `gi` points at, so the counter, the
+  // active thumbnail, the photo and the step cover (`mainImg`) agree. Without
+  // a measured width there is nothing to scroll — fall back to the first photo.
+  useIsomorphicLayoutEffect(() => {
+    if (stage !== 'detail' || state !== 'ready') return;
+    const el = trackRef.current;
+    if (!el) return;
+    if (el.clientWidth) el.scrollLeft = gi * el.clientWidth;
+    else if (gi !== 0) setGi(0);
+    // Only on (re)mount of the track — `gi` itself follows the track's scroll.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, state]);
 
   useEffect(() => {
     let cancelled = false;
@@ -679,7 +762,12 @@ export function VehicleBookingModal({
     // component isn't guaranteed to remount between vehicles, see VehicleCatalog.tsx)
     setAccessoryLightbox(null); // same reason — an open photo preview from the
     // previous vehicle must not linger over the new one (code review 2026-07-16)
-    fetch(`${apiBase}/api/v1/catalog/vehicles/${vehicle.id}/`, { headers: HEADERS })
+    // Seeded catalog window → the detail is priced and checked for it
+    // (`card_prices`, `free_from`, `is_available`, `pricing_seasons`, accessories).
+    const windowQuery = seeded
+      ? `?available_from=${encodeURIComponent(initialFrom!)}&available_to=${encodeURIComponent(initialTo!)}`
+      : '';
+    fetch(`${apiBase}/api/v1/catalog/vehicles/${vehicle.id}/${windowQuery}`, { headers: HEADERS })
       .then((r) => {
         if (!r.ok) throw new Error(String(r.status));
         return r.json() as Promise<CatalogVehicleDetail>;
@@ -696,6 +784,8 @@ export function VehicleBookingModal({
     return () => {
       cancelled = true;
     };
+    // `seeded` and the seed are fixed for the window's life (useState initializer).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBase, vehicle.id]);
 
   useEffect(() => {
@@ -824,6 +914,79 @@ export function VehicleBookingModal({
     for (const item of group.items) accessoryNames[item.id] = locale === 'ru' ? item.name_ru : item.name_en;
   }
 
+  // «Укажите адрес» on the manual form: back to «Как забронировать?», then to
+  // that row's address field. The delivery section fills `askAddressRef` in its
+  // own mount effect, which runs before this parent effect of the same commit.
+  const pendingAskRef = useRef<AddressKind | null>(null);
+  useEffect(() => {
+    if (stage !== 'choice' || !pendingAskRef.current) return;
+    const kind = pendingAskRef.current;
+    pendingAskRef.current = null;
+    askAddressRef.current?.(kind);
+  }, [stage]);
+  const askAddress = (kind: AddressKind) => {
+    // While the manual request is on its way the form stays put: leaving it
+    // would let the selection change under a request already sent.
+    if (submittingRef.current) return;
+    if (stage === 'choice') {
+      askAddressRef.current?.(kind);
+      return;
+    }
+    pendingAskRef.current = kind;
+    setStage('choice');
+  };
+
+  // «Стоимость» — ONE quote for the choice step, the manual form and the
+  // success screen's «Итого» (same `priceSummaryTotalSatang`).
+  const pickupLeg = { enabled: pickupEnabled, hasLocation: effectivePickupLocation != null, cost: pickupCost };
+  const dropoffLeg = { enabled: dropoffEnabled, hasLocation: effectiveDropoffLocation != null, cost: dropoffCost };
+  const currentQuote = priceQuoteActive ? priceQuote : null;
+  const renderPriceSummary = () =>
+    currentQuote ? (
+      <PriceSummary
+        quote={currentQuote.quote}
+        stale={currentQuote.key !== priceQuoteKey}
+        accessoryNames={accessoryNames}
+        pickup={pickupLeg}
+        dropoff={dropoffLeg}
+        locale={locale}
+        strings={{
+          title: t.sumTitle,
+          rental: t.sumRental,
+          free: t.sumFree,
+          delivery: t.sumDelivery,
+          collection: t.sumCollection,
+          ask: t.sumAsk,
+          total: t.sumTotal,
+          currency: t.priceUnit,
+        }}
+        onAskAddress={askAddress}
+        askDisabled={submitting}
+      />
+    ) : null;
+  // «5 нояб. → 10 дек. · 35 дней» — the manual form and the success card.
+  const periodLine = datesValid
+    ? `${formatDayMonth(start, locale)} → ${formatDayMonth(end, locale)} · ${pluralDays(daysBetween(start, end), locale)}`
+    : '';
+  // What the success screen will show for the selection being sent now. The
+  // «Итого» — only from the quote the customer SAW: for exactly this selection
+  // (not a stale one), with the «Стоимость» block visible, for a free period
+  // (busy dates go out as "find a replacement" — no price) and only on the
+  // manual path (the bot may drop an accessory that turned out unavailable).
+  const takeSuccessSnapshot = (withTotal: boolean): SuccessSnapshot => ({
+    total:
+      withTotal &&
+      !conflict &&
+      currentQuote &&
+      currentQuote.key === priceQuoteKey &&
+      isPriceSummaryVisible(currentQuote.quote, accessoryNames)
+        ? formatSummaryAmount(priceSummaryTotalSatang(currentQuote.quote, pickupLeg, dropoffLeg), t.priceUnit)
+        : null,
+    periodLine,
+    busyRange: datesValid ? `${formatShortDate(start, locale)} – ${formatShortDate(end, locale)}` : '',
+    busy: conflict,
+  });
+
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (submittingRef.current || submitting || !datesValid || !name.trim() || !contact.trim()) return;
@@ -834,6 +997,7 @@ export function VehicleBookingModal({
     submittingRef.current = true;
     setSubmitting(true);
     setErr('');
+    const snapshot = takeSuccessSnapshot(true);
     try {
       const res = await fetch(`${apiBase}/api/v1/catalog/booking-requests/`, {
         method: 'POST',
@@ -860,7 +1024,8 @@ export function VehicleBookingModal({
         // The server decides at creation time (`dates_busy`); an older backend
         // without the field → what the calendar showed when the form was sent.
         const body = (await res.json().catch(() => null)) as { dates_busy?: unknown } | null;
-        setSuccessBusy(typeof body?.dates_busy === 'boolean' ? body.dates_busy : conflict);
+        const busy = typeof body?.dates_busy === 'boolean' ? body.dates_busy : snapshot.busy;
+        setSuccess({ ...snapshot, busy, total: busy ? null : snapshot.total });
         setStage('success');
       } else {
         setErr(res.status === 429 ? t.tooMany : t.sendErr);
@@ -899,6 +1064,7 @@ export function VehicleBookingModal({
         if (verdict === 'used') {
           stopped = true;
           setPollToken(null);
+          setSuccess(pollSnapshotRef.current);
           setStage('success');
         } else if (verdict === 'expired' || verdict === 'gone') {
           stopped = true;
@@ -937,8 +1103,9 @@ export function VehicleBookingModal({
     setTgSubmitting(true);
     setTgErr('');
     // The booking is created out-of-band by the bot — the success screen (shown
-    // once the intent is redeemed) goes by what the calendar showed at the tap.
-    setSuccessBusy(conflict);
+    // once the intent is redeemed) goes by what was sent in the intent, and
+    // shows no «Итого» (the bot may drop an unavailable accessory).
+    const snapshot = takeSuccessSnapshot(false);
     let popup: Window | null = null;
     try {
       // Browser fallback opens the bot in a NEW tab, so the catalog stays alive
@@ -980,6 +1147,7 @@ export function VehicleBookingModal({
         return;
       }
       // Start polling BEFORE the handoff so a fast redemption isn't missed.
+      pollSnapshotRef.current = snapshot;
       setPollToken(token);
       if (onTelegramLink) {
         onTelegramLink(href); // Telegram Mini App — native handoff, closes the app
@@ -1009,6 +1177,76 @@ export function VehicleBookingModal({
   const mainImg = gallery[gi] || fallbackImg || '';
   const price = d?.min_price_per_day ?? vehicle.min_price_per_day;
 
+  // «Все цены»: seasons × periods (`pricing_seasons`). An older backend has
+  // only today's tariff ladder (`pricing_table`) — shown as one row of the
+  // current month. Neither → no tab.
+  // The highlighted «current» season: the one containing the start of the
+  // catalog window (the detail is priced for it), else today's.
+  const priceGrid: { periods: PricingPeriod[]; seasons: PricingSeason[]; referenceDate: string } | null = (() => {
+    if (!d) return null;
+    if ((d.pricing_periods ?? []).length > 0 && (d.pricing_seasons ?? []).length > 0) {
+      return { periods: d.pricing_periods!, seasons: d.pricing_seasons!, referenceDate: seeded ? initialFrom! : today };
+    }
+    const table = d.pricing_table ?? [];
+    if (table.length === 0) return null;
+    const [y, m] = today.split('-').map(Number);
+    const monthStart = `${today.slice(0, 7)}-01`;
+    const monthEnd = `${today.slice(0, 7)}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`;
+    return {
+      periods: table.map((row) => ({ min_days: row.min_days, max_days: row.max_days })),
+      seasons: [{ start_date: monthStart, end_date: monthEnd, prices: table.map((row) => row.price_per_day) }],
+      // Today's ladder — its row is today's month.
+      referenceDate: today,
+    };
+  })();
+  const hasAbout =
+    !!d && ((d.advantages ?? []).length > 0 || (d.options ?? []).length > 0 || (d.deposits ?? []).length > 0);
+  const tabs = [
+    ...(hasAbout ? [{ key: 'about' as const, label: t.tabAbout, icon: <InfoIcon /> }] : []),
+    ...(priceGrid ? [{ key: 'prices' as const, label: t.tabPrices, icon: <CalendarIcon /> }] : []),
+    ...(specRows.length > 0 ? [{ key: 'specs' as const, label: t.tabSpecs, icon: <SlidersIcon /> }] : []),
+  ];
+  const activeTab: DetailTab | null = tabs.some((x) => x.key === tab) ? tab : (tabs[0]?.key ?? null);
+  const tabId = (key: DetailTab) => `${tabsId}-tab-${key}`;
+  const panelId = (key: DetailTab) => `${tabsId}-panel-${key}`;
+  // WAI-ARIA tabs: arrows / Home / End move focus and select (automatic activation).
+  const onTabKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const i = tabs.findIndex((x) => x.key === activeTab);
+    let next = -1;
+    if (e.key === 'ArrowRight') next = (i + 1) % tabs.length;
+    else if (e.key === 'ArrowLeft') next = (i - 1 + tabs.length) % tabs.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = tabs.length - 1;
+    if (next < 0) return;
+    e.preventDefault();
+    const key = tabs[next].key;
+    setTab(key);
+    tabRefs.current[key]?.focus();
+  };
+
+  // The cover status: «Свободна сейчас» / «Освободится 14 октября» / «Занята».
+  const isBusy = !!d && !d.is_available;
+  const freeFrom = isBusy ? d!.free_from : null;
+  const coverStatus = !d
+    ? null
+    : d.is_available
+      ? { text: t.available, tone: 'available' as const }
+      : freeFrom
+        ? { text: `${t.freesUp} ${formatShortDateWithYear(freeFrom, locale)}`, tone: 'free' as const }
+        : { text: t.busy, tone: 'busy' as const };
+  // «Забронировать»: a busy vehicle with a known return day starts the period
+  // from that day (the return day is picked in the calendar).
+  // A period the customer already has (seeded or picked, then «‹ Назад») is
+  // kept unless it starts before that day.
+  const onBook = () => {
+    if (freeFrom && (!start || start < freeFrom)) {
+      setStart(freeFrom);
+      setEnd('');
+      setDatesExpanded(true);
+    }
+    setStage('choice');
+  };
+
   // Additional paid accessories (Stage 5) — a SINGLE horizontal scroll-snap
   // row, not a grid: with many categories/items a grid would grow the modal's
   // height indefinitely. Categories are flattened into one ordered list (never
@@ -1024,7 +1262,7 @@ export function VehicleBookingModal({
     if (!d || (d.accessories ?? []).length === 0) return null;
     return (
       <div className="sb-vd__accessories">
-        <span className="sb-vd__section-label sb-vd__section-label--accent">{t.accessories}</span>
+        <p className="sb-vd__lab">{t.accessories}</p>
         <div className="sb-acc__row">
           {d.accessories!.flatMap((group) =>
             group.items.map((item) => {
@@ -1034,8 +1272,10 @@ export function VehicleBookingModal({
               const itemName = locale === 'ru' ? item.name_ru : item.name_en;
               const categoryName = locale === 'ru' ? group.name_ru : group.name_en;
               return (
-                <div className={`sb-acc__item ${unavailable ? 'is-unavailable' : ''}`} key={item.id}>
-                  <span className="sb-acc__item-category">{categoryName}</span>
+                <div
+                  className={`sb-acc__item${unavailable ? ' is-unavailable' : ''}${qty > 0 ? ' is-selected' : ''}`}
+                  key={item.id}
+                >
                   {item.photo_url ? (
                     // Tapping the photo OR the expand badge opens the same
                     // fullscreen preview — the badge is purely a visual
@@ -1072,10 +1312,13 @@ export function VehicleBookingModal({
                     <div className="sb-acc__item-photo" />
                   )}
                   <div className="sb-acc__item-info">
+                    <span className="sb-acc__item-category">{categoryName}</span>
                     <span className="sb-acc__item-name">{itemName}</span>
                     {item.price != null ? (
                       <span className="sb-acc__item-price">
-                        {Math.round(item.price).toLocaleString('en-US')} {t.priceUnit}{' '}
+                        {formatMoney(Math.round(item.price))}
+                        {NBSP}
+                        {t.priceUnit}{' '}
                         {item.price_unit === 'per_day' ? t.perDay : t.perBooking}
                       </span>
                     ) : null}
@@ -1162,6 +1405,21 @@ export function VehicleBookingModal({
     );
   };
 
+  const stepWithHeader = state === 'ready' && !!d && (stage === 'choice' || stage === 'form');
+  const renderStepHeader = (onBack: () => void) =>
+    d ? (
+      <StepHeader
+        photoUrl={mainImg}
+        name={d.display_name}
+        year={d.year}
+        categoryName={d.category ? categoryLabel(d.category, locale) : null}
+        backLabel={t.back}
+        closeLabel={t.close}
+        onBack={onBack}
+        onClose={onClose}
+      />
+    ) : null;
+
   return createPortal(
     // Wrap in .sb-root so the design tokens (--sb-*) cascade into the portal,
     // which lives outside the page's .sb-root.
@@ -1186,9 +1444,12 @@ export function VehicleBookingModal({
         >
           <span className="sb-modal__grabber-bar" aria-hidden />
         </div>
-        <button type="button" className="sb-modal__close" aria-label={t.close} onClick={onClose}>
-          ×
-        </button>
+        {/* The booking steps carry «×» on their cover strip (StepHeader). */}
+        {stepWithHeader ? null : (
+          <button type="button" className="sb-modal__close" aria-label={t.close} onClick={onClose}>
+            ×
+          </button>
+        )}
 
         {state === 'loading' ? <p className="sb-modal__state">{t.loading}</p> : null}
         {state === 'error' ? <p className="sb-modal__state">{t.error}</p> : null}
@@ -1197,318 +1458,246 @@ export function VehicleBookingModal({
           stage === 'success' ? (
             <div className="sb-modal__success">
               <div className="sb-modal__check" aria-hidden>
-                ✓
+                <CheckIcon />
               </div>
-              <h3>{successBusy ? t.successBusyTitle : t.successTitle}</h3>
+              <h3 tabIndex={-1} data-step-title="">
+                {success?.busy ? t.successBusyTitle : t.successTitle}
+              </h3>
               <p>
-                {successBusy
-                  ? t.successBusyText(
-                      d.display_name,
-                      `${formatShortDate(start, locale)} – ${formatShortDate(end, locale)}`,
-                    )
-                  : t.successText}
+                {success?.busy ? t.successBusyText(d.display_name, success.busyRange) : t.successText}
               </p>
-              <button type="button" className="sb-btn" onClick={onClose}>
+              <div className="sb-vd__recap">
+                {mainImg ? <img className="sb-vd__recap-photo" src={mainImg} alt="" /> : null}
+                <span className="sb-vd__recap-main">
+                  <b>{d.display_name}</b>
+                  {success?.periodLine ? <span>{success.periodLine}</span> : null}
+                </span>
+                {success?.total ? (
+                  <span className="sb-vd__recap-total">
+                    <small>{t.sumTotal}</small>
+                    <b>{success.total}</b>
+                  </span>
+                ) : null}
+              </div>
+              <button type="button" className="sb-btn sb-vd__submit" onClick={onClose}>
                 OK
               </button>
             </div>
           ) : stage === 'detail' ? (
-            <div className="sb-modal__body">
-              {/* Gallery */}
-              {gallery.length > 0 ? (
-                <div className="sb-vd__media">
-                  <div className="sb-vd__gallery">
-                    {/* Scroll-snap track — one slide per image; native swipe + snap. */}
-                    <div className="sb-vd__frame" ref={trackRef} onScroll={onTrackScroll}>
-                      {gallery.map((u, i) => (
-                        <img
-                          key={i}
-                          className="sb-vd__photo"
-                          src={u}
-                          alt={d.display_name}
-                          loading={i === 0 ? undefined : 'lazy'}
-                          draggable={false}
-                        />
-                      ))}
-                    </div>
-                    {gallery.length > 1 ? (
-                      <>
-                        <button
-                          type="button"
-                          className="sb-vd__nav sb-vd__nav--prev"
-                          aria-label="‹"
-                          onClick={() => scrollToImage(gi - 1, gallery.length)}
-                        >
-                          ‹
-                        </button>
-                        <button
-                          type="button"
-                          className="sb-vd__nav sb-vd__nav--next"
-                          aria-label="›"
-                          onClick={() => scrollToImage(gi + 1, gallery.length)}
-                        >
-                          ›
-                        </button>
-                        <span className="sb-vd__counter">
-                          {gi + 1}/{gallery.length}
-                        </span>
-                      </>
-                    ) : null}
-                  </div>
-                  {gallery.length > 1 ? (
-                    <div className="sb-vd__thumbs">
-                      {gallery.map((u, i) => (
-                        <button
-                          type="button"
-                          key={i}
-                          className={`sb-vd__thumb ${i === gi ? 'is-active' : ''}`}
-                          onClick={() => scrollToImage(i, gallery.length)}
-                          aria-label={`${i + 1}`}
-                        >
-                          <img src={u} alt="" loading="lazy" />
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
+            <div className="sb-modal__body sb-vd">
+              {/* Cover — the catalog card's look: photo gallery, name, status,
+                  per-day range and 7/14/30-day sums (CardPriceOverlay). */}
+              <div className="sb-vd__hero">
+                {/* Scroll-snap track — one slide per image; native swipe + snap. */}
+                <div className="sb-vd__frame" ref={trackRef} onScroll={onTrackScroll}>
+                  {gallery.map((u, i) => (
+                    <img
+                      key={i}
+                      className="sb-vd__photo"
+                      src={u}
+                      alt={d.display_name}
+                      loading={i === 0 ? undefined : 'lazy'}
+                      draggable={false}
+                    />
+                  ))}
+                </div>
+                <div className="sb-vd__top">
+                  <CardTitle
+                    name={d.display_name}
+                    year={d.year}
+                    categoryName={d.category ? categoryLabel(d.category, locale) : null}
+                    stepTitle
+                  />
+                </div>
+                {gallery.length > 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      className="sb-vd__nav sb-vd__nav--prev"
+                      aria-label={t.photoPrev}
+                      onClick={() => scrollToImage(gi - 1, gallery.length)}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      className="sb-vd__nav sb-vd__nav--next"
+                      aria-label={t.photoNext}
+                      onClick={() => scrollToImage(gi + 1, gallery.length)}
+                    >
+                      ›
+                    </button>
+                    <span className="sb-vd__counter">
+                      {gi + 1}/{gallery.length}
+                    </span>
+                  </>
+                ) : null}
+                {coverStatus ? (
+                  <CardPriceOverlay
+                    statusText={coverStatus.text}
+                    statusTone={coverStatus.tone}
+                    prices={d.card_prices ?? vehicle.card_prices ?? null}
+                    minPricePerDay={price ?? null}
+                    strings={CATALOG_STRINGS[locale]}
+                  />
+                ) : null}
+              </div>
+              {gallery.length > 1 ? (
+                <div className="sb-vd__thumbs">
+                  {gallery.map((u, i) => (
+                    <button
+                      type="button"
+                      key={i}
+                      className={`sb-vd__thumb ${i === gi ? 'is-active' : ''}`}
+                      onClick={() => scrollToImage(i, gallery.length)}
+                      aria-label={t.photoN(i + 1)}
+                      aria-current={i === gi ? 'true' : undefined}
+                    >
+                      <img src={u} alt="" loading="lazy" />
+                    </button>
+                  ))}
                 </div>
               ) : null}
 
-              <div className="sb-vd__info">
-                <div className="sb-vd__header">
-                  <h3 className="sb-vd__name">{d.display_name}</h3>
-                  {price != null ? (
-                    <p className="sb-vd__price">
-                      <small>{t.from} </small>
-                      {formatDayPrice(price)}
-                      <small>
-                        {' '}
-                        {t.priceUnit}
-                        {t.perDay}
-                      </small>
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="sb-vd__meta-row">
-                  {d.year ? <span className="sb-vd__year">{d.year}</span> : null}
-                  {d.category ? (
-                    <span className="sb-vd__badge" style={{ backgroundColor: d.category.color }}>
-                      {categoryLabel(d.category, locale)}
-                    </span>
-                  ) : null}
-                  <button
-                    type="button"
-                    className={`sb-vd__share ${copied ? 'is-copied' : ''}`}
-                    onClick={handleShare}
-                    aria-label={t.share}
+              {activeTab ? (
+                <div className="sb-vd__info">
+                  <div
+                    className={`sb-vd__tabs sb-vd__tabs--n${tabs.length}`}
+                    role="tablist"
+                    aria-label={t.tabsLabel}
                   >
-                    <svg
-                      className="sb-vd__share-ico"
-                      viewBox="0 0 24 24"
-                      width="14"
-                      height="14"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden
-                    >
-                      <circle cx="18" cy="5" r="3" />
-                      <circle cx="6" cy="12" r="3" />
-                      <circle cx="18" cy="19" r="3" />
-                      <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
-                      <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
-                    </svg>
-                    {copied ? t.copied : t.share}
-                  </button>
-                </div>
-
-                {/* Availability — the prominent status (full-width banner). */}
-                <div className={`sb-vd__avail ${d.is_available ? 'is-free' : 'is-busy'}`}>
-                  <span className="sb-vd__avail-dot" aria-hidden />
-                  <span className="sb-vd__avail-text">
-                    {d.is_available
-                      ? t.available
-                      : d.free_from
-                        ? `${t.freesUp} ${formatShortDateWithYear(d.free_from, locale)}`
-                        : t.busy}
-                  </span>
-                  {!d.is_available && d.free_from && d.free_from !== start ? (
-                    <button
-                      type="button"
-                      className="sb-vd__avail-btn"
-                      onClick={() => {
-                        // New start, the return day is picked in the calendar.
-                        setStart(d.free_from!);
-                        setEnd('');
-                        setDatesExpanded(true);
-                        setStage('choice');
-                      }}
-                    >
-                      {t.bookFrom}
-                    </button>
-                  ) : null}
-                </div>
-
-                {(d.advantages ?? []).length > 0 ? (
-                  <div className="sb-vd__chips">
-                    {d.advantages!.map((a, i) => (
-                      <span className="sb-chip" key={i}>
-                        {a}
-                      </span>
+                    {tabs.map((x) => (
+                      <button
+                        key={x.key}
+                        ref={(el) => {
+                          tabRefs.current[x.key] = el;
+                        }}
+                        type="button"
+                        role="tab"
+                        id={tabId(x.key)}
+                        aria-selected={x.key === activeTab}
+                        aria-controls={panelId(x.key)}
+                        tabIndex={x.key === activeTab ? 0 : -1}
+                        className={`sb-vd__tab${x.key === activeTab ? ' is-active' : ''}`}
+                        onClick={() => setTab(x.key)}
+                        onKeyDown={onTabKeyDown}
+                      >
+                        {x.icon}
+                        {x.label}
+                      </button>
                     ))}
                   </div>
-                ) : null}
 
-                {/* Prices per rental period */}
-                {(d.pricing_table ?? []).length > 0 ? (
-                  <div className="sb-vd__prices">
-                    <div className="sb-vd__prices-head">
-                      <span className="sb-vd__section-label">{t.prices}</span>
-                      {/* The detail is fetched without dates, so the table is
-                          always today's season. The season's own name is owner
-                          data in Russian only — never shown to clients. */}
-                      <span className="sb-vd__season">· {t.currentMonth}</span>
-                    </div>
-                    <div className="sb-vd__prices-grid">
-                      {d.pricing_table!.map((row, i) => (
-                        <div className="sb-vd__price-row" key={i}>
-                          <span className="sb-vd__price-period">
-                            {row.min_days === row.max_days
-                              ? `${row.period_label} ${row.min_days === 1 ? t.day : t.days}`
-                              : `${row.period_label} ${t.days}`}
-                          </span>
-                          <span className="sb-vd__price-value">
-                            {formatDayPrice(row.price_per_day)}
-                            <small>
-                              {' '}
-                              {t.priceUnit}
-                              {t.perDay}
-                            </small>
-                          </span>
-                        </div>
-                      ))}
-                      {(() => {
-                        const last = d.pricing_table![d.pricing_table!.length - 1];
-                        if (!last || last.price_30_days == null) return null;
-                        return (
-                          <div className="sb-vd__price-row sb-vd__price-row--total">
-                            <span className="sb-vd__price-period">
-                              <b>{t.thirtyDays}</b>
-                              {t.thirtyDaysCalc}
-                            </span>
-                            <span className="sb-vd__price-value">
-                              {last.price_30_days.toLocaleString('en-US')}
-                              <small> {t.priceUnit}</small>
-                            </span>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                    {d.pricing_spans_seasons ? (
-                      <p className="sb-vd__season-note">{t.spansSeasons}</p>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                {(d.deposits ?? []).length > 0 ? (
-                  <div className="sb-vd__deposits">
-                    <span className="sb-vd__section-label">{t.deposit}</span>
-                    <div className="sb-vd__deposit-pills">
-                      {d.deposits!.map((dep, i) => (
-                        <span className="sb-vd__deposit-pill" key={i}>
-                          {money(dep.amount)} {dep.currency_code}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Equipment (vehicle.options — concrete features like CarPlay/
-                    sunroof) — more decision-relevant to a renter than raw
-                    technical Specs, so it comes first (conversion-order
-                    review 2026-07-15). Labelled (unlike the previous bare
-                    chip row) to match the section-label pattern used
-                    elsewhere (Specs/Deposit/Additional Options). */}
-                {(d.options ?? []).length > 0 ? (
-                  <div className="sb-vd__equipment-wrap">
-                    <span className="sb-vd__section-label">{t.equipment}</span>
-                    <div className="sb-vd__chips">
-                      {d.options!.map((o, i) => (
-                        <span className="sb-chip sb-chip--ghost" key={i}>
-                          {o}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Specs — first 4, rest behind a toggle; rows and units: ./specs.ts */}
-                {specRows.length
-                  ? (() => {
-                      const visible = specsExpanded ? specRows : specRows.slice(0, 4);
-                      return (
-                        <div className="sb-vd__specs-wrap">
-                          <span className="sb-vd__section-label">{t.specs}</span>
-                          <div className="sb-vd__specs-card">
-                            <div className="sb-vd__specs">
-                              {visible.map((row) => (
-                                <div className="sb-vd__spec" key={row.key}>
-                                  <span>{row.label}</span>
-                                  <b>{row.value}</b>
-                                </div>
+                  {tabs.map((x) => (
+                    <div
+                      key={x.key}
+                      role="tabpanel"
+                      id={panelId(x.key)}
+                      aria-labelledby={tabId(x.key)}
+                      tabIndex={0}
+                      hidden={x.key !== activeTab}
+                      className="sb-vd__panel"
+                    >
+                      {x.key === 'about' ? (
+                        <>
+                          {(d.advantages ?? []).length > 0 ? (
+                            <ul className="sb-vd__adv">
+                              {d.advantages!.map((a, i) => (
+                                <li key={i}>
+                                  <CheckIcon />
+                                  {a}
+                                </li>
                               ))}
+                            </ul>
+                          ) : null}
+                          {/* Equipment (vehicle.options — concrete features like
+                              CarPlay / sunroof). */}
+                          {(d.options ?? []).length > 0 ? (
+                            <div className="sb-vd__group">
+                              <p className="sb-vd__lab">{t.equipment}</p>
+                              <div className="sb-vd__chips">
+                                {d.options!.map((o, i) => (
+                                  <span className="sb-vd__chip" key={i}>
+                                    {o}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
-                            {specRows.length > 4 ? (
-                              <button
-                                type="button"
-                                className="sb-vd__specs-toggle"
-                                onClick={() => setSpecsExpanded((v) => !v)}
-                              >
-                                {t.allSpecs} {specsExpanded ? '▲' : '▼'}
-                              </button>
-                            ) : null}
-                          </div>
+                          ) : null}
+                          {(d.deposits ?? []).length > 0 ? (
+                            <div className="sb-vd__group">
+                              <p className="sb-vd__lab">{t.deposit}</p>
+                              <div className="sb-vd__deposit-pills">
+                                {d.deposits!.map((dep, i) => (
+                                  <span className="sb-vd__deposit-pill" key={i}>
+                                    {formatMoney(dep.amount)}
+                                    {NBSP}
+                                    {dep.currency_code === 'THB' ? t.priceUnit : dep.currency_code}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </>
+                      ) : x.key === 'prices' && priceGrid ? (
+                        <PriceGrid
+                          periods={priceGrid.periods}
+                          seasons={priceGrid.seasons}
+                          referenceDate={priceGrid.referenceDate}
+                          locale={locale}
+                        />
+                      ) : x.key === 'specs' ? (
+                        // Every spec row at once; rows and units: ./specs.ts
+                        <div className="sb-vd__specs">
+                          {specRows.map((row) => (
+                            <div className="sb-vd__spec" key={row.key}>
+                              <span>{row.label}</span>
+                              <b>{row.value}</b>
+                            </div>
+                          ))}
                         </div>
-                      );
-                    })()
-                  : null}
-              </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
               <div className="sb-vd__cta">
-                <button
-                  type="button"
-                  className="sb-btn sb-vd__cta-btn"
-                  onClick={() => setStage('choice')}
-                >
+                <button type="button" className="sb-vcard__book" onClick={onBook}>
+                  <CalendarIcon />
                   {t.bookCta}
                 </button>
+                <button
+                  type="button"
+                  className={`sb-vcard__share${copiedToast.shown ? ' is-done' : ''}`}
+                  aria-label={t.share}
+                  onClick={handleShare}
+                >
+                  {copiedToast.shown ? <CheckIcon /> : <ShareIcon />}
+                </button>
+                {/* Always mounted: the live region announces the text when it
+                    appears; the plate rises above «Поделиться». */}
+                <div className="sb-vd__toast-slot" role="status" aria-live="polite">
+                  <span
+                    className={`sb-vd__toast${copiedToast.shown ? ' is-shown' : ''}`}
+                    aria-hidden={copiedToast.phase === 'hidden'}
+                  >
+                    {copiedToast.phase !== 'hidden' ? (
+                      <>
+                        <CheckIcon />
+                        {t.copied}
+                      </>
+                    ) : null}
+                  </span>
+                </div>
               </div>
             </div>
           ) : stage === 'choice' ? (
             <div className="sb-modal__body sb-modal__body--book">
-              <button type="button" className="sb-vd__back" onClick={() => setStage('detail')}>
-                ‹ {t.back}
-              </button>
-              <h3 className="sb-bk__title">{t.howToBook}</h3>
-              <div className="sb-bk__vehicle">
-                {mainImg ? <img className="sb-bk__photo" src={mainImg} alt="" /> : null}
-                <div className="sb-bk__meta">
-                  <p className="sb-bk__name">{d.display_name}</p>
-                  {price != null ? (
-                    <p className="sb-bk__price">
-                      <small>{t.from} </small>
-                      {formatDayPrice(price)}
-                      <small>
-                        {' '}
-                        {t.priceUnit}
-                        {t.perDay}
-                      </small>
-                    </p>
-                  ) : null}
-                </div>
-              </div>
+              {renderStepHeader(() => setStage('detail'))}
+              <h3 className="sb-bk__title" tabIndex={-1} data-step-title="">
+                {t.howToBook}
+              </h3>
 
               {/* Dates: two read-only value fields + the availability calendar
                   (no native date inputs — the customer must SEE which days the
@@ -1542,15 +1731,16 @@ export function VehicleBookingModal({
                 ) : (
                   <>
                     <div className="sb-vd__dates">
-                      <div className="sb-avcal__field">
-                        <span>{t.dateGet}</span>
-                        <span className={`sb-input sb-avcal__value${start ? '' : ' is-placeholder'}`}>
+                      {/* The field the next calendar tap fills is framed in gold. */}
+                      <div className={`sb-avcal__field${!start ? ' is-active' : ''}`}>
+                        <span className="sb-avcal__field-label">{t.dateGet}</span>
+                        <span className={`sb-avcal__value${start ? '' : ' is-placeholder'}`}>
                           {start ? formatDDMMYYYY(start) : t.datePlaceholder}
                         </span>
                       </div>
-                      <div className="sb-avcal__field">
-                        <span>{t.dateReturn}</span>
-                        <span className={`sb-input sb-avcal__value${end ? '' : ' is-placeholder'}`}>
+                      <div className={`sb-avcal__field${start && !end ? ' is-active' : ''}`}>
+                        <span className="sb-avcal__field-label">{t.dateReturn}</span>
+                        <span className={`sb-avcal__value${end ? '' : ' is-placeholder'}`}>
                           {end ? formatDDMMYYYY(end) : t.datePlaceholder}
                         </span>
                       </div>
@@ -1646,164 +1836,84 @@ export function VehicleBookingModal({
                 askAddressRef={askAddressRef}
               />
 
-              {priceQuoteActive && priceQuote ? (
-                <PriceSummary
-                  quote={priceQuote.quote}
-                  stale={priceQuote.key !== priceQuoteKey}
-                  accessoryNames={accessoryNames}
-                  pickup={{ enabled: pickupEnabled, hasLocation: effectivePickupLocation != null, cost: pickupCost }}
-                  dropoff={{ enabled: dropoffEnabled, hasLocation: effectiveDropoffLocation != null, cost: dropoffCost }}
-                  locale={locale}
-                  strings={{
-                    title: t.sumTitle,
-                    rental: t.sumRental,
-                    free: t.sumFree,
-                    delivery: t.sumDelivery,
-                    collection: t.sumCollection,
-                    ask: t.sumAsk,
-                    total: t.sumTotal,
-                    currency: t.priceUnit,
-                  }}
-                  onAskAddress={(kind) => askAddressRef.current?.(kind)}
-                />
-              ) : null}
+              {renderPriceSummary()}
 
               <div className="sb-vd__book-actions">
                 {conflict ? <p className="sb-avcal__ask">{t.askHint}</p> : null}
-                <button
-                  type="button"
-                  className="sb-vd__tg-card"
-                  disabled={!datesValid || availLoading || tgSubmitting}
-                  onClick={handleTelegramBooking}
-                >
-                  <span className="sb-vd__tg-icon" aria-hidden>
-                    <ContactIcon kind="telegram" />
-                  </span>
-                  <span className="sb-vd__tg-text">
-                    <span className="sb-vd__tg-title">{conflict ? t.tgAsk : t.tgQuick}</span>
-                    <span className="sb-vd__tg-sub">
-                      {tgSubmitting ? t.loading : conflict ? t.tgAskSub : t.tgQuickSub}
+                {/* Phone — one under the other; computer — one row with «или». */}
+                <div className="sb-vd__book-row">
+                  <button
+                    type="button"
+                    className="sb-vd__tg-card"
+                    disabled={!datesValid || availLoading || tgSubmitting}
+                    onClick={handleTelegramBooking}
+                  >
+                    <span className="sb-vd__tg-icon" aria-hidden>
+                      <ContactIcon kind="telegram" />
                     </span>
-                  </span>
-                  <span className="sb-vd__tg-arrow" aria-hidden>
-                    ›
-                  </span>
-                </button>
+                    <span className="sb-vd__tg-text">
+                      <span className="sb-vd__tg-title">{conflict ? t.tgAsk : t.tgQuick}</span>
+                      <span className="sb-vd__tg-sub">
+                        {tgSubmitting ? t.loading : conflict ? t.tgAskSub : t.tgQuickSub}
+                      </span>
+                    </span>
+                    <span className="sb-vd__tg-arrow" aria-hidden>
+                      ›
+                    </span>
+                  </button>
+
+                  <div className="sb-vd__or">{t.or}</div>
+
+                  <button
+                    type="button"
+                    className="sb-vd__option-card"
+                    disabled={!datesValid || availLoading}
+                    onClick={() => setStage('form')}
+                  >
+                    <span className="sb-vd__option-icon" aria-hidden>
+                      {/* «Анкета с ручкой» — Lucide clipboard-pen (ISC). */}
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="22"
+                        height="22"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect width="8" height="4" x="8" y="2" rx="1" />
+                        <path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4" />
+                        <path d="M16 4h2a2 2 0 0 1 2 2v2" />
+                        <path d="M8 11h5" />
+                        <path d="M8 15h2" />
+                        <path d="M21.378 13.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
+                      </svg>
+                    </span>
+                    <span className="sb-vd__tg-text">
+                      <span className="sb-vd__tg-title">{conflict ? t.manualAsk : t.manual}</span>
+                      <span className="sb-vd__tg-sub">{conflict ? t.manualAskSub : t.manualSub}</span>
+                    </span>
+                    <span className="sb-vd__tg-arrow" aria-hidden>
+                      ›
+                    </span>
+                  </button>
+                </div>
                 {tgErr ? <p className="sb-form__status sb-form__status--err">{tgErr}</p> : null}
-
-                <div className="sb-vd__or">{t.or}</div>
-
-                <button
-                  type="button"
-                  className="sb-vd__option-card"
-                  disabled={!datesValid || availLoading}
-                  onClick={() => setStage('form')}
-                >
-                  <span className="sb-vd__option-icon" aria-hidden>
-                    {/* «Анкета с ручкой» — Lucide clipboard-pen (ISC). */}
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="22"
-                      height="22"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <rect width="8" height="4" x="8" y="2" rx="1" />
-                      <path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4" />
-                      <path d="M16 4h2a2 2 0 0 1 2 2v2" />
-                      <path d="M8 11h5" />
-                      <path d="M8 15h2" />
-                      <path d="M21.378 13.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
-                    </svg>
-                  </span>
-                  <span className="sb-vd__tg-text">
-                    <span className="sb-vd__tg-title">{conflict ? t.manualAsk : t.manual}</span>
-                    <span className="sb-vd__tg-sub">{conflict ? t.manualAskSub : t.manualSub}</span>
-                  </span>
-                  <span className="sb-vd__tg-arrow" aria-hidden>
-                    ›
-                  </span>
-                </button>
               </div>
             </div>
           ) : (
             <div className="sb-modal__body sb-modal__body--book">
-              <button type="button" className="sb-vd__back" onClick={() => setStage('choice')}>
-                ‹ {t.back}
-              </button>
-              <h3 className="sb-bk__title">{t.formTitle}</h3>
-              <div className="sb-bk__vehicle">
-                {mainImg ? <img className="sb-bk__photo" src={mainImg} alt="" /> : null}
-                <div className="sb-bk__meta">
-                  <p className="sb-bk__name">{d.display_name}</p>
-                  {price != null ? (
-                    <p className="sb-bk__price">
-                      <small>{t.from} </small>
-                      {formatDayPrice(price)}
-                      <small>
-                        {' '}
-                        {t.priceUnit}
-                        {t.perDay}
-                      </small>
-                    </p>
-                  ) : null}
-                </div>
-              </div>
+              {renderStepHeader(() => setStage('choice'))}
 
-              <form className="sb-vd__book" onSubmit={submit}>
-                <label className="sb-vd__field">
-                  <span className="sb-vd__field-label">{t.name}</span>
-                  <input
-                    className="sb-input"
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </label>
-
-                <div className="sb-vd__field">
-                  {/* The error message lives OUTSIDE the <label> on purpose —
-                      testing-library (and every screen reader) computes a
-                      wrapping label's accessible name from ALL of its text
-                      content, so an error span nested inside would get
-                      concatenated into the label text itself (e.g. "Phone
-                      numberEnter a phone number…"), breaking exact-label
-                      lookups/associations. `aria-describedby` links it back
-                      without that side effect. */}
-                  <label className="sb-vd__field">
-                    <span className="sb-vd__field-label">{t.phoneLabel}</span>
-                    <input
-                      className="sb-input"
-                      type="text"
-                      placeholder={t.phonePh}
-                      required
-                      value={contact}
-                      onChange={(e) => { setContact(e.target.value); setContactError(''); }}
-                      aria-invalid={!!contactError}
-                      aria-describedby={contactError ? 'sb-vd-contact-error' : undefined}
-                    />
-                  </label>
-                  {contactError ? (
-                    <span id="sb-vd-contact-error" className="sb-vd__field-error">{contactError}</span>
-                  ) : null}
-                </div>
-
-                <p className="sb-vd__dates-summary">
-                  {t.dateGet}: <b>{formatShortDate(start, locale)}</b>
-                  {' — '}
-                  {t.dateReturn}: <b>{formatShortDate(end, locale)}</b>
-                </p>
-
-                {/* Delivery/collection choice now lives on the PREVIOUS
-                    ("How to book?") screen, right under the dates — it must
-                    apply to both the Telegram and manual paths, and this form
-                    only handles name/contact. Read-only echo here mirrors the
-                    dates-summary line above it, same reasoning. */}
+              <form className="sb-vd__form" onSubmit={submit}>
+                <h3 className="sb-bk__title" tabIndex={-1} data-step-title="">
+                  {t.formTitle}
+                </h3>
+                <p className="sb-vd__datesline">{periodLine}</p>
+                {/* Delivery/collection is chosen on the previous step (it
+                    applies to both booking paths); the form echoes it. */}
                 {effectivePickupLocation ? (
                   <p className="sb-vd__dates-summary">
                     {t.deliveryPickup}: <b>{effectivePickupLocation.address}</b>
@@ -1815,8 +1925,54 @@ export function VehicleBookingModal({
                   </p>
                 ) : null}
 
+                {/* What is being sent — the same block as on the previous step. */}
+                {renderPriceSummary()}
+
+                <div className="sb-vd__you">
+                  <p className="sb-vd__lab">{t.yourData}</p>
+                  <div className="sb-vd__you-row">
+                    <label className="sb-vd__field">
+                      <span className="sb-vd__field-label">{t.name}</span>
+                      <input
+                        className="sb-input"
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                      />
+                    </label>
+
+                    <div className="sb-vd__field">
+                      {/* The error message lives OUTSIDE the <label> on purpose —
+                          testing-library (and every screen reader) computes a
+                          wrapping label's accessible name from ALL of its text
+                          content, so an error span nested inside would get
+                          concatenated into the label text itself (e.g. "Phone
+                          numberEnter a phone number…"), breaking exact-label
+                          lookups/associations. `aria-describedby` links it back
+                          without that side effect. */}
+                      <label className="sb-vd__field">
+                        <span className="sb-vd__field-label">{t.phoneLabel}</span>
+                        <input
+                          className="sb-input"
+                          type="text"
+                          placeholder={t.phonePh}
+                          required
+                          value={contact}
+                          onChange={(e) => { setContact(e.target.value); setContactError(''); }}
+                          aria-invalid={!!contactError}
+                          aria-describedby={contactError ? 'sb-vd-contact-error' : undefined}
+                        />
+                      </label>
+                      {contactError ? (
+                        <span id="sb-vd-contact-error" className="sb-vd__field-error">{contactError}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
                 <button
-                  className="sb-btn sb-btn--block"
+                  className="sb-btn sb-btn--block sb-vd__submit"
                   type="submit"
                   disabled={submitting || !datesValid}
                 >

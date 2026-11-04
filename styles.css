@@ -1652,12 +1652,6 @@ button.sb-lang__flag {
 .sb-vcard__range b span {
   color: var(--sb-accent);
 }
-/* Fractional day rates («1 833.33 – 2 500 ฿», month price / 30) keep their
-   cents (owner 2026-10-03: «1,833» next to «55,000» did not add up) — smaller
-   type so the status and the range still share one row at any card width. */
-.sb-vcard__range--fraction b {
-  font-size: calc(14.5 * var(--sb-vcard-u));
-}
 .sb-vcard__from small {
   font-size: calc(12 * var(--sb-vcard-u));
   font-weight: 400;
@@ -2230,9 +2224,24 @@ button.sb-lang__flag {
   width: 100%;
   max-width: 720px;
   margin: auto;
-  background: var(--sb-surface);
   border-radius: var(--sb-radius);
   padding: 1.5rem;
+  /* The vehicle window (approved 2026-11-04) — every step shares the dark
+     surface and the hairline frame. `--sb-vd-side` is the window's side
+     padding (desktop dialog padding / phone 16px); full-bleed parts (covers,
+     price rows, footer) cancel it. The catalog card's parts (CardTitle,
+     CardPriceOverlay) render at their reference size: `--sb-vcard-u` = 1px. */
+  --sb-vd-side: 1.5rem;
+  --sb-vcard-u: 1px;
+  --sb-vcard-anim: 220ms;
+  --sb-pg-bleed: var(--sb-vd-side);
+  /* Window surface: the cover photo, the step strip and the sticky CTA fade into it. */
+  --sb-vd-surface: #141414;
+  /* Inputs of the window: a touch stronger than --sb-border. */
+  --sb-vd-input-border: rgba(255, 255, 255, 0.16);
+  background: var(--sb-vd-surface);
+  border: 1px solid var(--sb-border);
+  font-variant-numeric: tabular-nums;
 }
 .sb-modal__close {
   position: absolute;
@@ -2243,7 +2252,7 @@ button.sb-lang__flag {
   height: 40px;
   border: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.45);
   color: #fff;
   font-size: 1.5rem;
   line-height: 1;
@@ -2259,37 +2268,158 @@ button.sb-lang__flag {
   flex-direction: column;
   gap: 1.25rem;
 }
+/* The body scrolls (phone sheet): its blocks keep their own height instead of
+   shrinking to fit — otherwise the cover photo (overflow: hidden, aspect-ratio)
+   is squashed and everything laid over it collides. */
+.sb-modal__body > * {
+  flex-shrink: 0;
+}
+/* Step titles receive focus programmatically on a step change (screen readers
+   announce the new step); they are not controls, so no focus ring. */
+[data-step-title]:focus {
+  outline: none;
+}
 .sb-modal__success {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 2.5rem 1rem;
+  gap: 12px;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 34px 0 6px;
   text-align: center;
 }
+/* Gold ring with a check. */
 .sb-modal__check {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border: 2px solid var(--sb-accent);
+  border-radius: 50%;
+  background: rgba(255, 204, 51, 0.08);
+  color: var(--sb-accent);
+}
+.sb-modal__check svg {
+  width: 34px;
+  height: 34px;
+}
+.sb-modal__success h3 {
+  margin: 4px 0 0;
+  font-size: 22px;
+  color: var(--sb-text-strong);
+}
+.sb-modal__success p {
+  max-width: 30ch;
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: var(--sb-text);
+}
+/* «photo + name + dates» and, on the right, «Итого» of the sent request. */
+.sb-vd__recap {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--sb-accent);
-  color: var(--sb-accent-ink);
-  font-size: 2rem;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--sb-border);
+  border-radius: 14px;
+  text-align: left;
 }
-.sb-vd__gallery {
+.sb-vd__recap-photo {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+.sb-vd__recap-main {
+  flex: 1;
+  min-width: 0;
+}
+.sb-vd__recap-main b {
+  display: block;
+  font-size: 14.5px;
+  color: var(--sb-text-strong);
+}
+.sb-vd__recap-main span {
+  font-size: 12.5px;
+  color: var(--sb-text-muted);
+}
+.sb-vd__recap-total {
+  flex: none;
+  text-align: right;
+}
+.sb-vd__recap-total small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--sb-text-muted);
+}
+.sb-vd__recap-total b {
+  font-size: 16px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--sb-accent);
+}
+/* Wide gold button: «Отправить запрос», OK. */
+.sb-vd__submit {
+  width: 100%;
+  height: 52px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 800;
+}
+/* ---- Vehicle window, «детали» (approved 2026-11-04) ----
+   The cover repeats the catalog card (`sb-vcard__*` parts, CardPriceOverlay). */
+.sb-vd {
+  gap: 0;
+}
+.sb-vd__hero {
   position: relative;
-  /* Full-bleed hero: cancel the dialog's 1.5rem padding so the photo reaches the
-     panel edges, up to the rounded top corners (this wrapper clips the track). */
-  margin: -1.5rem -1.5rem 0;
-  border-radius: var(--sb-radius) var(--sb-radius) 0 0;
+  isolation: isolate; /* its overlays stack below the window's close button */
+  height: 420px;
+  margin: calc(-1 * var(--sb-vd-side)) calc(-1 * var(--sb-vd-side)) 0;
   overflow: hidden;
+  border-radius: var(--sb-radius) var(--sb-radius) 0 0;
+  background: #111;
+}
+/* Top shade under the name, bottom fade into the window (--sb-vd-surface). */
+.sb-vd__hero::before,
+.sb-vd__hero::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+.sb-vd__hero::before {
+  top: 0;
+  height: 32%;
+  background: linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.26) 45%, rgba(0, 0, 0, 0.08) 78%, transparent);
+}
+.sb-vd__hero::after {
+  bottom: 0;
+  height: 62%;
+  background: linear-gradient(
+    rgba(20, 20, 20, 0) 0%,
+    rgba(20, 20, 20, 0.06) 15%,
+    rgba(20, 20, 20, 0.18) 30%,
+    rgba(20, 20, 20, 0.4) 45%,
+    rgba(20, 20, 20, 0.66) 60%,
+    rgba(20, 20, 20, 0.86) 76%,
+    rgba(20, 20, 20, 0.97) 90%,
+    var(--sb-vd-surface)
+  );
 }
 /* Native horizontal scroll-snap carousel: smooth finger-drag + snap, no JS drag.
    overscroll-behavior-x: contain stops a swipe past the last/first slide from
-   chaining into the modal body (which would scroll the whole panel sideways). */
+   chaining into the modal body (which would scroll the whole panel sideways).
+   The overlays above it let touches through (pointer-events: none). */
 .sb-vd__frame {
+  position: absolute;
+  inset: 0;
   display: flex;
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -2300,15 +2430,106 @@ button.sb-lang__flag {
 .sb-vd__frame::-webkit-scrollbar {
   display: none;
 }
-/* 1:1 to match the standalone catalog's hero (its `aspect-square`); 4/3 was
-   shorter and cropped tall vehicles. */
 .sb-vd__photo {
   flex: 0 0 100%;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: 100%;
   object-fit: cover;
   scroll-snap-align: start;
   user-select: none;
+}
+.sb-vd__top {
+  position: absolute;
+  z-index: 2;
+  inset: 20px 60px auto var(--sb-vd-side);
+  pointer-events: none;
+}
+.sb-vd__hero .sb-vcard__name {
+  font-size: 24px;
+}
+.sb-vd__hero .sb-vcard__over {
+  inset: auto var(--sb-vd-side) 0;
+}
+
+/* ---- Booking steps' cover strip (StepHeader) ----
+   Photo fading into the window, name + «year · category» (CardTitle), «‹ Назад»
+   on the photo, the window's «×». Full-bleed: cancels the window padding. No
+   `isolation` — «‹ Назад» and «×» must stack above the phone grab strip. */
+.sb-stephead {
+  position: relative;
+  flex: none;
+  height: 230px;
+  margin: calc(-1 * var(--sb-vd-side)) calc(-1 * var(--sb-vd-side)) 0;
+  overflow: hidden;
+  border-radius: var(--sb-radius) var(--sb-radius) 0 0;
+  background: #111;
+}
+.sb-stephead__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+}
+.sb-stephead::before,
+.sb-stephead::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+.sb-stephead::before {
+  top: 0;
+  height: 55%;
+  background: linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.2) 60%, transparent);
+}
+.sb-stephead::after {
+  bottom: 0;
+  height: 70%;
+  background: linear-gradient(rgba(20, 20, 20, 0), rgba(20, 20, 20, 0.55) 45%, rgba(20, 20, 20, 0.92) 80%, var(--sb-vd-surface));
+}
+.sb-stephead__title {
+  position: absolute;
+  z-index: 2;
+  inset: auto var(--sb-vd-side) 14px;
+  pointer-events: none;
+}
+.sb-stephead .sb-vcard__name {
+  font-size: 22px;
+}
+.sb-stephead__back {
+  position: absolute;
+  z-index: 4;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 12px 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sb-stephead__back span {
+  font-size: 18px;
+  line-height: 1;
+}
+.sb-modal__close.sb-stephead__close {
+  z-index: 4;
+}
+.sb-stephead__back:focus-visible,
+.sb-stephead__close:focus-visible {
+  outline: 2px solid var(--sb-accent);
+  outline-offset: 2px;
 }
 
 /* Mobile bottom-sheet grab handle (swipe down to dismiss) — hidden on desktop. */
@@ -2374,80 +2595,104 @@ button.sb-lang__flag {
                            sideways overscroll could drift the whole panel; pin it. */
     overscroll-behavior: contain;
   }
-  /* Dialog padding is 0 on mobile → the photo is naturally full-bleed (the dialog's
-     rounded top + overflow clip it); re-pad the non-photo content sections. */
-  .sb-vd__gallery {
+  .sb-modal__dialog {
+    --sb-vd-side: 16px;
+    border-bottom: 0;
+  }
+  /* Dialog padding is 0 on the phone → the cover is naturally full-bleed. */
+  .sb-vd__hero {
+    height: auto;
+    aspect-ratio: 5 / 6;
+    max-height: 72dvh;
     margin: 0;
     border-radius: 0;
   }
-  .sb-vd__info {
-    padding: 0 1.25rem;
-  }
+  .sb-vd__info,
   .sb-vd__thumbs {
-    padding: 0 1.25rem;
+    padding-left: var(--sb-vd-side);
+    padding-right: var(--sb-vd-side);
   }
-  /* Choice / form stages have no full-bleed photo → pad + clear the grab handle. */
+  /* Choice / form stages open with the full-bleed cover strip (StepHeader). */
   .sb-modal__body--book {
-    padding: 1.9rem 1.25rem 1.25rem;
+    padding: 0 var(--sb-vd-side) calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+  .sb-stephead {
+    height: 190px;
+    margin: 0 calc(-1 * var(--sb-vd-side));
+    border-radius: 0;
   }
   .sb-modal__success {
-    padding: 2rem 1.25rem 1.5rem;
+    padding: 34px 20px calc(22px + env(safe-area-inset-bottom, 0px));
   }
 }
 .sb-vd__nav {
   position: absolute;
+  z-index: 3;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border: none;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.45);
   color: #fff;
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
 }
 .sb-vd__nav--prev {
-  left: 0.6rem;
+  left: 10px;
 }
 .sb-vd__nav--next {
-  right: 0.6rem;
+  right: 10px;
 }
+.sb-vd__nav:focus-visible,
+.sb-vd__thumb:focus-visible {
+  outline: 2px solid var(--sb-accent);
+  outline-offset: 2px;
+}
+/* Under the close button, clear of the name and the price overlay. */
 .sb-vd__counter {
   position: absolute;
-  right: 0.6rem;
-  bottom: 0.6rem;
-  padding: 0.15rem 0.55rem;
+  z-index: 3;
+  top: 60px;
+  right: 12px;
+  padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.55);
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 12px;
+  pointer-events: none;
 }
 .sb-vd__thumbs {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: 8px;
+  margin-top: 10px;
   overflow-x: auto;
+  scrollbar-width: none;
 }
 .sb-vd__thumb {
   flex: 0 0 auto;
-  width: 64px;
-  height: 48px;
+  width: 56px;
+  height: 42px;
   padding: 0;
   border: 1px solid var(--sb-border);
   border-radius: 8px;
   overflow: hidden;
   background: none;
+  opacity: 0.6;
   cursor: pointer;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
 }
 .sb-vd__thumb.is-active {
+  opacity: 1;
   border-color: var(--sb-accent);
 }
 .sb-vd__thumb img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -2455,263 +2700,233 @@ button.sb-lang__flag {
 .sb-vd__info {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 16px;
+  padding-top: 14px;
 }
-.sb-vd__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+/* Tabs: a soft track 8px wider than the content, the selected tab a gold pill;
+   the icon sits left of the label, all in one row at 360px. */
+.sb-vd__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  gap: 3px;
+  margin: 0 -8px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
 }
-.sb-vd__name {
-  margin: 0;
-  font-size: 1.4rem;
-  font-weight: 800;
+.sb-vd__tabs--n2 {
+  grid-template-columns: 1fr 1fr;
 }
-.sb-vd__year {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--sb-text-muted);
+.sb-vd__tabs--n1 {
+  grid-template-columns: 1fr;
 }
-.sb-vd__meta-row {
+.sb-vd__tab {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-/* Share = an action: distinct OUTLINED pill + icon, set apart from the filled
-   category tag and the status banner. */
-.sb-vd__share {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.85rem;
-  border: 1px solid var(--sb-border);
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  height: 38px;
+  padding: 0 6px;
+  border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--sb-text-muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
-}
-.sb-vd__share-ico {
-  flex-shrink: 0;
-}
-.sb-vd__share:hover {
-  color: var(--sb-text-strong);
-  border-color: var(--sb-accent);
-}
-.sb-vd__share.is-copied {
-  color: var(--sb-accent);
-  border-color: var(--sb-accent);
-}
-/* Category = compact tag (a label, not a status badge). */
-.sb-vd__badge {
-  align-self: center;
-  padding: 0.18rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.68rem;
+  font: inherit;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: #fff;
-}
-.sb-vd__price {
-  flex: 0 0 auto;
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 800;
-  line-height: 1.1;
-  color: var(--sb-accent);
   white-space: nowrap;
-  text-align: right;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
-.sb-vd__price small {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--sb-text-muted);
+.sb-vd__tab svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
 }
-/* Availability = the prominent status: a full-width banner (not a small pill). */
-.sb-vd__avail {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0.7rem 0.95rem;
-  border-radius: var(--sb-radius);
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-.sb-vd__avail.is-free {
-  background: rgba(74, 222, 128, 0.12);
-  color: #4ade80;
-}
-.sb-vd__avail.is-busy {
-  background: rgba(251, 191, 36, 0.12);
-  color: #fbbf24;
-}
-.sb-vd__avail-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.sb-vd__avail-text {
-  flex: 1;
-}
-.sb-vd__avail-btn {
-  padding: 0.35rem 0.75rem;
-  border: none;
-  border-radius: 999px;
+.sb-vd__tab.is-active {
   background: var(--sb-accent);
   color: var(--sb-accent-ink);
+}
+.sb-vd__tab:focus-visible {
+  outline: 2px solid var(--sb-accent);
+  outline-offset: 2px;
+}
+@media (max-width: 370px) {
+  .sb-vd__tab {
+    gap: 5px;
+    padding: 0 4px;
+    font-size: 13px;
+  }
+}
+.sb-vd__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.sb-vd__panel[hidden] {
+  display: none;
+}
+.sb-vd__panel:focus-visible {
+  outline: 2px solid var(--sb-accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.sb-vd__lab {
+  margin: 0 0 8px;
+  font-size: 11.5px;
   font-weight: 700;
-  font-size: 0.8rem;
-  cursor: pointer;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--sb-text-muted);
+}
+.sb-vd__lab em {
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.sb-vd__adv {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sb-vd__adv li {
+  display: flex;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--sb-text);
+}
+.sb-vd__adv svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--sb-accent);
 }
 .sb-vd__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 6px;
 }
-/* Advantages = secondary feature tags: compact, rounded-rect, smaller than the
-   status banner so the hierarchy reads (mirrors the standalone catalog). */
-.sb-chip {
-  padding: 0.28rem 0.6rem;
-  border-radius: 7px;
-  background: rgba(255, 204, 51, 0.1);
-  color: var(--sb-accent);
-  font-size: 0.76rem;
-  font-weight: 500;
-  line-height: 1.3;
-}
-.sb-chip--ghost {
-  background: transparent;
+.sb-vd__chip {
+  padding: 5px 11px;
   border: 1px solid var(--sb-border);
-  color: var(--sb-text-muted);
-}
-.sb-vd__specs-card {
-  background: var(--sb-bg-alt);
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius);
-  overflow: hidden;
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--sb-text);
 }
 .sb-vd__specs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 1rem;
-  padding: 0.25rem 0.9rem;
+  border-top: 1px solid var(--sb-border);
 }
 .sb-vd__spec {
   display: flex;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
+  gap: 12px;
+  padding: 9px 0;
   border-bottom: 1px solid var(--sb-border);
-  font-size: 0.9rem;
+  font-size: 14px;
 }
 .sb-vd__spec span {
   color: var(--sb-text-muted);
 }
 .sb-vd__spec b {
   color: var(--sb-text-strong);
+  text-align: right;
 }
-.sb-vd__section-label {
-  font-size: 0.75rem;
+/* «Все цены»: seasons × rental periods (PriceGrid). Rows run edge to edge —
+   the host sets `--sb-pg-bleed` to its side padding; digits shrink with the
+   window (container query units) so five-digit prices fit 360px. */
+.sb-pgrid__wrap {
+  margin: 0 calc(-1 * var(--sb-pg-bleed, 0px));
+  overflow-x: auto;
+  container-type: inline-size;
+}
+.sb-pgrid__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.sb-pgrid__table thead th {
+  padding: 0 2px 8px;
+  font-size: 11px;
+  font-size: min(11px, 3.1cqw);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-align: right;
   color: var(--sb-text-muted);
 }
-.sb-vd__section-label--accent {
-  /* Same look as the step heading «Как забронировать?» (.sb-bk__title). */
-  font-size: 1.2rem;
-  font-weight: 800;
-  text-transform: none;
-  letter-spacing: normal;
-  color: inherit;
-}
-.sb-vd__prices {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.sb-vd__prices-head {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-}
-.sb-vd__season {
-  font-size: 0.8rem;
-  color: var(--sb-text-muted);
-}
-.sb-vd__prices-grid {
-  display: grid;
-  /* Desktop keeps 170px (a wider modal → 160px would reflow the columns).
-     Mobile drops to 160px below (see the max-width query) so two columns still
-     fit a ~336px content width. */
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 0.35rem;
-}
-.sb-vd__price-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.48rem 0.58rem;
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius);
-}
-.sb-vd__price-period {
-  font-size: 0.8rem;
-  color: var(--sb-text-muted);
-}
-.sb-vd__price-value {
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: var(--sb-accent);
-}
-.sb-vd__price-value small {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--sb-text-muted);
-}
-/* «30 дней» — справочная сумма по последнему тарифу: строка на всю ширину под плашками. */
-.sb-vd__price-row--total {
-  grid-column: 1 / -1;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.6rem 0.75rem;
-  background: var(--sb-bg-alt);
-}
-.sb-vd__price-row--total .sb-vd__price-period b {
-  display: block;
-  font-size: 0.92rem;
+.sb-pgrid__table tbody th,
+.sb-pgrid__table td {
+  padding: 10px 2px;
+  border-top: 1px solid var(--sb-border);
+  font-size: 12.5px;
+  font-size: min(12.5px, 3.45cqw);
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--sb-text-strong);
 }
-.sb-vd__price-row--total .sb-vd__price-value {
-  font-size: 1.2rem;
+.sb-pgrid__table td {
+  text-align: right;
   white-space: nowrap;
 }
-.sb-vd__season-note {
-  margin: 0;
-  font-size: 0.78rem;
+.sb-pgrid__table tr > :first-child {
+  width: calc(78px + var(--sb-pg-bleed, 0px));
+  padding-left: var(--sb-pg-bleed, 0px);
+  padding-right: 8px;
+  text-align: left;
+  white-space: normal;
+}
+.sb-pgrid__table tr > :last-child {
+  padding-right: var(--sb-pg-bleed, 0px);
+}
+.sb-pgrid__table tbody th small {
+  display: block;
+  margin-top: 1px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #7d7d7d;
+}
+/* Current season: soft gold row + gold bar on the window edge, no badge. */
+.sb-pgrid__table tr.is-now > * {
+  background: rgba(255, 204, 51, 0.08);
+}
+.sb-pgrid__table tr.is-now > :first-child {
+  box-shadow: inset 3px 0 0 var(--sb-accent);
+}
+.sb-pgrid__table td.is-best {
+  color: var(--sb-accent);
+}
+@media (min-width: 641px) {
+  .sb-pgrid__table th,
+  .sb-pgrid__table td {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+.sb-pgrid__legend {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
   color: var(--sb-text-muted);
 }
-.sb-vd__specs-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+.sb-pgrid__legend b {
+  font-weight: 600;
+  color: var(--sb-text);
 }
-.sb-vd__equipment-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+.sb-vd__section-label {
+  /* Same look as .sb-vd__lab — every section of the window is headed alike. */
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--sb-text-muted);
 }
 /* Additional paid accessories (Stage 5, workspace/docs/accessories.md) — a
    SINGLE horizontal scroll-snap row, not a grid (design review 2026-07-16):
@@ -2721,64 +2936,72 @@ button.sb-lang__flag {
 .sb-vd__accessories {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
 }
+/* Option cards: two in view on the phone, four on the computer; more scroll
+   sideways (the row never grows the window's height). */
 .sb-acc__row {
   display: flex;
-  gap: 0.6rem;
+  gap: 8px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
-  padding-bottom: 0.4rem;
-  /* Deliberately NOT bled past the dialog's own edge padding (tried that,
-     reverted 2026-07-16 — a real-device visual bug where the row sat flush
-     against the screen edge even at scroll position 0, misaligned with
-     every other content block). Sitting inside the normal padding like any
-     other child guarantees alignment with zero margin/padding arithmetic to
-     get wrong, at the minor cost of not bleeding true edge-to-edge. */
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  /* Deliberately NOT bled past the dialog's own edge padding (reverted
+     2026-07-16 — a real-device bug where the row sat flush against the screen
+     edge, misaligned with every other content block). */
 }
 .sb-acc__item {
   display: flex;
   flex-direction: column;
-  width: 150px;
-  flex: 0 0 auto;
+  gap: 6px;
+  flex: 0 0 calc((100% - 8px) / 2);
+  min-width: 0;
+  padding: 8px;
   scroll-snap-align: start;
-  overflow: hidden;
   border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius);
-  background: var(--sb-bg-alt);
-  transition: opacity 0.15s ease;
+  border-radius: 14px;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+@media (min-width: 641px) {
+  .sb-acc__item {
+    flex-basis: calc((100% - 24px) / 4);
+  }
+}
+.sb-acc__item.is-selected {
+  border-color: rgba(255, 204, 51, 0.55);
 }
 .sb-acc__item.is-unavailable {
   opacity: 0.45;
 }
 .sb-acc__item-category {
-  padding: 0.5rem 0.5rem 0;
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--sb-text-muted);
   overflow: hidden;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--sb-text-muted);
 }
 .sb-acc__item-photo {
   position: relative;
-  width: calc(100% - 1rem);
-  margin: 0.25rem 0.5rem 0;
+  width: 100%;
   aspect-ratio: 1 / 1;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border-radius: 8px;
-  background: var(--sb-surface);
+  border-radius: 10px;
+  background: #fff;
 }
 .sb-acc__item-photo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+div.sb-acc__item-photo {
+  background: rgba(255, 255, 255, 0.04);
 }
 /* Reset <button> chrome — the photo tile is a real button so it's a proper
    tap target for the fullscreen preview (Stage 5.5, design review 2026-07-16). */
@@ -2787,6 +3010,10 @@ button.sb-lang__flag {
   border: none;
   cursor: zoom-in;
   -webkit-tap-highlight-color: transparent;
+}
+.sb-acc__item-photo--clickable:focus-visible {
+  outline: 2px solid var(--sb-accent);
+  outline-offset: 2px;
 }
 .sb-acc__item-expand {
   position: absolute;
@@ -2870,47 +3097,48 @@ button.sb-lang__flag {
 }
 .sb-acc__item-info {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 2px;
   min-width: 0;
-  padding: 0.5rem 0.5rem 0;
 }
 .sb-acc__item-name {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--sb-text-strong);
   overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--sb-text-strong);
 }
 .sb-acc__item-price {
-  font-size: 0.76rem;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--sb-accent);
 }
 .sb-acc__item-unavailable {
-  font-size: 0.7rem;
+  font-size: 11.5px;
   color: #f87171;
 }
-/* 44x44 touch targets (Apple HIG / Material minimum) — was 24x24. */
+/* − qty + in one framed row; the selected card's frame and number turn gold. */
 .sb-acc__stepper {
-  display: flex;
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
   align-items: center;
-  justify-content: space-between;
-  margin: 0.25rem -0.5rem -0.5rem;
-  padding: 0.4rem 0.5rem 0.5rem;
+  height: 38px;
+  border: 1px solid var(--sb-border);
+  border-radius: 10px;
+}
+.sb-acc__item.is-selected .sb-acc__stepper {
+  border-color: var(--sb-accent);
 }
 .sb-acc__stepper button {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--sb-border);
-  border-radius: 6px;
-  background: var(--sb-bg);
-  color: var(--sb-text);
-  font-size: 0.9rem;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font: inherit;
+  font-size: 17px;
   line-height: 1;
   cursor: pointer;
 }
@@ -2918,136 +3146,153 @@ button.sb-lang__flag {
   opacity: 0.3;
   cursor: not-allowed;
 }
+.sb-acc__stepper button:focus-visible {
+  outline: 2px solid var(--sb-accent);
+  outline-offset: -2px;
+  border-radius: 9px;
+}
 .sb-acc__stepper-value {
-  min-width: 1rem;
   text-align: center;
-  font-size: 0.85rem;
+  font-size: 14px;
   font-weight: 700;
   color: var(--sb-text-strong);
 }
-.sb-vd__specs-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.3rem;
-  width: 100%;
-  padding: 0.6rem;
-  border: none;
-  border-top: 1px solid var(--sb-border);
-  background: none;
+.sb-acc__item.is-selected .sb-acc__stepper-value {
   color: var(--sb-accent);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.sb-vd__deposits {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
 }
 .sb-vd__deposit-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 6px;
 }
-/* Sized to the standalone catalog's deposit pills (px-3 py-1.5 rounded-xl text-sm)
-   so all currencies fit one row instead of wrapping; still clearly readable. */
 .sb-vd__deposit-pill {
-  padding: 0.4rem 0.8rem;
-  background: var(--sb-bg-alt);
+  padding: 6px 12px;
   border: 1px solid var(--sb-border);
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
   color: var(--sb-text-strong);
 }
-.sb-vd__tg-card {
+/* Booking buttons. Telegram — dark with a blue tint, a blue circle with the
+   white plane; manual — a gold frame, the «form» icon in a gold circle; both
+   end with «›». Phone — one under the other; computer — one row with «или». */
+.sb-vd__book-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sb-vd__tg-card,
+.sb-vd__option-card {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 12px;
   width: 100%;
-  padding: 0.8rem 1rem;
-  border-radius: var(--sb-radius);
-  background: rgba(34, 158, 217, 0.12);
-  border: 1px solid rgba(34, 158, 217, 0.4);
-  color: var(--sb-text);
+  min-height: 60px;
+  padding: 13px 14px;
+  border-radius: 16px;
+  color: var(--sb-text-strong);
   font: inherit;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
 }
-.sb-vd__tg-card:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.sb-vd__tg-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #229ed9;
-  color: #fff;
-  font-size: 1.2rem;
-}
-.sb-vd__tg-icon .sb-ico {
-  width: 24px;
-  height: 24px;
-}
-.sb-vd__tg-text {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-.sb-vd__tg-title {
-  font-weight: 700;
-}
-.sb-vd__tg-sub {
-  font-size: 0.82rem;
-  color: var(--sb-text-muted);
-}
-.sb-vd__tg-arrow {
-  color: var(--sb-text-muted);
-  font-size: 1.4rem;
+.sb-vd__tg-card {
+  background: rgba(34, 158, 217, 0.12);
+  border: 1.5px solid rgba(34, 158, 217, 0.7);
 }
 .sb-vd__option-card {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.8rem 1rem;
-  border-radius: var(--sb-radius);
-  background: var(--sb-bg-alt);
-  border: 1px solid var(--sb-border);
-  color: var(--sb-text);
-  text-align: left;
-  cursor: pointer;
+  background: transparent;
+  border: 1.5px solid var(--sb-accent);
 }
+.sb-vd__tg-card:disabled,
 .sb-vd__option-card:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
+.sb-vd__tg-card:focus-visible,
+.sb-vd__option-card:focus-visible {
+  outline: 2px solid var(--sb-accent);
+  outline-offset: 2px;
+}
+.sb-vd__tg-icon,
 .sb-vd__option-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  flex: none;
   width: 40px;
   height: 40px;
   border-radius: 50%;
+}
+.sb-vd__tg-icon {
+  background: #229ed9;
+  color: #fff;
+}
+.sb-vd__option-icon {
   background: var(--sb-accent);
   color: var(--sb-accent-ink);
-  font-size: 1.1rem;
+}
+.sb-vd__tg-icon .sb-ico,
+.sb-vd__option-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.sb-vd__tg-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.sb-vd__tg-title {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--sb-text-strong);
+}
+.sb-vd__tg-sub {
+  font-size: 12.5px;
+  color: var(--sb-text-muted);
+}
+.sb-vd__tg-arrow {
+  flex: none;
+  padding-left: 6px;
+  font-size: 20px;
+  color: var(--sb-text-muted);
+}
+@media (min-width: 641px) {
+  .sb-vd__book-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+  }
+  .sb-vd__tg-card,
+  .sb-vd__option-card {
+    padding: 10px 16px;
+    border-radius: 14px;
+  }
+  .sb-vd__tg-icon,
+  .sb-vd__option-icon {
+    width: 36px;
+    height: 36px;
+  }
+  .sb-vd__tg-icon .sb-ico,
+  .sb-vd__option-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  .sb-vd__tg-title {
+    font-size: 15px;
+  }
 }
 .sb-vd__field {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 6px;
+  min-width: 0;
 }
 .sb-vd__field-label {
-  font-size: 0.85rem;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--sb-text-muted);
 }
 .sb-vd__field-error {
@@ -3063,12 +3308,51 @@ button.sb-lang__flag {
   color: var(--sb-text-strong);
   font-weight: 600;
 }
-.sb-vd__book {
+/* Manual form: one calm column (computer — centred, ≤560px). */
+.sb-vd__form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  border-top: 1px solid var(--sb-border);
-  padding-top: 1.25rem;
+  gap: 14px;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+}
+.sb-vd__datesline {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--sb-text);
+}
+.sb-vd__you-row {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sb-vd__form .sb-input {
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--sb-vd-input-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 14.5px;
+}
+.sb-vd__form .sb-input:focus {
+  border-color: var(--sb-accent);
+}
+@media (min-width: 641px) {
+  .sb-vd__form {
+    gap: 16px;
+  }
+  .sb-vd__you-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+  }
+  .sb-vd__form .sb-vd__submit {
+    height: 54px;
+    margin-top: 4px;
+  }
 }
 .sb-vd__dates {
   display: grid;
@@ -3077,20 +3361,7 @@ button.sb-lang__flag {
      push the columns into each other. `minmax(0, …)` lets each column shrink to
      its share so the gap is always honoured. */
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0.75rem;
-}
-.sb-vd__dates label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  min-width: 0; /* let the column shrink below the date input's intrinsic width */
-  font-size: 0.85rem;
-  color: var(--sb-text-muted);
-}
-/* Native date inputs have a wide min-content (the picker UI); allow them to
-   shrink to the column so they never spill off a narrow screen. */
-.sb-vd__dates .sb-input {
-  min-width: 0;
+  gap: 8px;
 }
 /* ── Availability calendar on the "How to book?" step ─────────────────────
    Two read-only value fields, the calendar of the model's busy days, a legend
@@ -3101,23 +3372,37 @@ button.sb-lang__flag {
   flex-direction: column;
   gap: 0.9rem;
 }
+/* Date value boxes; the one the next calendar tap fills is framed in gold. */
 .sb-vd__dates .sb-avcal__field {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
   min-width: 0;
-  font-size: 0.85rem;
+  padding: 8px 12px;
+  border: 1px solid var(--sb-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  transition: border-color 0.15s ease;
+}
+.sb-vd__dates .sb-avcal__field.is-active {
+  border-color: rgba(255, 204, 51, 0.55);
+}
+.sb-avcal__field-label {
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--sb-text-muted);
 }
 .sb-avcal__value {
   display: block;
   overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--sb-text-strong);
   font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .sb-avcal__value.is-placeholder {
+  font-weight: 500;
   color: var(--sb-text-muted);
 }
 /* The collapsed dates row reuses the catalog filter's compact panel markup, but
@@ -3130,7 +3415,7 @@ button.sb-lang__flag {
 .sb-avcal__months {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1.5rem;
+  gap: 12px;
 }
 .sb-avcal--two .sb-avcal__months {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3140,13 +3425,16 @@ button.sb-lang__flag {
    piece is pinned to its own column instead of relying on source order. */
 .sb-avcal__month {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  grid-template-columns: 30px minmax(0, 1fr) 30px;
   align-items: center;
   /* Months of 5 and 6 weeks sit side by side: pin each to the top, or the
      shorter one drifts down and its rows spread to fill the taller sibling. */
   align-self: start;
   align-content: start;
   min-width: 0;
+  padding: 10px 10px 8px;
+  border: 1px solid var(--sb-border);
+  border-radius: 14px;
 }
 .sb-avcal__caption {
   grid-column: 2;
@@ -3154,27 +3442,27 @@ button.sb-lang__flag {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
-  margin-bottom: 0.4rem;
+  min-height: 30px;
+  margin-bottom: 6px;
 }
 .sb-avcal__caption-label {
-  color: #fff;
-  font-size: 0.9rem;
-  font-weight: 600;
+  color: var(--sb-text-strong);
+  font-size: 14.5px;
+  font-weight: 700;
   text-transform: capitalize;
 }
 .sb-avcal__nav {
   grid-row: 1;
   display: inline-grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  margin-bottom: 0.4rem;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 6px;
   padding: 0;
   border: 1px solid var(--sb-border);
   border-radius: 50%;
   background: transparent;
-  color: var(--sb-text-muted);
+  color: #fff;
   cursor: pointer;
 }
 .sb-avcal__nav--prev {
@@ -3204,9 +3492,9 @@ button.sb-lang__flag {
   table-layout: fixed;
 }
 .sb-avcal__weekday {
-  padding: 0.25rem 0;
-  color: #6b7280;
-  font-size: 0.68rem;
+  padding: 2px 0 4px;
+  color: var(--sb-text-muted);
+  font-size: 11px;
   font-weight: 500;
   text-align: center;
 }
@@ -3220,13 +3508,13 @@ button.sb-lang__flag {
   align-items: center;
   justify-content: center;
   width: 100%;
-  aspect-ratio: 1;
+  height: 36px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
-  color: #fff;
-  font: 500 0.82rem var(--sb-font);
+  color: var(--sb-text-strong);
+  font: 600 13.5px var(--sb-font);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
@@ -3264,15 +3552,15 @@ button.sb-lang__flag {
 }
 .sb-avcal__day.is-middle .sb-avcal__day-button {
   border-radius: 0;
-  background: rgba(255, 204, 51, 0.15);
-  color: #fff;
+  background: rgba(255, 204, 51, 0.14);
+  color: var(--sb-text-strong);
 }
 .sb-avcal__day.is-start .sb-avcal__day-button,
 .sb-avcal__day.is-end .sb-avcal__day-button {
   border-color: transparent;
   background: var(--sb-accent);
   color: var(--sb-accent-ink);
-  font-weight: 700;
+  font-weight: 800;
   text-decoration: none;
 }
 /* A period no single unit covers: dashed outline instead of the accent fill. */
@@ -3341,7 +3629,21 @@ button.sb-lang__flag {
   min-height: 0;
 }
 .sb-avcal__status.is-ok {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
   color: #4ade80;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.sb-avcal__status.is-ok::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  transform: translateY(-1px);
 }
 .sb-avcal__status.is-warn {
   color: #fbbf24;
@@ -3358,14 +3660,10 @@ button.sb-lang__flag {
     grid-template-columns: minmax(0, 1fr);
   }
 }
-.sb-vd__tg {
-  background: #229ed9;
-  color: #fff;
-}
 .sb-vd__or {
   text-align: center;
   color: var(--sb-text-muted);
-  font-size: 0.85rem;
+  font-size: 12.5px;
 }
 .sb-btn--block {
   width: 100%;
@@ -3374,16 +3672,15 @@ button.sb-lang__flag {
 .sb-vd__addr-section {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 8px;
 }
 .sb-vd__addr-row {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.6rem;
+  gap: 9px;
+  padding: 11px 12px;
   border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius);
-  background: var(--sb-bg-alt);
+  border-radius: 14px;
 }
 .sb-vd__addr-switch {
   display: flex;
@@ -3397,11 +3694,11 @@ button.sb-lang__flag {
 }
 .sb-vd__addr-switch-track {
   position: relative;
-  width: 34px;
-  height: 20px;
+  width: 36px;
+  height: 21px;
   flex: 0 0 auto;
   border-radius: 999px;
-  background: var(--sb-border);
+  background: rgba(255, 255, 255, 0.18);
   transition: background 0.15s ease;
 }
 .sb-vd__addr-switch.is-on .sb-vd__addr-switch-track {
@@ -3411,18 +3708,27 @@ button.sb-lang__flag {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
   background: #fff;
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, background-color 0.15s ease;
 }
 .sb-vd__addr-switch.is-on .sb-vd__addr-switch-thumb {
-  transform: translateX(14px);
+  transform: translateX(15px);
+  background: #191919;
 }
 .sb-vd__addr-switch-label {
-  font-size: 0.85rem;
+  font-size: 14px;
   color: var(--sb-text);
+}
+.sb-vd__addr-search .sb-input {
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--sb-vd-input-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 14.5px;
 }
 .sb-vd__addr-picker {
   display: flex;
@@ -3483,99 +3789,100 @@ button.sb-lang__flag {
   font-size: 0.78rem;
   color: var(--sb-text-muted);
 }
-/* Window 1 → 2 split (catalog booking) */
+/* Window footer: «Забронировать» (sb-vcard__book) + square «Поделиться»
+   (sb-vcard__share), pinned to the bottom, spanning the window edges. */
 .sb-vd__cta {
   position: sticky;
+  z-index: 2;
   bottom: 0;
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  /* span to the dialog edges (cancel its 1.5rem padding) and sit flush at the
-     bottom so it reads as one footer bar, not a darker floating box */
-  margin: 0.25rem -1.5rem -1.5rem;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--sb-border);
-  background: var(--sb-surface);
+  gap: 8px;
+  margin: 6px calc(-1 * var(--sb-vd-side, 1.5rem)) calc(-1 * var(--sb-vd-side, 1.5rem));
+  padding: 12px var(--sb-vd-side, 1.5rem) 20px;
+  background: linear-gradient(rgba(20, 20, 20, 0), var(--sb-vd-surface) 30%);
   border-bottom-left-radius: var(--sb-radius);
   border-bottom-right-radius: var(--sb-radius);
 }
-.sb-vd__cta-btn {
-  flex: 1;
+.sb-vd__cta .sb-vcard__share:hover {
+  border-color: var(--sb-accent);
 }
-/* Mobile: drop the base's negative bleed margins (declared just above) so the CTA
-   sits INSIDE the sheet with side gaps, not edge-to-edge. Placed AFTER the base
-   rule so it wins — a media query alone doesn't raise specificity. */
 @media (max-width: 640px) {
   .sb-vd__cta {
-    margin: 0;
-    padding: 1rem 1.25rem;
+    margin: 6px 0 0;
+    padding: 12px var(--sb-vd-side) calc(16px + env(safe-area-inset-bottom, 0px));
     border-radius: 0;
+  }
+}
+/* «✓ Ссылка скопирована» — rises above «Поделиться», right-aligned with it,
+   a corner pointing at the button. */
+.sb-vd__toast-slot {
+  position: absolute;
+  right: var(--sb-vd-side, 1.5rem);
+  bottom: calc(100% - 2px);
+  pointer-events: none;
+}
+.sb-vd__toast {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 204, 51, 0.6);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #fff;
+  background: #1c1c1c;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: transform var(--sb-vcard-anim, 220ms) ease, opacity var(--sb-vcard-anim, 220ms) ease;
+}
+.sb-vd__toast.is-shown {
+  opacity: 1;
+  transform: none;
+}
+/* The corner: a rotated square under the plate, centred over the 52px button. */
+.sb-vd__toast::after {
+  content: '';
+  position: absolute;
+  right: 20px;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  border-right: 1px solid rgba(255, 204, 51, 0.6);
+  border-bottom: 1px solid rgba(255, 204, 51, 0.6);
+  background: inherit;
+  transform: rotate(45deg);
+}
+.sb-vd__toast svg {
+  width: 16px;
+  height: 16px;
+  color: var(--sb-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-modal__dialog {
+    --sb-vcard-anim: 0ms;
   }
 }
 .sb-modal__body--book {
   display: flex;
   flex-direction: column;
-  gap: 1.3rem; /* generous rhythm between sections so the screen reads as
-                  distinct blocks, not one dense wall */
+  gap: 16px;
 }
-/* The "how do you want to book?" action zone — set apart from the selection
-   above it (vehicle / accessories / dates / delivery) by a hairline + space,
-   so the two primary CTAs read as the decision point. */
+/* «Как забронировать?» — the action zone: the «replace» hint, the two booking
+   buttons, the 1-click error. */
 .sb-vd__book-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
-  border-top: 1px solid var(--sb-border);
-  padding-top: 1.3rem;
-}
-.sb-vd__back {
-  align-self: flex-start;
-  padding: 0.3rem 0;
-  border: none;
-  background: none;
-  color: var(--sb-text-muted);
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.sb-bk__vehicle {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem;
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius);
-}
-.sb-bk__photo {
-  flex: 0 0 auto;
-  width: 64px;
-  height: 48px;
-  object-fit: cover;
-  border-radius: 8px;
-}
-.sb-bk__meta {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-.sb-bk__name {
-  margin: 0;
-  font-weight: 700;
-}
-.sb-bk__price {
-  margin: 0;
-  font-weight: 800;
-  color: var(--sb-accent);
-}
-.sb-bk__price small {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--sb-text-muted);
+  gap: 10px;
 }
 .sb-bk__title {
-  margin: 0;
-  font-size: 1.2rem;
+  margin: 2px 0 0;
+  font-size: 19px;
   font-weight: 800;
+  color: var(--sb-text-strong);
 }
 /* Delivery-address picker: "pick on the map" toggle + inline map + the
    "same address as delivery" checkbox on the collection row. */
@@ -3590,8 +3897,8 @@ button.sb-lang__flag {
   border: none;
   background: none;
   color: var(--sb-accent);
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 700;
   cursor: pointer;
 }
 .sb-vd__addr-map-wrap {
@@ -3673,7 +3980,7 @@ button.sb-lang__flag {
 .sb-vd__sum {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 8px;
 }
 .sb-vd__sum.is-stale .sb-vd__sum-card {
   opacity: 0.45;
@@ -3684,18 +3991,17 @@ button.sb-lang__flag {
 .sb-vd__sum-card {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.8rem 1rem;
+  gap: 8px;
+  padding: 12px 14px;
   border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius);
-  background: var(--sb-bg-alt);
+  border-radius: 14px;
 }
 .sb-vd__sum-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.75rem;
-  font-size: 0.9rem;
+  gap: 10px;
+  font-size: 13.5px;
 }
 .sb-vd__sum-label {
   min-width: 0;
@@ -3716,16 +4022,20 @@ button.sb-lang__flag {
   background: none;
   color: var(--sb-accent);
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-underline-offset: 3px;
   cursor: pointer;
 }
+/* Inert while the manual request is on its way. */
+.sb-vd__sum-ask:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .sb-vd__sum-row--total {
-  margin-top: 0.1rem;
-  padding-top: 0.6rem;
+  padding-top: 9px;
   border-top: 1px dashed var(--sb-border);
-  font-size: 1rem;
+  font-size: 16px;
 }
 .sb-vd__sum-row--total .sb-vd__sum-label {
   color: var(--sb-text-strong);
@@ -3744,11 +4054,6 @@ button.sb-lang__flag {
 @media (max-width: 600px) {
   .sb-vd__specs {
     grid-template-columns: 1fr;
-  }
-  /* Narrower mobile modal: 160px min keeps two price columns (170px would
-     drop to one); desktop stays 170px so its wider modal doesn't over-reflow. */
-  .sb-vd__prices-grid {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   }
 }
 

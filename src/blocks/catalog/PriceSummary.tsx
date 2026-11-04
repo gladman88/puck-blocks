@@ -1,6 +1,6 @@
-import { money, pluralDays } from './dates';
+import { pluralDays } from './dates';
 import type { DeliveryCost } from './DeliveryAddressSection';
-import { formatDayPrice } from './price';
+import { formatDayPrice, formatMoney, NBSP } from './price';
 
 /** One rental line of `POST /catalog/price-quote/` — consecutive days at the
  *  same day rate. Money comes as decimal strings. */
@@ -87,7 +87,7 @@ export interface PriceSummaryStrings {
   ask: string;
   /** «Итого». */
   total: string;
-  /** Currency suffix, e.g. "THB". */
+  /** Currency suffix, e.g. "฿". */
   currency: string;
 }
 
@@ -103,6 +103,8 @@ interface PriceSummaryProps {
   locale: 'ru' | 'en';
   strings: PriceSummaryStrings;
   onAskAddress: (kind: AddressKind) => void;
+  /** «Укажите адрес» is inert (the manual request is on its way). */
+  askDisabled?: boolean;
 }
 
 type LegView = { kind: 'ask' } | { kind: 'priced'; satang: number } | null;
@@ -119,21 +121,58 @@ function legView(leg: PriceSummaryLeg): LegView {
 }
 
 /**
- * «Стоимость» on the «Как забронировать?» step: the rental (one line per day
- * rate) and accessories exactly as the server will write the request, plus the
- * delivery/collection quotes. Pure — no fetching; the browser only adds lines.
+ * «Итого» of the price block: the server quote plus every priced
+ * delivery/collection leg, in satang. One function for the block and for the
+ * success screen, so the two can never disagree.
  */
-export function PriceSummary({ quote, accessoryNames, pickup, dropoff, locale, strings, onAskAddress, stale = false }: PriceSummaryProps) {
-  // A priced accessory we cannot name would read as a bare «× 1» — show no
-  // block rather than an unexplained line inside the total.
-  if (quote.accessories.some((acc) => !accessoryNames[acc.accessory_id])) return null;
+export function priceSummaryTotalSatang(quote: PriceQuote, pickup: PriceSummaryLeg, dropoff: PriceSummaryLeg): number {
+  let total = toSatang(quote.total);
+  for (const view of [legView(pickup), legView(dropoff)]) {
+    if (view?.kind === 'priced') total += view.satang;
+  }
+  return total;
+}
+
+/** A sum of the price block: exact (up to satang), groups and the currency
+ *  joined by non-breaking spaces, e.g. «41 345 ฿». */
+export function formatSummaryAmount(satang: number, currency: string): string {
+  return `${formatMoney(satang / 100)}${NBSP}${currency}`;
+}
+
+/**
+ * Whether the «Стоимость» block is shown for this quote. A priced accessory we
+ * cannot name would read as a bare «× 1» — then no block at all rather than an
+ * unexplained line inside the total. One predicate for the block and for the
+ * success screen's «Итого», so the total is never shown when the block was not.
+ */
+export function isPriceSummaryVisible(quote: PriceQuote | null | undefined, accessoryNames: Record<string, string>): quote is PriceQuote {
+  if (!quote) return false;
+  return quote.accessories.every((acc) => Boolean(accessoryNames[acc.accessory_id]));
+}
+
+/**
+ * «Стоимость» on the «Как забронировать?» step and the manual form: the rental
+ * (one line per day rate) and accessories exactly as the server will write the
+ * request, plus the delivery/collection quotes. Pure — no fetching; the browser
+ * only adds lines.
+ */
+export function PriceSummary({
+  quote,
+  accessoryNames,
+  pickup,
+  dropoff,
+  locale,
+  strings,
+  onAskAddress,
+  stale = false,
+  askDisabled = false,
+}: PriceSummaryProps) {
+  if (!isPriceSummaryVisible(quote, accessoryNames)) return null;
   const pickupView = legView(pickup);
   const dropoffView = legView(dropoff);
-  let totalSatang = toSatang(quote.total);
-  if (pickupView?.kind === 'priced') totalSatang += pickupView.satang;
-  if (dropoffView?.kind === 'priced') totalSatang += dropoffView.satang;
+  const totalSatang = priceSummaryTotalSatang(quote, pickup, dropoff);
 
-  const amount = (satang: number) => `${money(satang / 100)} ${strings.currency}`;
+  const amount = (satang: number) => formatSummaryAmount(satang, strings.currency);
 
   const legRow = (kind: AddressKind, label: string, view: LegView) => {
     if (!view) return null;
@@ -141,7 +180,7 @@ export function PriceSummary({ quote, accessoryNames, pickup, dropoff, locale, s
       <div className="sb-vd__sum-row" data-sum={kind}>
         <span className="sb-vd__sum-label">{label}</span>
         {view.kind === 'ask' ? (
-          <button type="button" className="sb-vd__sum-ask" onClick={() => onAskAddress(kind)}>
+          <button type="button" className="sb-vd__sum-ask" disabled={askDisabled} onClick={() => onAskAddress(kind)}>
             {strings.ask}
           </button>
         ) : (
@@ -158,7 +197,8 @@ export function PriceSummary({ quote, accessoryNames, pickup, dropoff, locale, s
         {quote.rental.lines.map((line, i) => (
           <div className="sb-vd__sum-row" data-sum="rental" key={`r${i}`}>
             <span className="sb-vd__sum-label">
-              {strings.rental} · {pluralDays(line.days, locale)} × {formatDayPrice(parseFloat(line.rate_per_day))}{' '}
+              {strings.rental} · {pluralDays(line.days, locale)} × {formatDayPrice(parseFloat(line.rate_per_day))}
+              {NBSP}
               {strings.currency}
             </span>
             <span className="sb-vd__sum-value">{amount(toSatang(line.amount))}</span>

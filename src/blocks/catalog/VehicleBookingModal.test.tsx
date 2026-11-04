@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor, within, act } from '@testing-library/react';
 import { VehicleBookingModal, classifyIntentPollResponse } from './VehicleBookingModal';
 import type { CatalogVehicle } from '../VehicleCatalog';
 import { addDays, todayISO } from './dates';
@@ -108,7 +108,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
           items: [
             {
               id: 'acc-1', name_ru: 'Детское кресло', name_en: 'Child seat', photo_url: null,
-              price: 500, price_unit: 'per_booking', stock: null, available_stock: null,
+              price: 1500, price_unit: 'per_booking', stock: null, available_stock: null,
             },
           ],
         },
@@ -120,6 +120,8 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     expect(screen.getByText('Seats')).toBeTruthy();
     expect(screen.getByText('Child seat')).toBeTruthy();
     expect(screen.getByText(/500.*per booking/)).toBeTruthy();
+    // «฿», groups and the currency joined by non-breaking spaces.
+    expect(document.querySelector('.sb-acc__item-price')?.textContent).toBe('1\u00a0500\u00a0฿ per booking');
   });
 
   it('shows the Russian localized names when locale=ru', async () => {
@@ -164,7 +166,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     await goToAccessories();
     const body = document.querySelector('.sb-modal__body--book') as HTMLElement;
     const children = Array.from(body.children).map((el) => el.className);
-    const vehicleIdx = children.indexOf('sb-bk__vehicle');
+    const vehicleIdx = children.indexOf('sb-stephead');
     const accessoriesIdx = children.indexOf('sb-vd__accessories');
     const datesIdx = children.indexOf('sb-avcal-block'); // value fields + calendar
     expect(vehicleIdx).toBeGreaterThanOrEqual(0);
@@ -289,7 +291,7 @@ describe('VehicleBookingModal — accessories (Stage 5)', () => {
     await goToAccessories();
     fireEvent.click(screen.getByRole('button', { name: '+' }));
     pickDates();
-    fireEvent.click(screen.getByText('1-click booking via Telegram'));
+    fireEvent.click(screen.getByText('1-click booking'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
     expect(JSON.parse(capturedBody!).accessories).toEqual([{ accessory_id: 'acc-1', quantity: 1 }]);
@@ -599,7 +601,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     await pickAddress(input, 'Patong Beach Road');
 
     pickDates();
-    fireEvent.click(screen.getByText('1-click booking via Telegram'));
+    fireEvent.click(screen.getByText('1-click booking'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
     const payload = JSON.parse(capturedBody!);
@@ -659,7 +661,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
 
     // 3. Submit — collection must remain the distinct return address.
     pickDates();
-    fireEvent.click(screen.getByText('1-click booking via Telegram'));
+    fireEvent.click(screen.getByText('1-click booking'));
     await waitFor(() => expect(capturedBody).toBeDefined());
     const payload = JSON.parse(capturedBody!);
     expect(payload.pickup_location.address).toBe('Patong Beach Road');
@@ -694,7 +696,7 @@ describe('VehicleBookingModal — delivery by address (Stage 6)', () => {
     await pickAddress(input, 'Patong Beach Road');
 
     // The quote endpoint's price is surfaced under the address field.
-    expect(await screen.findByText('600 THB')).toBeTruthy();
+    expect(await screen.findByText('600 ฿')).toBeTruthy();
     delete window.google;
   });
 });
@@ -786,7 +788,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
     pickDates();
-    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+    fireEvent.click(await screen.findByText('1-click booking'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
     expect(JSON.parse(capturedBody!).referral_code).toBe('AG1234');
@@ -813,7 +815,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
     pickDates();
-    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+    fireEvent.click(await screen.findByText('1-click booking'));
 
     await waitFor(() => expect(capturedBody).toBeDefined());
     const payload = JSON.parse(capturedBody!);
@@ -840,10 +842,10 @@ describe('VehicleBookingModal — referral attribution', () => {
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
     pickDates();
-    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+    fireEvent.click(await screen.findByText('1-click booking'));
 
     await screen.findByText('Could not send. Please try again.');
-    const tgButton = screen.getByText('1-click booking via Telegram').closest('button') as HTMLButtonElement;
+    const tgButton = screen.getByText('1-click booking').closest('button') as HTMLButtonElement;
     expect(tgButton.disabled).toBe(false);
   });
 
@@ -865,10 +867,10 @@ describe('VehicleBookingModal — referral attribution', () => {
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
     pickDates();
-    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+    fireEvent.click(await screen.findByText('1-click booking'));
 
     await screen.findByText('Could not send. Please try again.');
-    const tgButton = screen.getByText('1-click booking via Telegram').closest('button') as HTMLButtonElement;
+    const tgButton = screen.getByText('1-click booking').closest('button') as HTMLButtonElement;
     expect(tgButton.disabled).toBe(false);
     expect(window.location.href).not.toContain('bk_');
   });
@@ -903,7 +905,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
     pickDates();
-    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+    fireEvent.click(await screen.findByText('1-click booking'));
 
     await waitFor(() => expect(onTelegramLink).toHaveBeenCalledTimes(1));
     expect(onTelegramLink.mock.calls[0][0]).toContain('start=bk_tok123');
@@ -930,7 +932,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
     pickDates();
-    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+    fireEvent.click(await screen.findByText('1-click booking'));
 
     // No host callback → the bot opens in the synchronously-created new tab...
     await waitFor(() => expect(popup.location.href).toContain('start=bk_tok123'));
@@ -953,7 +955,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
     pickDates();
-    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+    fireEvent.click(await screen.findByText('1-click booking'));
 
     await screen.findByText('Could not send. Please try again.');
     expect(popup.close).toHaveBeenCalledTimes(1);
@@ -976,7 +978,7 @@ describe('VehicleBookingModal — referral attribution', () => {
     await screen.findByText('BMW Z4');
     fireEvent.click(screen.getByText('Book'));
     pickDates();
-    fireEvent.click(await screen.findByText('1-click booking via Telegram'));
+    fireEvent.click(await screen.findByText('1-click booking'));
 
     await screen.findByText('Could not send. Please try again.');
     expect(popup.close).toHaveBeenCalledTimes(1);
@@ -1308,7 +1310,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
     expect(screen.getAllByText('Select')).toHaveLength(2); // both value fields are empty
     expect(status().textContent).toBe('Choose the pick-up day.');
     expect(status().getAttribute('aria-live')).toBe('polite');
-    expect(button('1-click booking via Telegram').disabled).toBe(true);
+    expect(button('1-click booking').disabled).toBe(true);
     expect(button('Book manually').disabled).toBe(true);
     expect(screen.getByText('available')).toBeTruthy();
     expect(screen.getByText('booked')).toBeTruthy();
@@ -1316,7 +1318,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
 
     // A pick-up day alone is not a period yet.
     pickDay('2026-10-14');
-    expect(button('1-click booking via Telegram').disabled).toBe(true);
+    expect(button('1-click booking').disabled).toBe(true);
     expect(button('Book manually').disabled).toBe(true);
     expect(calls.request).toHaveLength(0);
     expect(calls.intent).toHaveLength(0);
@@ -1394,7 +1396,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
     await availabilityShown();
     pickDay('2026-11-03');
     pickDay('2026-11-07');
-    fireEvent.click(button('1-click booking via Telegram'));
+    fireEvent.click(button('1-click booking'));
     await screen.findByText('Request sent!');
     expect(calls.intent).toHaveLength(1);
     expect(calls.intent[0]).toMatchObject({ vehicle_id: 'v2', start_date: '2026-11-03', end_date: '2026-11-07' });
@@ -1407,7 +1409,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
     pickDay('2026-10-10');
     pickDay('2026-10-12');
     expect(status().classList.contains('is-ok')).toBe(true);
-    fireEvent.click(button('1-click booking via Telegram'));
+    fireEvent.click(button('1-click booking'));
     await waitFor(() => expect(calls.intent).toHaveLength(1));
     expect(calls.intent[0].vehicle_id).toBe('v2');
   });
@@ -1425,8 +1427,8 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
     expect(screen.getByText('На эти даты подберём замену')).toBeTruthy();
     expect(screen.getByText('Напишем, что свободно на ваши даты')).toBeTruthy();
     expect(screen.getByText('Менеджер подберёт машину и ответит')).toBeTruthy();
-    expect(screen.queryByText('Бронь в 1 клик через Telegram')).toBeNull();
-    expect(screen.queryByText('Забронировать вручную')).toBeNull();
+    expect(screen.queryByText('Бронь в 1 клик')).toBeNull();
+    expect(screen.queryByText('Бронь вручную')).toBeNull();
     expect(button('Подобрать через Telegram').disabled).toBe(false);
     expect(button('Оставить WhatsApp').disabled).toBe(false);
 
@@ -1532,15 +1534,84 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
     pickDay('2026-11-01');
     pickDay('2026-11-05');
     expect(document.querySelector('.sb-avcal__day.is-busy')).toBeNull();
-    expect(button('1-click booking via Telegram').disabled).toBe(false);
+    expect(button('1-click booking').disabled).toBe(false);
   });
 
-  it('«Book» next to «Frees up <date>» on the detail screen opens the booking step with that pick-up day and no return day', async () => {
+  function renderBusy(props: ModalProps = {}) {
     const busyVehicle: CatalogVehicle = { ...vehicle, is_available: false, free_from: '2026-10-14' };
-    stubApi({ detail: { ...baseDetail, is_available: false, free_from: '2026-10-14' } });
+    const calls = stubApi({ detail: { ...baseDetail, is_available: false, free_from: '2026-10-14' } });
+    render(
+      <VehicleBookingModal vehicle={busyVehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} {...props} />,
+    );
+    return calls;
+  }
+  const valueFields = () => Array.from(document.querySelectorAll('.sb-avcal__value')).map((n) => n.textContent);
+
+  it('busy vehicle Book starts from free_from', async () => {
+    renderBusy();
+    // The date is shown once, human-readable, as the cover status badge.
+    await screen.findByText('Frees up 14 October');
+    expect(document.querySelector('.sb-vd__hero .sb-vcard__status--free')?.textContent).toBe('Frees up 14 October');
+    // No separate «Book» next to the status any more — the one «Book» at the bottom.
+    expect(document.querySelector('.sb-vd__avail-btn')).toBeNull();
+    expect(screen.getAllByText('Book')).toHaveLength(1);
+    fireEvent.click(screen.getByText('Book'));
+    await screen.findByText('How to book?');
+
+    // No period yet → it starts on the return day; the calendar is open.
+    expect(document.querySelector('.sb-avcal__summary')).toBeNull();
+    expect(valueFields()).toEqual(['14.10.2026', 'Select']);
+    expect(document.querySelector('.sb-avcal__day[data-day="2026-10-14"]')!.classList.contains('is-start')).toBe(true);
+    expect(button('1-click booking').disabled).toBe(true);
+  });
+
+  it('busy vehicle: a seeded period starting before free_from is moved to free_from', async () => {
+    renderBusy({ initialFrom: '2026-10-10', initialTo: '2026-10-20' });
+    await screen.findByText('Frees up 14 October');
+    fireEvent.click(screen.getByText('Book'));
+    await screen.findByText('How to book?');
+    expect(document.querySelector('.sb-avcal__summary')).toBeNull();
+    expect(valueFields()).toEqual(['14.10.2026', 'Select']);
+  });
+
+  it('busy vehicle: a seeded period later than free_from is kept', async () => {
+    const calls = renderBusy({ initialFrom: '2026-10-20', initialTo: '2026-10-23' });
+    await screen.findByText('Frees up 14 October');
+    fireEvent.click(screen.getByText('Book'));
+    await screen.findByText('How to book?');
+    await waitFor(() => expect(status().textContent).toBe('3 days · available for these dates'));
+    expect(document.querySelector('.sb-filterbar__availability-range')!.textContent).toBe('20.10.2026 — 23.10.2026');
+    fireEvent.click(button('1-click booking'));
+    await waitFor(() => expect(calls.intent).toHaveLength(1));
+    expect(calls.intent[0]).toMatchObject({ start_date: '2026-10-20', end_date: '2026-10-23' });
+  });
+
+  it('busy vehicle: dates picked, «‹ Back», «Book» again → the pick is kept', async () => {
+    renderBusy();
+    await screen.findByText('Frees up 14 October');
+    fireEvent.click(screen.getByText('Book'));
+    await screen.findByText('How to book?');
+    await availabilityShown();
+    // A new period after the return day: 22 → 25 Oct.
+    pickDay('2026-10-20');
+    pickDay('2026-10-22');
+    pickDay('2026-10-25');
+    expect(valueFields()).toEqual(['22.10.2026', '25.10.2026']);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await screen.findByText('Frees up 14 October');
+    fireEvent.click(screen.getByText('Book'));
+    await screen.findByText('How to book?');
+    expect(valueFields()).toEqual(['22.10.2026', '25.10.2026']);
+    expect(document.querySelector('.sb-avcal__day[data-day="2026-10-22"]')!.classList.contains('is-start')).toBe(true);
+  });
+
+  it('the detail is asked for the seeded window; without a seed — plain', async () => {
+    stubApi();
+    const fetchMock = globalThis.fetch as unknown as { mock: { calls: [string][] } };
+    const detailUrls = () => fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.includes('/catalog/vehicles/'));
     render(
       <VehicleBookingModal
-        vehicle={busyVehicle}
+        vehicle={vehicle}
         apiBase=""
         locale="en"
         botUsername="test_bot"
@@ -1549,20 +1620,40 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
         onClose={vi.fn()}
       />,
     );
-    // The date is shown once, human-readable, in the status line; the button carries no date.
-    await screen.findByText('Frees up 14 October');
-    const bookFree = document.querySelector<HTMLButtonElement>('.sb-vd__avail-btn')!;
-    expect(bookFree.textContent).toBe('Book');
-    fireEvent.click(bookFree);
-    // The button itself leads to the step with the calendar — no extra «Book» click.
-    await screen.findByText('How to book?');
+    await screen.findByText('BMW Z4');
+    expect(detailUrls()).toEqual([`/api/v1/catalog/vehicles/${vehicle.id}/?available_from=2026-11-03&available_to=2026-11-07`]);
+    cleanup();
 
-    // The seeded period is replaced: calendar open, return day to be picked.
-    expect(document.querySelector('.sb-avcal__summary')).toBeNull();
-    expect(screen.getByText('14.10.2026')).toBeTruthy();
-    expect(screen.getAllByText('Select')).toHaveLength(1);
-    expect(document.querySelector('.sb-avcal__day[data-day="2026-10-14"]')!.classList.contains('is-start')).toBe(true);
-    expect(button('1-click booking via Telegram').disabled).toBe(true);
+    for (const props of [{}, { initialFrom: '2026-11-03' }, { initialFrom: '2026-10-01', initialTo: '2026-10-20' }] as ModalProps[]) {
+      stubApi();
+      const mock = globalThis.fetch as unknown as { mock: { calls: [string][] } };
+      render(<VehicleBookingModal vehicle={vehicle} apiBase="" locale="en" botUsername="test_bot" onClose={vi.fn()} {...props} />);
+      await screen.findByText('BMW Z4');
+      const urls = mock.mock.calls.map(([u]) => String(u)).filter((u) => u.includes('/catalog/vehicles/'));
+      expect(urls).toEqual([`/api/v1/catalog/vehicles/${vehicle.id}/`]);
+      cleanup();
+    }
+  });
+
+  it('a free vehicle Book keeps the seeded period', async () => {
+    stubApi();
+    render(
+      <VehicleBookingModal
+        vehicle={vehicle}
+        apiBase=""
+        locale="en"
+        botUsername="test_bot"
+        initialFrom="2026-10-20"
+        initialTo="2026-10-23"
+        onClose={vi.fn()}
+      />,
+    );
+    await screen.findByText('Available now');
+    fireEvent.click(screen.getByText('Book'));
+    await screen.findByText('How to book?');
+    // The seeded period stays: one collapsed row, nothing replaced.
+    await waitFor(() => expect(document.querySelector('.sb-avcal__summary')).not.toBeNull());
+    expect(screen.queryByText('Select')).toBeNull();
   });
 
   it('booking buttons stay disabled until availability resolves', async () => {
@@ -1579,10 +1670,10 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
       ),
     );
     await openChoice('en', { initialFrom: '2026-11-03', initialTo: '2026-11-07' });
-    expect(button('1-click booking via Telegram').disabled).toBe(true);
+    expect(button('1-click booking').disabled).toBe(true);
     expect(button('Book manually').disabled).toBe(true);
     release();
-    await waitFor(() => expect(button('1-click booking via Telegram').disabled).toBe(false));
+    await waitFor(() => expect(button('1-click booking').disabled).toBe(false));
     expect(button('Book manually').disabled).toBe(false);
   });
 
@@ -1596,7 +1687,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
       ),
     );
     await openChoice('en', { initialFrom: '2026-11-03', initialTo: '2026-11-07' });
-    await waitFor(() => expect(button('1-click booking via Telegram').disabled).toBe(false));
+    await waitFor(() => expect(button('1-click booking').disabled).toBe(false));
     expect(button('Book manually').disabled).toBe(false);
   });
 
@@ -1625,7 +1716,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
       expect(document.querySelector('.sb-filterbar__availability-range')!.textContent).toBe('03.11.2026 — 07.11.2026');
       // The compact row has no "available only" switch — that belongs to the list.
       expect(document.querySelector('.sb-avcal__summary input')).toBeNull();
-      expect(button('1-click booking via Telegram').disabled).toBe(false);
+      expect(button('1-click booking').disabled).toBe(false);
 
       fireEvent.click(screen.getByText('Change'));
       expect(document.querySelector('.sb-avcal__summary')).toBeNull();
@@ -1641,7 +1732,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
       expect(document.querySelector('.sb-avcal')).not.toBeNull();
       expect(document.querySelector('.sb-avcal__summary')).toBeNull();
 
-      fireEvent.click(button('1-click booking via Telegram'));
+      fireEvent.click(button('1-click booking'));
       await waitFor(() => expect(calls.intent).toHaveLength(1));
       expect(calls.intent[0]).toMatchObject({ start_date: '2026-11-10', end_date: '2026-11-12' });
     });
@@ -1650,7 +1741,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
       const calls = stubApi();
       await openChoice('en', { initialFrom: '2026-11-03', initialTo: '2026-11-07' });
       await waitFor(() => expect(status().textContent).toBe('4 days · available for these dates'));
-      fireEvent.click(button('1-click booking via Telegram'));
+      fireEvent.click(button('1-click booking'));
       await waitFor(() => expect(calls.intent).toHaveLength(1));
       expect(calls.intent[0]).toMatchObject({ vehicle_id: 'v2', start_date: '2026-11-03', end_date: '2026-11-07' });
     });
@@ -1668,7 +1759,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
       pickDay('2026-11-12');
       expect(document.querySelector('.sb-avcal')).not.toBeNull();
       expect(document.querySelector('.sb-avcal__summary')).toBeNull();
-      expect(screen.getByText('Бронь в 1 клик через Telegram')).toBeTruthy();
+      expect(screen.getByText('Бронь в 1 клик')).toBeTruthy();
     });
 
     it('availability unknown (404) → the seeded dates stay collapsed, without the "available" claim', async () => {
@@ -1691,7 +1782,7 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
         await openChoice('en', props);
         expect(document.querySelector('.sb-avcal__summary')).toBeNull();
         expect(screen.getAllByText('Select')).toHaveLength(2);
-        expect(button('1-click booking via Telegram').disabled).toBe(true);
+        expect(button('1-click booking').disabled).toBe(true);
         cleanup();
       }
     });
@@ -1724,58 +1815,394 @@ describe('VehicleBookingModal — specs from typed fields (CD-114)', () => {
       { period_label: '28+', min_days: 28, max_days: null, price_per_day: 1833.333333, price_30_days: 55000 },
     ],
   };
-  const pricingDetailNoTotal = {
-    ...baseDetail,
-    pricing_table: [
-      { period_label: '15-27', min_days: 15, max_days: 27, price_per_day: 2000 },
-      { period_label: '28+', min_days: 28, max_days: null, price_per_day: 1833.333333 },
-    ],
-  };
   const norm = (el: Element | null) => (el?.textContent ?? '').replace(/\s/g, ' ');
 
-  it('shows the key specs with units and hides the rest behind the toggle', async () => {
+  it('specs tab shows all rows without toggle', async () => {
     renderModal(specDetail, 'ru');
-    const engine = await screen.findByText('Двигатель');
+    await screen.findByText('BMW Z4');
+    fireEvent.click(screen.getByRole('tab', { name: 'Параметры' }));
+    const panel = screen.getByRole('tabpanel');
+    const engine = within(panel).getByText('Двигатель');
     expect(norm(engine.nextElementSibling)).toBe('2,0 л, турбо');
-    expect(norm(screen.getByText('Мощность').nextElementSibling)).toBe('258 л.с.');
-    expect(screen.queryByText('Разгон 0–100')).toBeNull();
+    expect(norm(within(panel).getByText('Мощность').nextElementSibling)).toBe('258 л.с.');
+    // All rows at once — no «Все характеристики» toggle.
+    expect(norm(within(panel).getByText('Разгон 0–100').nextElementSibling)).toBe('6,2 с');
+    expect(screen.queryByText(/Все характеристики/)).toBeNull();
     expect(screen.queryByText(/old text/)).toBeNull();
-
-    fireEvent.click(screen.getByText(/Все характеристики/));
-    expect(norm(screen.getByText('Разгон 0–100').nextElementSibling)).toBe('6,2 с');
   });
 
-  it('a vehicle with no specs renders no specs section', async () => {
+  it('a vehicle with no specs renders no specs tab', async () => {
     renderModal(baseDetail, 'ru');
     await screen.findByText('Забронировать');
-    expect(screen.queryByText('Характеристики')).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Параметры' })).toBeNull();
+    // Nothing to show at all → no tab row either.
+    expect(screen.queryByRole('tablist')).toBeNull();
   });
 
-  it('shows the 30-day total under the price tiles', async () => {
-    renderModal(pricingDetail, 'ru');
+  it('prices tab uses pricing_seasons', async () => {
+    renderModal(
+      {
+        ...pricingDetail,
+        pricing_season_name: 'Ноябрь',
+        pricing_periods: [
+          { min_days: 1, max_days: 1 },
+          { min_days: 2, max_days: 3 },
+          { min_days: 28, max_days: null },
+        ],
+        pricing_seasons: [
+          { start_date: '2026-11-01', end_date: '2026-11-30', prices: ['2200.00', '2000.00', '1400.00'] },
+          { start_date: '2026-12-01', end_date: '2027-02-28', prices: ['17000.00', null, '1666.01'] },
+        ],
+      },
+      'en',
+    );
     await screen.findByText('BMW Z4');
-    expect(screen.getByText('28+ дней')).toBeTruthy();
-    expect(screen.getByText('30 дней')).toBeTruthy();
-    expect(screen.getByText('55,000')).toBeTruthy();
-    expect(screen.queryByText('(мес)')).toBeNull();
-    // Цена дня — до сотых: «1,833» рядом с «55,000» не сходилось бы на 10 бат.
-    expect(screen.getByText('1,833.33')).toBeTruthy();
-    // В строке «30 дней» множителя нет — только «по тарифу 28+».
-    expect(screen.getByText('по тарифу 28+')).toBeTruthy();
-    expect(screen.queryByText(/30 ×/)).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'All prices' }));
+    const panel = screen.getByRole('tabpanel');
+    expect(within(panel).getByText('Prices by season')).toBeTruthy();
+    const heads = Array.from(panel.querySelectorAll('thead th')).map((th) => th.textContent);
+    expect(heads).toEqual(['Season', '1 day', '2–3', '28+']);
+    const rows = Array.from(panel.querySelectorAll('tbody tr'));
+    expect(rows.map((r) => r.querySelector('th')!.firstChild?.textContent)).toEqual(['November', 'Dec – Feb']);
+    expect(Array.from(rows[1].querySelectorAll('td')).map((c) => norm(c))).toEqual(['17 000', '—', '1 667']);
+    expect(rows[0].classList.contains('is-now')).toBe(true);
+    // pricing_table is not shown when the seasons are there; the season name never is.
+    expect(within(panel).queryByText('15–27')).toBeNull();
+    expect(screen.queryByText(/Ноябрь/)).toBeNull();
   });
 
-  it('labels the price table «current month», never the season name (owner data, Russian only)', async () => {
-    renderModal({ ...pricingDetail, pricing_season_name: 'Октябрь' }, 'en');
+  it('prices tab falls back to pricing_table', async () => {
+    renderModal({ ...pricingDetail, pricing_season_name: 'Октябрь' }, 'ru');
     await screen.findByText('BMW Z4');
-    expect(screen.getByText('· current month')).toBeTruthy();
-    expect(screen.queryByText(/Октябрь/)).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Все цены' }));
+    const panel = screen.getByRole('tabpanel');
+    const heads = Array.from(panel.querySelectorAll('thead th')).map((th) => th.textContent);
+    expect(heads).toEqual(['Сезон', '15–27', '28+']);
+    const rows = Array.from(panel.querySelectorAll('tbody tr'));
+    // One row — the current month, prices of today's ladder rounded up.
+    expect(rows).toHaveLength(1);
+    const month = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'][
+      Number(todayISO().slice(5, 7)) - 1
+    ];
+    expect(rows[0].querySelector('th')!.firstChild?.textContent).toBe(month);
+    expect(Array.from(rows[0].querySelectorAll('td')).map((c) => norm(c))).toEqual(['2 000', '1 834']);
+    // The old «30 дней» reference row is gone.
+    expect(screen.queryByText('по тарифу 28+')).toBeNull();
   });
 
-  it('hides the 30-day row when the API does not send price_30_days', async () => {
-    renderModal(pricingDetailNoTotal, 'ru');
+  it('no seasons and no pricing_table → no prices tab', async () => {
+    renderModal({ ...specDetail, pricing_periods: [{ min_days: 1, max_days: 1 }], pricing_seasons: [] }, 'en');
     await screen.findByText('BMW Z4');
-    expect(screen.queryByText('30 дней')).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'All prices' })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Specs' })).toBeTruthy();
+  });
+});
+
+describe('VehicleBookingModal — vehicle window (detail)', () => {
+  const fullDetail = {
+    ...baseDetail,
+    year: 2024,
+    category: { id: 'c1', name: 'Электрокары', name_en: 'EVs', color: '#00f' },
+    gallery_images: [
+      { image_url: 'https://cdn.example/1.jpg', position: 0 },
+      { image_url: 'https://cdn.example/2.jpg', position: 1 },
+      { image_url: 'https://cdn.example/3.jpg', position: 2 },
+    ],
+    advantages: ['Запас хода 430 км', 'Просторный салон'],
+    options: ['CarPlay', 'Панорамная крыша'],
+    deposits: [
+      { currency_code: 'THB', amount: '10000.00' },
+      { currency_code: 'USD', amount: '300.00' },
+    ],
+    pricing_table: [{ period_label: '1', min_days: 1, max_days: 1, price_per_day: 2000 }],
+    fuel_type: 'electric',
+    card_prices: {
+      per_day_min: '1833.33',
+      per_day_max: '2200.00',
+      quotes: [
+        { days: 7, total: '12600.00' },
+        { days: 14, total: '23800.00' },
+        { days: 30, total: '55000.10' },
+      ],
+      month_discount_pct: 35,
+    },
+  };
+  const NB = '\u00a0';
+
+  it('gallery: back on «детали» the track, counter and thumbs are on the same photo as the step cover', async () => {
+    // jsdom has no layout: give the track a width and keep its scroll offset.
+    const desc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains('sb-vd__frame') ? 300 : 0;
+      },
+    });
+    try {
+      renderModal(fullDetail);
+      await screen.findByText('BMW Z4');
+      const track = () => document.querySelector('.sb-vd__frame') as HTMLElement;
+      const counter = () => document.querySelector('.sb-vd__counter')?.textContent;
+      const activeThumb = () =>
+        Array.from(document.querySelectorAll('.sb-vd__thumb')).findIndex((b) => b.classList.contains('is-active'));
+      expect(counter()).toBe('1/3');
+      // Swipe to the third photo.
+      track().scrollLeft = 600;
+      fireEvent.scroll(track());
+      expect(counter()).toBe('3/3');
+      fireEvent.click(screen.getByText('Book'));
+      await screen.findByText('How to book?');
+      expect(document.querySelector('.sb-stephead__photo')?.getAttribute('src')).toBe('https://cdn.example/3.jpg');
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+      await screen.findByText('Book');
+      // The remounted track is scrolled back to that photo — not left at the first one.
+      expect(track().scrollLeft).toBe(600);
+      expect(counter()).toBe('3/3');
+      expect(activeThumb()).toBe(2);
+    } finally {
+      if (desc) Object.defineProperty(HTMLElement.prototype, 'clientWidth', desc);
+    }
+  });
+
+  it('focus moves to step title', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-09T05:00:00Z'));
+    try {
+      const json = (body: unknown, status = 200) =>
+        Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) => {
+          const u = String(url);
+          if (u.includes('/catalog/availability/')) return json({ today: '2026-10-09', units: [{ vehicle_id: vehicle.id, busy: [] }] });
+          if (u.includes('/booking-requests/')) return json({ success: true, dates_busy: false }, 201);
+          if (u.includes('/price-quote/')) return json({}, 500);
+          return json(fullDetail);
+        }),
+      );
+      render(
+        <VehicleBookingModal
+          vehicle={vehicle}
+          apiBase=""
+          locale="en"
+          botUsername="test_bot"
+          initialFrom="2026-10-20"
+          initialTo="2026-10-23"
+          onClose={vi.fn()}
+        />,
+      );
+      await screen.findByText('BMW Z4');
+      // First open: focus is left as before (not pulled to a title).
+      const title = (name: string) => screen.getByRole('heading', { name });
+      expect(document.activeElement).not.toBe(title('BMW Z4'));
+
+      fireEvent.click(screen.getByText('Book'));
+      await screen.findByText('How to book?');
+      expect(document.activeElement).toBe(title('How to book?'));
+      expect(title('How to book?').getAttribute('tabindex')).toBe('-1');
+
+      await waitFor(() => expect((screen.getByText('Book manually').closest('button') as HTMLButtonElement).disabled).toBe(false));
+      fireEvent.click(screen.getByText('Book manually'));
+      await screen.findByText('Send request');
+      expect(document.activeElement).toBe(title('Booking request'));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+      await screen.findByText('How to book?');
+      expect(document.activeElement).toBe(title('How to book?'));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+      await screen.findByText('Book');
+      const hero = document.querySelector('.sb-vd__hero') as HTMLElement;
+      expect(document.activeElement).toBe(within(hero).getByRole('heading', { name: 'BMW Z4' }));
+
+      fireEvent.click(screen.getByText('Book'));
+      await screen.findByText('How to book?');
+      await waitFor(() => expect((screen.getByText('Book manually').closest('button') as HTMLButtonElement).disabled).toBe(false));
+      fireEvent.click(screen.getByText('Book manually'));
+      fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
+      fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66812345678' } });
+      fireEvent.click(screen.getByText('Send request'));
+      await screen.findByText('Request sent!');
+      expect(document.activeElement).toBe(title('Request sent!'));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('«All prices» highlights the season of the catalog window start', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-09T05:00:00Z'));
+    try {
+      const seasonsDetail = {
+        ...fullDetail,
+        pricing_periods: [
+          { min_days: 1, max_days: 6 },
+          { min_days: 7, max_days: null },
+        ],
+        pricing_seasons: [
+          { start_date: '2026-11-01', end_date: '2026-11-30', prices: ['2000.00', '1800.00'] },
+          { start_date: '2026-12-01', end_date: '2026-12-31', prices: ['2500.00', '2200.00'] },
+        ],
+      };
+      const rowsNow = () =>
+        Array.from(document.querySelectorAll('.sb-pgrid__table tbody tr')).map((tr) => tr.classList.contains('is-now'));
+      stubDetailFetch(seasonsDetail);
+      render(
+        <VehicleBookingModal
+          vehicle={vehicle}
+          apiBase=""
+          locale="en"
+          botUsername="test_bot"
+          initialFrom="2026-12-05"
+          initialTo="2026-12-10"
+          onClose={vi.fn()}
+        />,
+      );
+      await screen.findByText('BMW Z4');
+      fireEvent.click(screen.getByRole('tab', { name: 'All prices' }));
+      expect(rowsNow()).toEqual([false, true]);
+      cleanup();
+      // No window: «today» (9 Oct) is before the first season → no highlight.
+      renderModal(seasonsDetail);
+      await screen.findByText('BMW Z4');
+      fireEvent.click(screen.getByRole('tab', { name: 'All prices' }));
+      expect(rowsNow()).toEqual([false, false]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('detail shows hero with status, range and 7/14/30', async () => {
+    renderModal(fullDetail, 'ru');
+    await screen.findByText('BMW Z4');
+    const hero = document.querySelector('.sb-vd__hero')!;
+    expect(within(hero as HTMLElement).getByRole('heading', { name: 'BMW Z4' })).toBeTruthy();
+    expect(hero.querySelector('.sb-vcard__sub')?.textContent).toBe('2024Электрокары');
+    expect(hero.querySelector('.sb-vcard__status--available')?.textContent).toBe('Свободна сейчас');
+    const range = hero.querySelector('.sb-vcard__range')!;
+    expect(range.querySelector('small')?.textContent).toBe('в сутки');
+    expect(range.querySelector('b')?.textContent).toBe(`1${NB}834 – 2${NB}200${NB}฿`);
+    expect(Array.from(hero.querySelectorAll('.sb-vcard__tile-sum')).map((n) => n.textContent)).toEqual([
+      `12${NB}600${NB}฿`,
+      `23${NB}800${NB}฿`,
+      `55${NB}001${NB}฿`,
+    ]);
+    expect(hero.querySelector('.sb-vcard__flag')?.textContent).toBe('−35%');
+    // Gallery keeps arrows, the «1/N» counter and the thumbnails under the photo.
+    expect(hero.querySelectorAll('.sb-vd__photo')).toHaveLength(3);
+    expect(hero.querySelector('.sb-vd__counter')?.textContent).toBe('1/3');
+    expect(screen.getByRole('button', { name: 'Следующее фото' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Предыдущее фото' })).toBeTruthy();
+    expect(document.querySelectorAll('.sb-vd__thumbs .sb-vd__thumb')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Фото 2' })).toBeTruthy();
+    // No «THB» in the window header; the old share pill in the meta row is gone.
+    expect(hero.textContent).not.toContain('THB');
+    expect(document.querySelector('.sb-vd__meta-row')).toBeNull();
+  });
+
+  it('busy without a return date and no card prices: plain status, from-price', async () => {
+    renderModal({ ...baseDetail, is_available: false, free_from: null }, 'en');
+    await screen.findByText('BMW Z4');
+    const status = document.querySelector('.sb-vd__hero .sb-vcard__status')!;
+    expect(status.textContent).toBe('Busy');
+    expect(status.className).toBe('sb-vcard__status');
+    expect(document.querySelector('.sb-vd__hero .sb-vcard__range')?.textContent).toBe('from 5\u00a0000 ฿/day');
+    expect(document.querySelector('.sb-vd__hero .sb-vcard__tiles')).toBeNull();
+  });
+
+  it('tabs switch panels (click and arrows)', async () => {
+    renderModal({ ...fullDetail, engine_volume_l: '2.0' }, 'en');
+    await screen.findByText('BMW Z4');
+    const tablist = screen.getByRole('tablist');
+    const tabs = within(tablist).getAllByRole('tab');
+    expect(tabs.map((x) => x.textContent)).toEqual(['About', 'All prices', 'Specs']);
+    // First tab selected, roving tabindex, panel wired to its tab.
+    expect(tabs.map((x) => x.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false']);
+    expect(tabs.map((x) => x.tabIndex)).toEqual([0, -1, -1]);
+    const panel = () => screen.getByRole('tabpanel');
+    expect(panel().getAttribute('aria-labelledby')).toBe(tabs[0].id);
+    expect(tabs[0].getAttribute('aria-controls')).toBe(panel().id);
+    expect(within(panel()).getByText('CarPlay')).toBeTruthy();
+
+    fireEvent.click(tabs[2]);
+    expect(tabs[2].getAttribute('aria-selected')).toBe('true');
+    expect(within(panel()).getByText('Fuel')).toBeTruthy();
+
+    // Arrows: right wraps to the first tab, left goes back to the last; focus follows.
+    fireEvent.keyDown(tabs[2], { key: 'ArrowRight' });
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(tabs[0]);
+    fireEvent.keyDown(tabs[0], { key: 'ArrowLeft' });
+    expect(tabs[2].getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(tabs[2]);
+    fireEvent.keyDown(tabs[2], { key: 'Home' });
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+    fireEvent.keyDown(tabs[0], { key: 'End' });
+    expect(tabs[2].getAttribute('aria-selected')).toBe('true');
+    fireEvent.keyDown(tabs[2], { key: 'ArrowLeft' });
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
+    expect(within(panel()).getByRole('table')).toBeTruthy();
+    // Only one panel is visible at a time.
+    expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
+  });
+
+  it('tab labels in Russian', async () => {
+    renderModal({ ...fullDetail, engine_volume_l: '2.0' }, 'ru');
+    await screen.findByText('BMW Z4');
+    expect(within(screen.getByRole('tablist')).getAllByRole('tab').map((x) => x.textContent)).toEqual([
+      'Об авто',
+      'Все цены',
+      'Параметры',
+    ]);
+  });
+
+  it('about tab has advantages, equipment, deposit', async () => {
+    renderModal(fullDetail, 'ru');
+    await screen.findByText('BMW Z4');
+    const panel = screen.getByRole('tabpanel');
+    const adv = Array.from(panel.querySelectorAll('.sb-vd__adv li'));
+    expect(adv.map((li) => li.textContent)).toEqual(['Запас хода 430 км', 'Просторный салон']);
+    expect(adv[0].querySelector('svg')).not.toBeNull(); // gold check
+    expect(within(panel).getByText('Комплектация')).toBeTruthy();
+    expect(Array.from(panel.querySelectorAll('.sb-vd__chip')).map((c) => c.textContent)).toEqual([
+      'CarPlay',
+      'Панорамная крыша',
+    ]);
+    expect(within(panel).getByText('Депозит')).toBeTruthy();
+    expect(Array.from(panel.querySelectorAll('.sb-vd__deposit-pill')).map((c) => c.textContent)).toEqual([
+      `10${NB}000${NB}฿`,
+      `300${NB}USD`,
+    ]);
+  });
+
+  it('share copied shows plate above the button', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    renderModal(fullDetail, 'en');
+    await screen.findByText('BMW Z4');
+    const cta = document.querySelector('.sb-vd__cta')!;
+    const share = within(cta as HTMLElement).getByRole('button', { name: 'Share' });
+    const status = within(cta as HTMLElement).getByRole('status');
+    expect(status.getAttribute('aria-live')).toBe('polite');
+    expect(status.textContent).toBe('');
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        fireEvent.click(share);
+      });
+      expect(writeText.mock.calls[0][0]).toContain('vehicle=v1');
+      expect(status.textContent).toBe('Link copied');
+      expect(cta.querySelector('.sb-vd__toast.is-shown')).not.toBeNull();
+      expect(share.classList.contains('is-done')).toBe(true);
+      act(() => vi.advanceTimersByTime(2000));
+      expect(cta.querySelector('.sb-vd__toast.is-shown')).toBeNull();
+      expect(share.classList.contains('is-done')).toBe(false);
+      act(() => vi.advanceTimersByTime(220));
+      expect(status.textContent).toBe('');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -1864,7 +2291,7 @@ describe('VehicleBookingModal — «Стоимость» block and booking butto
     // v1 is busy 1–9 Nov → the period goes to v2.
     pickDay('2026-11-05');
     pickDay('2026-11-08');
-    await waitFor(() => expect(totalText()).toBe('4,300 THB'));
+    await waitFor(() => expect(totalText()).toBe('4\u00a0300\u00a0฿'));
     expect(quotes).toHaveLength(1);
     expect(quotes[0]).toEqual({
       vehicle_id: 'v2',
@@ -1932,10 +2359,10 @@ describe('VehicleBookingModal — «Стоимость» block and booking butto
     fireEvent.click(screen.getByLabelText('+'));
     await waitFor(() => expect(quotes).toHaveLength(2));
     pending[1](reply(quote('3000.00', { total: '3300.00' })));
-    await waitFor(() => expect(totalText()).toBe('3,300 THB'));
+    await waitFor(() => expect(totalText()).toBe('3\u00a0300\u00a0฿'));
     pending[0](reply(quote('9000.00')));
     await settle();
-    expect(totalText()).toBe('3,300 THB');
+    expect(totalText()).toBe('3\u00a0300\u00a0฿');
   });
 
   it('old total is dimmed while the new selection is being priced', async () => {
@@ -1948,33 +2375,369 @@ describe('VehicleBookingModal — «Стоимость» block and booking butto
     pickDay('2026-10-24');
     await waitFor(() => expect(quotes).toHaveLength(1));
     pending[0](reply(quote('3000.00')));
-    await waitFor(() => expect(totalText()).toBe('3,000 THB'));
+    await waitFor(() => expect(totalText()).toBe('3\u00a0000\u00a0฿'));
     expect(document.querySelector('.sb-vd__sum')!.classList.contains('is-stale')).toBe(false);
     fireEvent.click(screen.getByLabelText('+'));
     // Before the new answer: the previous sums stay, but dimmed and busy.
     expect(document.querySelector('.sb-vd__sum')!.classList.contains('is-stale')).toBe(true);
     await waitFor(() => expect(quotes).toHaveLength(2));
     pending[1](reply(quote('3000.00', { total: '3300.00' })));
-    await waitFor(() => expect(totalText()).toBe('3,300 THB'));
+    await waitFor(() => expect(totalText()).toBe('3\u00a0300\u00a0฿'));
     expect(document.querySelector('.sb-vd__sum')!.classList.contains('is-stale')).toBe(false);
   });
 
-  it('button texts: Book manually / Fill in the form manually / No forms — …', async () => {
+  it('booking buttons texts (ru/en)', async () => {
     stubApi(ok(quote('4000.00')));
     await openChoice();
-    expect(screen.getByText('Book manually')).toBeTruthy();
-    expect(screen.getByText('Fill in the form manually')).toBeTruthy();
-    expect(screen.getByText('No forms — your details fill in automatically')).toBeTruthy();
-    // Real Telegram glyph and the "form with a pen" icon instead of ✈ / ✎.
+    const tg = document.querySelector('.sb-vd__tg-card')!;
+    const manual = document.querySelector('.sb-vd__option-card')!;
+    expect(tg.querySelector('.sb-vd__tg-title')?.textContent).toBe('1-click booking');
+    expect(tg.querySelector('.sb-vd__tg-sub')?.textContent).toBe('via Telegram, no forms');
+    expect(manual.querySelector('.sb-vd__tg-title')?.textContent).toBe('Book manually');
+    expect(manual.querySelector('.sb-vd__tg-sub')?.textContent).toBe('fill in the form');
+    // Real Telegram glyph and the "form with a pen" icon instead of ✈ / ✎; «›» on both.
     expect(document.querySelector('.sb-vd__tg-icon svg.sb-ico')).not.toBeNull();
     expect(document.querySelector('.sb-vd__option-icon svg')).not.toBeNull();
     expect(document.querySelector('.sb-vd__tg-icon')!.textContent).toBe('');
     expect(document.querySelector('.sb-vd__option-icon')!.textContent).toBe('');
+    expect(tg.querySelector('.sb-vd__tg-arrow')?.textContent?.trim()).toBe('›');
+    expect(manual.querySelector('.sb-vd__tg-arrow')?.textContent?.trim()).toBe('›');
     cleanup();
     stubApi(ok(quote('4000.00')));
     await openChoice('ru');
-    expect(screen.getByText('Забронировать вручную')).toBeTruthy();
-    expect(screen.getByText('Заполните форму вручную')).toBeTruthy();
-    expect(screen.getByText('Без форм — данные заполнятся сами')).toBeTruthy();
+    expect(screen.getByText('Бронь в 1 клик')).toBeTruthy();
+    expect(screen.getByText('через Telegram, без форм')).toBeTruthy();
+    expect(screen.getByText('Бронь вручную')).toBeTruthy();
+    expect(screen.getByText('заполните форму')).toBeTruthy();
+    expect(screen.getByText('или')).toBeTruthy();
+  });
+
+  it('desktop actions in one row', async () => {
+    stubApi(ok(quote('4000.00')));
+    await openChoice();
+    // One row container holds exactly: Telegram · «or» · manual (CSS: a column
+    // on the phone, a 1fr auto 1fr grid on the computer).
+    const row = document.querySelector('.sb-vd__book-actions > .sb-vd__book-row')!;
+    expect(Array.from(row.children).map((el) => el.className)).toEqual([
+      'sb-vd__tg-card',
+      'sb-vd__or',
+      'sb-vd__option-card',
+    ]);
+    expect(row.children[1].textContent).toBe('or');
+  });
+
+  it('form shows price summary', async () => {
+    stubApi(ok(quote('4000.00', { accessories: [{ accessory_id: 'acc-1', quantity: 1, amount: '300.00' }], total: '4300.00' })));
+    await openChoice();
+    fireEvent.click(screen.getByLabelText('+'));
+    pickDay('2026-10-21');
+    pickDay('2026-10-25');
+    await waitFor(() => expect(totalText()).toBe('4\u00a0300\u00a0฿'));
+    fireEvent.click(screen.getByText('Book manually'));
+    await screen.findByText('Send request');
+    // Cover strip with the vehicle, no per-day price; the window «×» is on it.
+    const head = document.querySelector('.sb-modal__body--book > .sb-stephead')!;
+    expect(within(head as HTMLElement).getByRole('heading', { name: 'BMW Z4' })).toBeTruthy();
+    expect(head.querySelector('.sb-vcard__range')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(1);
+    // Dates line and the same «Стоимость» block (same quote, no new request).
+    expect(document.querySelector('.sb-vd__datesline')?.textContent).toBe('21 Oct → 25 Oct · 4 days');
+    expect(totalText()).toBe('4\u00a0300\u00a0฿');
+    expect(screen.getByText('Shark helmet × 1')).toBeTruthy();
+    expect(screen.getByText('Your details')).toBeTruthy();
+    // Name and WhatsApp share one row container (side by side on the computer).
+    const you = document.querySelector('.sb-vd__you-row')!;
+    expect(within(you as HTMLElement).getByLabelText('Your name')).toBeTruthy();
+    expect(within(you as HTMLElement).getByLabelText('WhatsApp number')).toBeTruthy();
+  });
+
+  it('success shows total from the same quote', async () => {
+    const quotes = stubApi(ok(quote('4000.00', { accessories: [{ accessory_id: 'acc-1', quantity: 1, amount: '300.00' }], total: '4300.00' })));
+    await openChoice();
+    fireEvent.click(screen.getByLabelText('+'));
+    pickDay('2026-10-21');
+    pickDay('2026-10-25');
+    await waitFor(() => expect(totalText()).toBe('4\u00a0300\u00a0฿'));
+    const shown = totalText();
+    fireEvent.click(screen.getByText('Book manually'));
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
+    fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66812345678' } });
+    fireEvent.click(screen.getByText('Send request'));
+    await screen.findByText('Request sent!');
+    const recap = document.querySelector('.sb-vd__recap')!;
+    expect(recap.querySelector('.sb-vd__recap-main b')?.textContent).toBe('BMW Z4');
+    expect(recap.querySelector('.sb-vd__recap-main span')?.textContent).toBe('21 Oct → 25 Oct · 4 days');
+    expect(recap.querySelector('.sb-vd__recap-total small')?.textContent).toBe('Total');
+    expect(recap.querySelector('.sb-vd__recap-total b')?.textContent).toBe(shown);
+    expect(document.querySelector('.sb-modal__check svg')).not.toBeNull();
+    expect(quotes).toHaveLength(1);
+  });
+
+  it('success without quote has no total', async () => {
+    stubApi(() => Promise.resolve(new Response('', { status: 500 })));
+    await openChoice();
+    pickDay('2026-10-21');
+    pickDay('2026-10-25');
+    await settle();
+    expect(sum()).toBeNull();
+    fireEvent.click(screen.getByText('Book manually'));
+    expect(sum()).toBeNull();
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
+    fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66812345678' } });
+    fireEvent.click(screen.getByText('Send request'));
+    await screen.findByText('Request sent!');
+    const recap = document.querySelector('.sb-vd__recap')!;
+    expect(recap.querySelector('.sb-vd__recap-main b')?.textContent).toBe('BMW Z4');
+    expect(recap.querySelector('.sb-vd__recap-total')).toBeNull();
+    expect(recap.textContent).not.toContain('Total');
+  });
+
+  /** A fuller API for the success snapshot: the quote follows the selection
+   *  (accessory → +300), the booking request and the intent status are held
+   *  until the test lets them go. */
+  function stubSendApi() {
+    const calls = { request: [] as Record<string, unknown>[], intent: [] as Record<string, unknown>[], status: 0 };
+    let releaseRequest!: () => void;
+    const requestGate = new Promise<void>((r) => {
+      releaseRequest = r;
+    });
+    const state = { used: false };
+    const json = (body: unknown, status = 200) =>
+      Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('open', vi.fn(() => ({ location: { href: '' }, close: vi.fn() })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        const u = String(url);
+        if (u.includes('/catalog/availability/')) return json({ today: '2026-10-09', units: UNITS });
+        if (u.includes('/catalog/price-quote/')) {
+          const body = JSON.parse(init?.body as string) as { accessories?: { quantity: number }[] };
+          const qty = (body.accessories ?? []).reduce((n, a) => n + a.quantity, 0);
+          return json(
+            quote('4000.00', {
+              accessories: qty ? [{ accessory_id: 'acc-1', quantity: qty, amount: `${qty * 300}.00` }] : [],
+              total: `${4000 + qty * 300}.00`,
+            }),
+          );
+        }
+        if (u.includes('/booking-requests/')) {
+          calls.request.push(JSON.parse(init?.body as string));
+          return requestGate.then(() => json({ success: true, booking_id: 'b1', dates_busy: false }, 201));
+        }
+        if (u.includes('/status/')) {
+          calls.status += 1;
+          return json({ status: state.used ? 'used' : 'pending' });
+        }
+        if (u.includes('/booking-intents/')) {
+          calls.intent.push(JSON.parse(init?.body as string));
+          return json({ token: 'tok123' }, 201);
+        }
+        return json(accDetail);
+      }),
+    );
+    return { calls, releaseRequest, state };
+  }
+  const recapTotal = () => document.querySelector('.sb-vd__recap .sb-vd__recap-total');
+  const recapPeriod = () => document.querySelector('.sb-vd__recap .sb-vd__recap-main span')?.textContent;
+
+  it('1-click: the selection changes while the bot works → success without a total, with the SENT dates', async () => {
+    const { calls, state } = stubSendApi();
+    await openChoice();
+    fireEvent.click(screen.getByLabelText('+'));
+    pickDay('2026-10-21');
+    pickDay('2026-10-25');
+    await waitFor(() => expect(totalText()).toBe('4\u00a0300\u00a0฿'));
+    fireEvent.click(screen.getByText('1-click booking'));
+    await waitFor(() => expect(calls.intent).toHaveLength(1));
+    await waitFor(() => expect(calls.status).toBeGreaterThan(0));
+    // The customer keeps playing with the window: another accessory, other dates.
+    fireEvent.click(screen.getByLabelText('+'));
+    pickDay('2026-10-27');
+    pickDay('2026-10-29');
+    await waitFor(() => expect(totalText()).toBe('4\u00a0600\u00a0฿'));
+    state.used = true;
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await screen.findByText('Request sent!');
+    // The bot may drop an unavailable accessory — no «Итого» on this path.
+    expect(recapTotal()).toBeNull();
+    expect(recapPeriod()).toBe('21 Oct → 25 Oct · 4 days');
+    expect(calls.intent[0]).toMatchObject({ start_date: '2026-10-21', end_date: '2026-10-25' });
+  });
+
+  it('manual: the selection changes while the request is on its way → success with the SENT total and dates', async () => {
+    const { calls, releaseRequest } = stubSendApi();
+    await openChoice();
+    fireEvent.click(screen.getByLabelText('+'));
+    pickDay('2026-10-21');
+    pickDay('2026-10-25');
+    await waitFor(() => expect(totalText()).toBe('4\u00a0300\u00a0฿'));
+    fireEvent.click(screen.getByText('Book manually'));
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
+    fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66812345678' } });
+    fireEvent.click(screen.getByText('Send request'));
+    await waitFor(() => expect(calls.request).toHaveLength(1));
+    // Back to the choice step mid-flight: drop the accessory, pick other dates.
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await screen.findByText('How to book?');
+    fireEvent.click(screen.getByLabelText('-'));
+    pickDay('2026-10-27');
+    pickDay('2026-10-29');
+    await waitFor(() => expect(totalText()).toBe('4\u00a0000\u00a0฿'));
+    await act(async () => {
+      releaseRequest();
+    });
+    await screen.findByText('Request sent!');
+    expect(recapTotal()?.querySelector('b')?.textContent).toBe('4\u00a0300\u00a0฿');
+    expect(recapPeriod()).toBe('21 Oct → 25 Oct · 4 days');
+    expect(calls.request[0]).toMatchObject({ start_date: '2026-10-21', end_date: '2026-10-25' });
+  });
+
+  it('success has no total when the «Стоимость» block was hidden (an accessory without a name)', async () => {
+    // The quote prices an accessory the detail does not list → no block → no total.
+    stubApi(ok(quote('4000.00', { accessories: [{ accessory_id: 'acc-x', quantity: 1, amount: '300.00' }], total: '4300.00' })));
+    const base = globalThis.fetch as unknown as (u: string, i?: RequestInit) => Promise<Response>;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((u: string, i?: RequestInit) =>
+        String(u).includes('/booking-requests/')
+          ? Promise.resolve(new Response(JSON.stringify({ success: true, dates_busy: false }), { status: 201 }))
+          : base(u, i),
+      ),
+    );
+    await openChoice();
+    pickDay('2026-10-21');
+    pickDay('2026-10-25');
+    await settle();
+    expect(sum()).toBeNull();
+    fireEvent.click(screen.getByText('Book manually'));
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
+    fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66812345678' } });
+    fireEvent.click(screen.getByText('Send request'));
+    await screen.findByText('Request sent!');
+    expect(recapTotal()).toBeNull();
+    expect(recapPeriod()).toBe('21 Oct → 25 Oct · 4 days');
+  });
+
+  it('«Enter address» on the form is inert while the request is on its way', async () => {
+    stubApi(ok(quote('4000.00')));
+    const base = globalThis.fetch as unknown as (u: string, i?: RequestInit) => Promise<Response>;
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((u: string, i?: RequestInit) =>
+        String(u).includes('/booking-requests/')
+          ? gate.then(() => new Response(JSON.stringify({ success: true, dates_busy: false }), { status: 201 }))
+          : base(u, i),
+      ),
+    );
+    class FakeSessionToken {}
+    window.google = {
+      maps: {
+        importLibrary: vi.fn(() =>
+          Promise.resolve({
+            AutocompleteSuggestion: { fetchAutocompleteSuggestions: vi.fn() },
+            AutocompleteSessionToken: FakeSessionToken,
+          }),
+        ),
+      },
+    } as unknown as typeof window.google;
+    try {
+      render(
+        <VehicleBookingModal
+          vehicle={vehicle}
+          apiBase=""
+          locale="en"
+          botUsername="test_bot"
+          googleMapsApiKey="test-key"
+          unitIds={['v1', 'v2']}
+          onClose={vi.fn()}
+        />,
+      );
+      await screen.findByText('BMW Z4');
+      fireEvent.click(screen.getByText('Book'));
+      await screen.findByText('How to book?');
+      await waitFor(() => expect(document.querySelector('.sb-avcal__day.is-busy')).not.toBeNull());
+      fireEvent.click(screen.getByText('Deliver the vehicle to my address'));
+      pickDay('2026-10-21');
+      pickDay('2026-10-25');
+      await waitFor(() => expect(totalText()).toBe('4\u00a0000\u00a0฿'));
+      fireEvent.click(screen.getByText('Book manually'));
+      fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'John' } });
+      fireEvent.change(screen.getByLabelText('WhatsApp number'), { target: { value: '+66812345678' } });
+      fireEvent.click(screen.getByText('Send request'));
+      const ask = await waitFor(() => {
+        const b = screen.getByRole('button', { name: 'Enter address' }) as HTMLButtonElement;
+        expect(b.disabled).toBe(true);
+        return b;
+      });
+      // Even a forced click does not leave the form.
+      ask.disabled = false;
+      fireEvent.click(ask);
+      expect(screen.getByText('Sending…')).toBeTruthy();
+      expect(screen.queryByText('How to book?')).toBeNull();
+      await act(async () => {
+        release();
+      });
+      await screen.findByText('Request sent!');
+    } finally {
+      delete (window as { google?: unknown }).google;
+    }
+  });
+
+  it('ask address on form returns to choice and focuses address', async () => {
+    stubApi(ok(quote('4000.00')));
+    const scrollIntoView = vi.fn();
+    const origScroll = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    class FakeSessionToken {}
+    window.google = {
+      maps: {
+        importLibrary: vi.fn(() =>
+          Promise.resolve({
+            AutocompleteSuggestion: { fetchAutocompleteSuggestions: vi.fn() },
+            AutocompleteSessionToken: FakeSessionToken,
+          }),
+        ),
+      },
+    } as unknown as typeof window.google;
+    try {
+      render(
+        <VehicleBookingModal
+          vehicle={vehicle}
+          apiBase=""
+          locale="en"
+          botUsername="test_bot"
+          googleMapsApiKey="test-key"
+          unitIds={['v1', 'v2']}
+          onClose={vi.fn()}
+        />,
+      );
+      await screen.findByText('BMW Z4');
+      fireEvent.click(screen.getByText('Book'));
+      await screen.findByText('How to book?');
+      await waitFor(() => expect(document.querySelector('.sb-avcal__day.is-busy')).not.toBeNull());
+      fireEvent.click(screen.getByText('Deliver the vehicle to my address'));
+      pickDay('2026-10-21');
+      pickDay('2026-10-25');
+      await waitFor(() => expect(totalText()).toBe('4\u00a0000\u00a0฿'));
+      fireEvent.click(screen.getByText('Book manually'));
+      await screen.findByText('Send request');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Enter address' }));
+      await screen.findByText('How to book?');
+      expect(screen.queryByText('Send request')).toBeNull();
+      const input = screen.getByTestId('delivery-address-input') as HTMLInputElement;
+      await waitFor(() => expect(document.activeElement).toBe(input));
+      expect(input.classList.contains('is-attention')).toBe(true);
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' });
+    } finally {
+      HTMLElement.prototype.scrollIntoView = origScroll;
+      delete (window as { google?: unknown }).google;
+    }
   });
 });

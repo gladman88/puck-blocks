@@ -27,19 +27,6 @@ export function nextDay(isoDate: string): string {
 }
 
 /**
- * Format a backend money value for display. The catalog API sends prices as
- * JSON numbers (`float()`) and deposit amounts as Decimal strings
- * ("25000.00"). Keep up to 2 fractional digits so whole-baht prices read clean
- * ("1500.000000" → "1,500") while a real fractional deposit ("300.50" → "300.5")
- * isn't silently rounded away. Empty / non-numeric → "".
- */
-export function money(value: string | number | null | undefined): string {
-  if (value == null || value === '') return '';
-  const n = typeof value === 'number' ? value : parseFloat(value);
-  return Number.isFinite(n) ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '';
-}
-
-/**
  * Compact, locale-independent numeric date (ДД.ММ.ГГГГ) for the catalog filter
  * chips. We render this OURSELVES instead of relying on the native
  * `<input type="date">` value, which iOS paints in an uncontrollable locale

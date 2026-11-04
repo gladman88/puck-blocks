@@ -11,7 +11,7 @@ afterEach(() => {
   window.history.replaceState(null, '', '/');
 });
 
-const NB = ' ';
+const NB = '\u00a0';
 
 const prices: CardPrices = {
   per_day_min: '1400.00',
@@ -127,7 +127,7 @@ describe('VehicleCard', () => {
 
   it('no card_prices falls back to from-price / on request', () => {
     const { container } = renderCard({ vehicle: { ...vehicle, card_prices: null, min_price_per_day: 5000 } });
-    expect(container.querySelector('.sb-vcard__range')?.textContent).toBe('от 5,000 ฿/день');
+    expect(container.querySelector('.sb-vcard__range')?.textContent).toBe(`от 5${NB}000 ฿/день`);
     expect(container.querySelector('.sb-vcard__tiles')).toBeNull();
     cleanup();
     // Older backend: no field at all, no price either.
@@ -229,7 +229,7 @@ describe('VehicleCard', () => {
     expect(statuses).toContain('busy');
     expect(statuses).toContain('free from 01 Aug');
     expect(container.textContent).toContain('on request');
-    expect(container.textContent).toContain('from 1,400 ฿/day');
+    expect(container.textContent).toContain(`from 1${NB}400 ฿/day`);
     // Nothing Russian left on the English page.
     expect(container.textContent).not.toMatch(/[а-яё]/i);
   });
@@ -271,18 +271,20 @@ describe('VehicleCard', () => {
     const allBusy = renderCard({ total: 4, availableCount: 0, vehicle: { ...vehicle, is_available: false } });
     expect(allBusy.container.querySelector('.sb-vcard__count')?.textContent).toBe('4 всего');
   });
-  it('tile sums are whole baht (fractional month rate)', () => {
+  it('tile sums are whole baht, rounded up (fractional month rate)', () => {
     renderCard({ vehicle: { ...vehicle, card_prices: { per_day_min: '2166.67', per_day_max: '4000.00', month_discount_pct: 46,
       quotes: [{ days: 7, total: '24500.00' }, { days: 14, total: '42000.00' }, { days: 30, total: '65000.10' }] } } });
     const sums = [...document.querySelectorAll('.sb-vcard__tile-sum')].map((e) => e.textContent!.replace(/\s/g, ' '));
-    expect(sums).toEqual(['24 500 ฿', '42 000 ฿', '65 000 ฿']);
+    expect(sums).toEqual(['24 500 ฿', '42 000 ฿', '65 001 ฿']);
   });
-  it('fractional per-day range keeps cents in the smaller fraction style', () => {
+  it('fractional per-day range is rounded up to whole baht, no fraction style', () => {
     const { container } = renderCard({ vehicle: { ...vehicle, card_prices: { per_day_min: '1833.33', per_day_max: '2500.00', month_discount_pct: 27,
       quotes: [{ days: 7, total: '16100.00' }, { days: 14, total: '29400.00' }, { days: 30, total: '55000.00' }] } } });
     const range = container.querySelector('.sb-vcard__range')!;
-    expect(range.classList.contains('sb-vcard__range--fraction')).toBe(true);
-    expect(range.textContent!.replace(/\s/g, ' ')).toContain('1 833.33 – 2 500');
+    expect(range.classList.contains('sb-vcard__range--fraction')).toBe(false);
+    expect(container.querySelector('[class*="--fraction"]')).toBeNull();
+    expect(range.querySelector('b')?.textContent).toBe(`1${NB}834 – 2${NB}500${NB}฿`);
+    expect(range.querySelector('b span')?.textContent).toBe(`1${NB}834`);
   });
 
   it('copied plate is mounted before the click (so it can slide in) and empty until shown', () => {
