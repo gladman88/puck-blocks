@@ -176,6 +176,11 @@
   transition: opacity 0.3s;
   display: none;
 }
+@media (max-width: 600px) {
+  .sb-hero .sb-h1 {
+    line-height: 1.2;
+  }
+}
 @media (max-width: 767px) and (orientation: portrait) {
   .sb-hero__video {
     display: block;
@@ -210,6 +215,9 @@
 }
 .sb-hero .sb-h1 {
   max-width: 52rem;
+  /* Phone size like deiz-rental.ae (24.7px at 390px, owner 2026-11-04); from
+     ~500px up the 5vw term wins and the desktop size is unchanged. */
+  font-size: clamp(1.55rem, 5vw, 3.5rem);
   text-transform: uppercase;
   text-wrap: balance;
   overflow-wrap: break-word;
@@ -223,6 +231,7 @@
 .sb-hero__inner .sb-lead {
   max-width: 40rem;
   font-weight: 400;
+  line-height: 1.5;
 }
 .sb-hero__accent {
   color: var(--sb-accent);
