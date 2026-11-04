@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Section } from '../components/Section';
 import { VehicleBookingModal, type TelegramCatalogUser } from './catalog/VehicleBookingModal';
-import { formatDayPrice } from './catalog/price';
+import { VehicleCard } from './catalog/VehicleCard';
+import { pluralDays } from './catalog/dates';
 import { FilterBar, defaultFilterState, type CatalogFilterState } from './catalog/FilterBar';
 
 export type { TelegramCatalogUser } from './catalog/VehicleBookingModal';
@@ -59,6 +60,19 @@ export interface CatalogVehicle {
   is_available: boolean;
   free_from: string | null;
   free_from_time: string | null;
+  /** Server-computed card prices (same calculation as the booking quote).
+   *  null/absent (incomplete price list or an older backend) → «по запросу» /
+   *  «от N ฿/день» instead of the per-day range and the 7/14/30-day sums. */
+  card_prices?: CardPrices | null;
+}
+
+/** `card_prices` of the public catalog list (decimal strings, as the API sends them). */
+export interface CardPrices {
+  per_day_min: string;
+  per_day_max: string;
+  quotes: { days: number; total: string }[];
+  /** 30-day discount vs the 1-day rate, whole percent; 0 = no flag. */
+  month_discount_pct: number;
 }
 
 /**
@@ -138,11 +152,16 @@ export interface VehicleCatalogProps {
   onTelegramLink?: (url: string) => void;
 }
 
-const STRINGS = {
+export const STRINGS = {
   ru: {
     all: 'Все',
     from: 'от',
-    perDay: '฿/день',
+    perDayUnit: '฿/день',
+    perDay: 'в сутки',
+    days: (n: number) => pluralDays(n, 'ru'),
+    book: 'Забронировать',
+    share: 'Поделиться',
+    linkCopied: 'Ссылка скопирована',
     busy: 'занято',
     freeFrom: 'свободно с',
     onRequest: 'по запросу',
@@ -178,7 +197,12 @@ const STRINGS = {
   en: {
     all: 'All',
     from: 'from',
-    perDay: '฿/day',
+    perDayUnit: '฿/day',
+    perDay: 'per day',
+    days: (n: number) => pluralDays(n, 'en'),
+    book: 'Book',
+    share: 'Share',
+    linkCopied: 'Link copied',
     busy: 'busy',
     freeFrom: 'free from',
     onRequest: 'on request',
@@ -286,23 +310,6 @@ function groupVehicles(vehicles: CatalogVehicle[]): VehicleGroup[] {
       availableCount,
     };
   });
-}
-
-function formatDate(iso: string, locale: 'ru' | 'en'): string {
-  try {
-    // timeZone: 'UTC' is load-bearing: `free_from` is a date-only string, which
-    // ES parses as UTC midnight. Since the grid is server-rendered (SSR preload)
-    // the server and the visitor's browser MUST format it identically, or a
-    // visitor west of UTC gets a hydration mismatch (server «01 сент.», client
-    // «31 авг.»). UTC renders the literal date exactly as the backend wrote it.
-    return new Date(iso).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-GB', {
-      day: '2-digit',
-      month: 'short',
-      timeZone: 'UTC',
-    });
-  } catch {
-    return iso;
-  }
 }
 
 type PuckInjected = {
@@ -623,58 +630,27 @@ export function VehicleCatalog({
           <p className="sb-vcatalog__state">{t.empty}</p>
         ) : (
           <div className="sb-vcatalog__grid">
-            {displayGroups.map((g) => {
-              const v = g.vehicle;
-              const countLabel =
-                g.total > 1
-                  ? g.availableCount > 0
-                    ? `${g.availableCount} ${t.available}`
-                    : `${g.total} ${t.total}`
-                  : null;
-              return (
-                <button type="button" className="sb-vcard" key={v.id} onClick={() => setSelected(v)}>
-                <div className="sb-vcard__media">
-                  {v.photo_url ? <img src={v.photo_url} alt={v.display_name} loading="lazy" /> : null}
-                  {v.category && (showFilters || activeCat === null) ? (
-                    // Tab mode: badge only makes sense on «Все» — on a specific
-                    // category tab every card is that category, so it's just
-                    // noise. Filter mode has no such tab (parity with the
-                    // standalone catalog's VehicleCard, which always shows it).
-                    <span className="sb-vcard__badge" style={{ backgroundColor: v.category.color }}>
-                      {categoryLabel(v.category, locale)}
-                    </span>
-                  ) : null}
-                  {countLabel ? <span className="sb-vcard__count">{countLabel}</span> : null}
-                  <div className="sb-vcard__overlay">
-                    <span className={`sb-vcard__status ${v.is_available ? 'sb-vcard__status--available' : v.free_from ? 'sb-vcard__status--free' : ''}`}>
-                      <span className="sb-vcard__status-dot" aria-hidden />
-                      {v.is_available
-                        ? hasCompleteDateRange ? t.availableSelected : t.availableToday
-                        : v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy}
-                    </span>
-                    <h3 className="sb-vcard__name">{v.display_name}</h3>
-                    <div className="sb-vcard__meta">
-                      <span className="sb-vcard__year">
-                        {v.year ?? ''}
-                        {v.is_available ? <span className="sb-dot" /> : null}
-                      </span>
-                      <span className="sb-vcard__price">
-                        {v.min_price_per_day !== null ? (
-                          <>
-                            <small>{t.from} </small>
-                            {formatDayPrice(v.min_price_per_day)}
-                            <small> {t.perDay}</small>
-                          </>
-                        ) : (
-                          <small>{t.onRequest}</small>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                </button>
-              );
-            })}
+            {displayGroups.map((g) => (
+              <VehicleCard
+                key={g.vehicle.id}
+                vehicle={g.vehicle}
+                total={g.total}
+                availableCount={g.availableCount}
+                // Tab mode: category only makes sense on «Все» — on a specific
+                // category tab every card is that category, so it's just noise.
+                // Filter mode has no such tab (parity with the standalone catalog).
+                categoryName={
+                  g.vehicle.category && (showFilters || activeCat === null)
+                    ? categoryLabel(g.vehicle.category, locale)
+                    : null
+                }
+                hasCompleteDateRange={hasCompleteDateRange}
+                locale={locale}
+                strings={t}
+                referralCode={referralCode}
+                onOpen={() => setSelected(g.vehicle)}
+              />
+            ))}
           </div>
         ))}
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { VehicleCatalog, categoryLabel } from './VehicleCatalog';
 
@@ -23,6 +23,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
   window.history.replaceState(null, '', '/'); // reset deep-link param between tests
 });
+
+/** The vehicle window (the catalog card has its own «Забронировать» too). */
+const dialog = () => within(screen.getByRole('dialog'));
 
 function stubFetch(categories: unknown, vehicles: unknown, ok = true) {
   vi.stubGlobal(
@@ -65,8 +68,9 @@ describe('VehicleCatalog', () => {
     expect(container.querySelectorAll('.sb-vcard').length).toBe(1);
     // category tab (+ "Все")
     expect(container.querySelectorAll('.sb-vcatalog__tab').length).toBe(2);
-    // card is a clickable button (opens the booking modal), not an external link
-    expect(container.querySelector('button.sb-vcard')).not.toBeNull();
+    // card is an <article> with its own buttons (opens the booking modal), not an external link
+    expect(container.querySelector('article.sb-vcard')).not.toBeNull();
+    expect(container.querySelector('.sb-vcard__open')).not.toBeNull();
     expect(container.querySelector('a.sb-vcard')).toBeNull();
     expect(container.textContent).toContain('5,000');
     expect(container.querySelector('.sb-vcard__status--available')?.textContent).toContain('Свободно сегодня');
@@ -165,15 +169,16 @@ describe('VehicleCatalog', () => {
     await screen.findByText('BMW Z4');
 
     // step 1 (detail): price table («1 день» = period_label + day word) + «Забронировать» CTA
-    fireEvent.click(container.querySelector('button.sb-vcard')!);
-    await screen.findByText('Забронировать');
+    fireEvent.click(container.querySelector('.sb-vcard__open')!);
+    await screen.findByRole('dialog');
+    await dialog().findByText('Забронировать');
     expect(screen.getByText('1 день')).toBeTruthy(); // min===max===1 → singular
     expect(screen.getByText('1-29 дней')).toBeTruthy(); // range with min 1 → plural (HIGH fix)
     expect(screen.queryByText('Забронировать вручную')).toBeNull();
     expect(screen.queryByText('Отправить запрос')).toBeNull();
 
     // step 2 (choice): dates + Telegram + «Забронировать вручную» — still no manual form
-    fireEvent.click(screen.getByText('Забронировать'));
+    fireEvent.click(dialog().getByText('Забронировать'));
     await screen.findByText('Забронировать вручную');
     expect(screen.queryByText('Отправить запрос')).toBeNull();
 
@@ -221,9 +226,10 @@ describe('VehicleCatalog', () => {
     await screen.findByText('BMW Z4');
     expect(availabilityCalls()).toHaveLength(0); // the list itself never asks
 
-    const card = Array.from(container.querySelectorAll('button.sb-vcard')).find((c) => c.textContent?.includes('BMW Z4'))!;
-    fireEvent.click(card);
-    await screen.findByText('Забронировать');
+    const card = Array.from(container.querySelectorAll('.sb-vcard')).find((c) => c.textContent?.includes('BMW Z4'))!;
+    fireEvent.click(card.querySelector('.sb-vcard__open')!);
+    await screen.findByRole('dialog');
+    await dialog().findByText('Забронировать');
     await waitFor(() => expect(availabilityCalls()).toHaveLength(1));
     expect(availabilityCalls()[0]).toBe('/api/v1/catalog/availability/?vehicle_ids=v1,v2');
   });
@@ -253,8 +259,8 @@ describe('VehicleCatalog', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { container } = render(<VehicleCatalog vehicleType="car" apiBase="" />);
     await screen.findByText('BMW Z4');
-    const card = Array.from(container.querySelectorAll('button.sb-vcard')).find((c) => c.textContent?.includes('BMW Z4'))!;
-    fireEvent.click(card);
+    const card = Array.from(container.querySelectorAll('.sb-vcard')).find((c) => c.textContent?.includes('BMW Z4'))!;
+    fireEvent.click(card.querySelector('.sb-vcard__open')!);
     await waitFor(() =>
       expect(fetchMock.mock.calls.map(([u]) => String(u)).some((u) => u.includes('/availability/'))).toBe(true),
     );
@@ -620,26 +626,26 @@ describe('VehicleCatalog — showFilters=true (standalone catalog)', () => {
     });
   });
 
-  it('category badge is shown on cards (parity with the standalone catalog, which has no "all" tab gate)', async () => {
+  it('category is shown on cards (parity with the standalone catalog, which has no "all" tab gate)', async () => {
     stubFilteredFetch();
     const { container, findByText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
     await findByText('BMW Z4');
-    expect(container.querySelector('.sb-vcard__badge')).not.toBeNull();
+    expect(container.querySelector('.sb-vcard__cat')).not.toBeNull();
   });
 
-  it('shows the translated category name on the card badge when locale=en and name_en is set', async () => {
+  it('shows the translated category name on the card when locale=en and name_en is set', async () => {
     const translatedCat = { id: 'c2', name: 'Премиум', name_en: 'Premium', color: '#ff0000', vehicle_count: 1 };
     stubFetch([translatedCat], [{ ...vehicle, category: translatedCat }]);
     const { container, findByText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
     await findByText('BMW Z4');
-    expect(container.querySelector('.sb-vcard__badge')?.textContent).toBe('Premium');
+    expect(container.querySelector('.sb-vcard__cat')?.textContent).toBe('Premium');
   });
 
-  it('falls back to the Russian category name on the card badge when locale=en but name_en is unset', async () => {
+  it('falls back to the Russian category name on the card when locale=en but name_en is unset', async () => {
     stubFetch([cat], [vehicle]); // `cat` has no name_en
     const { container, findByText } = render(<VehicleCatalog showFilters apiBase="" locale="en" />);
     await findByText('BMW Z4');
-    expect(container.querySelector('.sb-vcard__badge')?.textContent).toBe('Премиум');
+    expect(container.querySelector('.sb-vcard__cat')?.textContent).toBe('Премиум');
   });
 
   it('under React.StrictMode, a single non-search filter click still issues exactly one extra fetch (code review 2026-07-15: the filter-state updater must stay pure — StrictMode double-invokes it in dev — so the debounce/refetch trigger was moved to a useEffect keyed on `filters` instead of living inside the setFilters callback)', async () => {

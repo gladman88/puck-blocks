@@ -281,6 +281,21 @@ interface CatalogVehicle {
     is_available: boolean;
     free_from: string | null;
     free_from_time: string | null;
+    /** Server-computed card prices (same calculation as the booking quote).
+     *  null/absent (incomplete price list or an older backend) → «по запросу» /
+     *  «от N ฿/день» instead of the per-day range and the 7/14/30-day sums. */
+    card_prices?: CardPrices | null;
+}
+/** `card_prices` of the public catalog list (decimal strings, as the API sends them). */
+interface CardPrices {
+    per_day_min: string;
+    per_day_max: string;
+    quotes: {
+        days: number;
+        total: string;
+    }[];
+    /** 30-day discount vs the 1-day rate, whole percent; 0 = no flag. */
+    month_discount_pct: number;
 }
 /**
  * Server-prefetched catalog data the HOST app may pass via Puck render

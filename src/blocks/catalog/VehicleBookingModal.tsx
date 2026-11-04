@@ -23,6 +23,7 @@ import {
 } from './DeliveryAddressSection';
 import { buildSpecRows, type VehicleSpecs } from './specs';
 import { formatDayPrice } from './price';
+import { shareVehicle } from './share';
 import { PriceSummary, parsePriceQuote, type PriceQuote } from './PriceSummary';
 import { ContactIcon } from '../../components/ContactIcon';
 
@@ -603,27 +604,17 @@ export function VehicleBookingModal({
 
   // «Поделиться» — a deep link (`?vehicle=<id>` on the current page/locale) that
   // reopens this card. Native share sheet (mobile) → clipboard → prompt fallback.
+  // Logic lives in `shareVehicle` (shared with the catalog card).
   const handleShare = async () => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('vehicle', vehicle.id);
-    // Preserve agent attribution across a re-share (parity with the standalone
-    // catalog's VehicleDetail — a forwarded link must keep crediting the agent).
-    if (referralCode) url.searchParams.set('ref', referralCode);
-    const shareUrl = url.toString();
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({ title: vehicle.display_name, url: shareUrl });
-      } catch {
-        /* user dismissed the share sheet — no-op */
-      }
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+    const outcome = await shareVehicle({
+      vehicleId: vehicle.id,
+      title: vehicle.display_name,
+      referralCode,
+      promptLabel: t.share,
+    });
+    if (outcome === 'copied') {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      window.prompt(t.share, shareUrl);
     }
   };
 

@@ -1762,6 +1762,37 @@ function formatDayPrice(value) {
     maximumFractionDigits: digits
   });
 }
+
+// src/blocks/catalog/share.ts
+function buildVehicleShareUrl(vehicleId, referralCode) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("vehicle", vehicleId);
+  if (referralCode) url.searchParams.set("ref", referralCode);
+  return url.toString();
+}
+async function shareVehicle({
+  vehicleId,
+  title,
+  referralCode,
+  promptLabel
+}) {
+  const shareUrl = buildVehicleShareUrl(vehicleId, referralCode);
+  if (typeof navigator !== "undefined" && navigator.share) {
+    try {
+      await navigator.share({ title, url: shareUrl });
+      return "shared";
+    } catch {
+      return "dismissed";
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+    return "copied";
+  } catch {
+    window.prompt(promptLabel, shareUrl);
+    return "prompted";
+  }
+}
 function isMoney(v) {
   return typeof v === "string" && Number.isFinite(parseFloat(v));
 }
@@ -2189,23 +2220,15 @@ function VehicleBookingModal({
     if (body) body.scrollTop = 0;
   }, [stage]);
   const handleShare = async () => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("vehicle", vehicle.id);
-    if (referralCode) url.searchParams.set("ref", referralCode);
-    const shareUrl = url.toString();
-    if (typeof navigator !== "undefined" && navigator.share) {
-      try {
-        await navigator.share({ title: vehicle.display_name, url: shareUrl });
-      } catch {
-      }
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+    const outcome = await shareVehicle({
+      vehicleId: vehicle.id,
+      title: vehicle.display_name,
+      referralCode,
+      promptLabel: t.share
+    });
+    if (outcome === "copied") {
       setCopied(true);
       setTimeout(() => setCopied(false), 2e3);
-    } catch {
-      window.prompt(t.share, shareUrl);
     }
   };
   const SHEET_DISMISS_PX = 120;
@@ -3227,6 +3250,170 @@ function VehicleBookingModal({
     document.body
   );
 }
+var SHARE_TOAST_MS = 2e3;
+var SHARE_TOAST_ANIM_MS = 220;
+function formatCardDate(iso, locale) {
+  try {
+    return new Date(iso).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-GB", {
+      day: "2-digit",
+      month: "short",
+      timeZone: "UTC"
+    });
+  } catch {
+    return iso;
+  }
+}
+function formatWholeSum(value) {
+  return Math.round(parseFloat(value)).toLocaleString("en-US").replace(/,/g, "\xA0");
+}
+function formatSum(value) {
+  const n = typeof value === "number" ? value : parseFloat(value);
+  return formatDayPrice(n).replace(/,/g, "\xA0");
+}
+function ShareIcon() {
+  return /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "18", cy: "5", r: "3" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "6", cy: "12", r: "3" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "18", cy: "19", r: "3" }),
+    /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "8.6", y1: "13.5", x2: "15.4", y2: "17.5" }),
+    /* @__PURE__ */ jsxRuntime.jsx("line", { x1: "15.4", y1: "6.5", x2: "8.6", y2: "10.5" })
+  ] });
+}
+function CheckIcon() {
+  return /* @__PURE__ */ jsxRuntime.jsx("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.4", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M20 6 9 17l-5-5" }) });
+}
+function VehicleCard({
+  vehicle: v,
+  total,
+  availableCount,
+  categoryName,
+  hasCompleteDateRange,
+  locale,
+  strings: t,
+  referralCode,
+  onOpen
+}) {
+  const mounted = react.useRef(true);
+  const [toast, setToast] = react.useState("hidden");
+  const timers = react.useRef([]);
+  react.useEffect(
+    () => {
+      mounted.current = true;
+      return () => {
+        mounted.current = false;
+        timers.current.forEach(clearTimeout);
+      };
+    },
+    []
+  );
+  const handleShare = async () => {
+    const outcome = await shareVehicle({
+      vehicleId: v.id,
+      title: v.display_name,
+      referralCode,
+      promptLabel: t.share
+    });
+    if (outcome !== "copied" || !mounted.current) return;
+    timers.current.forEach(clearTimeout);
+    setToast("shown");
+    timers.current = [
+      setTimeout(() => setToast("leaving"), SHARE_TOAST_MS),
+      setTimeout(() => setToast("hidden"), SHARE_TOAST_MS + SHARE_TOAST_ANIM_MS)
+    ];
+  };
+  const countLabel = total > 1 ? availableCount > 0 ? `${availableCount} ${t.available}` : `${total} ${t.total}` : null;
+  const statusText = v.is_available ? hasCompleteDateRange ? t.availableSelected : t.availableToday : v.free_from ? `${t.freeFrom} ${formatCardDate(v.free_from, locale)}` : t.busy;
+  const statusMod = v.is_available ? " sb-vcard__status--available" : v.free_from ? " sb-vcard__status--free" : "";
+  const prices = v.card_prices ?? null;
+  const minDay = prices ? formatSum(prices.per_day_min) : "";
+  const maxDay = prices ? formatSum(prices.per_day_max) : "";
+  const discount = prices ? Math.round(prices.month_discount_pct) : 0;
+  const shown = toast === "shown";
+  return /* @__PURE__ */ jsxRuntime.jsx("article", { className: "sb-vcard", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__inner", children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__ph", children: [
+      v.photo_url ? /* @__PURE__ */ jsxRuntime.jsx("img", { src: v.photo_url, alt: v.display_name, loading: "lazy" }) : null,
+      /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-vcard__open", "aria-label": v.display_name, onClick: onOpen }),
+      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__top", children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__title", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "sb-vcard__name", children: v.display_name }),
+          v.year || categoryName ? /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-vcard__sub", children: [
+            v.year ? /* @__PURE__ */ jsxRuntime.jsx("span", { children: v.year }) : null,
+            v.year && categoryName ? /* @__PURE__ */ jsxRuntime.jsx("i", { "aria-hidden": true }) : null,
+            categoryName ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__cat", children: categoryName }) : null
+          ] }) : null
+        ] }),
+        countLabel ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__count", children: countLabel }) : null
+      ] }),
+      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__over", children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: `sb-vcard__st${shown ? " is-copied" : ""}`, children: [
+          /* @__PURE__ */ jsxRuntime.jsxs("span", { className: `sb-vcard__status${statusMod}`, children: [
+            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__status-dot", "aria-hidden": true }),
+            statusText
+          ] }),
+          /* @__PURE__ */ jsxRuntime.jsx(
+            "span",
+            {
+              className: `sb-vcard__range${prices && (minDay.includes(".") || maxDay.includes(".")) ? " sb-vcard__range--fraction" : ""}`,
+              children: prices ? /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntime.jsx("small", { children: t.perDay }),
+                /* @__PURE__ */ jsxRuntime.jsxs("b", { children: [
+                  prices.per_day_min === prices.per_day_max ? /* @__PURE__ */ jsxRuntime.jsx("span", { children: minDay }) : /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+                    /* @__PURE__ */ jsxRuntime.jsx("span", { children: minDay }),
+                    " \u2013 ",
+                    maxDay
+                  ] }),
+                  "\xA0\u0E3F"
+                ] })
+              ] }) : v.min_price_per_day !== null ? /* @__PURE__ */ jsxRuntime.jsxs("b", { className: "sb-vcard__from", children: [
+                /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
+                  t.from,
+                  " "
+                ] }),
+                /* @__PURE__ */ jsxRuntime.jsx("span", { children: formatDayPrice(v.min_price_per_day) }),
+                /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
+                  " ",
+                  t.perDayUnit
+                ] })
+              ] }) : /* @__PURE__ */ jsxRuntime.jsx("b", { className: "sb-vcard__from", children: /* @__PURE__ */ jsxRuntime.jsx("small", { children: t.onRequest }) })
+            }
+          ),
+          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vcard__toast-slot", role: "status", "aria-live": "polite", children: /* @__PURE__ */ jsxRuntime.jsx("span", { className: `sb-vcard__toast${shown ? " is-shown" : ""}`, "aria-hidden": toast === "hidden", children: toast !== "hidden" ? /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+            /* @__PURE__ */ jsxRuntime.jsx(CheckIcon, {}),
+            t.linkCopied
+          ] }) : null }) })
+        ] }),
+        prices && prices.quotes.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vcard__tiles", children: prices.quotes.map((q) => {
+          const best = q.days === 30;
+          const long = Math.round(parseFloat(q.total)) >= 1e5;
+          return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: `sb-vcard__tile${best ? " sb-vcard__tile--best" : ""}`, children: [
+            best && discount > 0 ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__flag", children: `\u2212${discount}%` }) : null,
+            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__tile-days", children: t.days(q.days) }),
+            /* @__PURE__ */ jsxRuntime.jsx("span", { className: `sb-vcard__tile-sum${long ? " sb-vcard__tile-sum--long" : ""}`, children: `${formatWholeSum(q.total)}\xA0\u0E3F` })
+          ] }, q.days);
+        }) }) : null
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__body", children: [
+      /* @__PURE__ */ jsxRuntime.jsxs("button", { type: "button", className: "sb-vcard__book", onClick: onOpen, children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+          /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
+          /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M16 2v4M8 2v4M3 10h18" })
+        ] }),
+        t.book
+      ] }),
+      /* @__PURE__ */ jsxRuntime.jsx(
+        "button",
+        {
+          type: "button",
+          className: `sb-vcard__share${shown ? " is-done" : ""}`,
+          "aria-label": t.share,
+          onClick: handleShare,
+          children: shown ? /* @__PURE__ */ jsxRuntime.jsx(CheckIcon, {}) : /* @__PURE__ */ jsxRuntime.jsx(ShareIcon, {})
+        }
+      )
+    ] })
+  ] }) });
+}
 function parseISODate2(value) {
   const [year, month, day] = value.split("-").map(Number);
   return new Date(year, month - 1, day, 12);
@@ -3684,7 +3871,12 @@ var STRINGS2 = {
   ru: {
     all: "\u0412\u0441\u0435",
     from: "\u043E\u0442",
-    perDay: "\u0E3F/\u0434\u0435\u043D\u044C",
+    perDayUnit: "\u0E3F/\u0434\u0435\u043D\u044C",
+    perDay: "\u0432 \u0441\u0443\u0442\u043A\u0438",
+    days: (n) => pluralDays(n, "ru"),
+    book: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
+    share: "\u041F\u043E\u0434\u0435\u043B\u0438\u0442\u044C\u0441\u044F",
+    linkCopied: "\u0421\u0441\u044B\u043B\u043A\u0430 \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D\u0430",
     busy: "\u0437\u0430\u043D\u044F\u0442\u043E",
     freeFrom: "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u043E \u0441",
     onRequest: "\u043F\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0443",
@@ -3720,7 +3912,12 @@ var STRINGS2 = {
   en: {
     all: "All",
     from: "from",
-    perDay: "\u0E3F/day",
+    perDayUnit: "\u0E3F/day",
+    perDay: "per day",
+    days: (n) => pluralDays(n, "en"),
+    book: "Book",
+    share: "Share",
+    linkCopied: "Link copied",
     busy: "busy",
     freeFrom: "free from",
     onRequest: "on request",
@@ -3801,17 +3998,6 @@ function groupVehicles(vehicles) {
       availableCount
     };
   });
-}
-function formatDate(iso, locale) {
-  try {
-    return new Date(iso).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-GB", {
-      day: "2-digit",
-      month: "short",
-      timeZone: "UTC"
-    });
-  } catch {
-    return iso;
-  }
 }
 function defaultActiveCat(catList, vehList, defaultCategory) {
   const want = (defaultCategory ?? "").trim().toLowerCase();
@@ -4021,45 +4207,21 @@ function VehicleCatalog({
     ] }) : null,
     state === "loading" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vcatalog__state", children: t.loading }) : null,
     state === "error" ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vcatalog__state", children: t.error }) : null,
-    state === "ready" && (displayGroups.length === 0 ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vcatalog__state", children: t.empty }) : /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vcatalog__grid", children: displayGroups.map((g) => {
-      const v = g.vehicle;
-      const countLabel = g.total > 1 ? g.availableCount > 0 ? `${g.availableCount} ${t.available}` : `${g.total} ${t.total}` : null;
-      return /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-vcard", onClick: () => setSelected(v), children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__media", children: [
-        v.photo_url ? /* @__PURE__ */ jsxRuntime.jsx("img", { src: v.photo_url, alt: v.display_name, loading: "lazy" }) : null,
-        v.category && (showFilters || activeCat === null) ? (
-          // Tab mode: badge only makes sense on «Все» — on a specific
-          // category tab every card is that category, so it's just
-          // noise. Filter mode has no such tab (parity with the
-          // standalone catalog's VehicleCard, which always shows it).
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__badge", style: { backgroundColor: v.category.color }, children: categoryLabel(v.category, locale) })
-        ) : null,
-        countLabel ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__count", children: countLabel }) : null,
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__overlay", children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("span", { className: `sb-vcard__status ${v.is_available ? "sb-vcard__status--available" : v.free_from ? "sb-vcard__status--free" : ""}`, children: [
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__status-dot", "aria-hidden": true }),
-            v.is_available ? hasCompleteDateRange ? t.availableSelected : t.availableToday : v.free_from ? `${t.freeFrom} ${formatDate(v.free_from, locale)}` : t.busy
-          ] }),
-          /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "sb-vcard__name", children: v.display_name }),
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__meta", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-vcard__year", children: [
-              v.year ?? "",
-              v.is_available ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-dot" }) : null
-            ] }),
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__price", children: v.min_price_per_day !== null ? /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
-                t.from,
-                " "
-              ] }),
-              formatDayPrice(v.min_price_per_day),
-              /* @__PURE__ */ jsxRuntime.jsxs("small", { children: [
-                " ",
-                t.perDay
-              ] })
-            ] }) : /* @__PURE__ */ jsxRuntime.jsx("small", { children: t.onRequest }) })
-          ] })
-        ] })
-      ] }) }, v.id);
-    }) })),
+    state === "ready" && (displayGroups.length === 0 ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-vcatalog__state", children: t.empty }) : /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vcatalog__grid", children: displayGroups.map((g) => /* @__PURE__ */ jsxRuntime.jsx(
+      VehicleCard,
+      {
+        vehicle: g.vehicle,
+        total: g.total,
+        availableCount: g.availableCount,
+        categoryName: g.vehicle.category && (showFilters || activeCat === null) ? categoryLabel(g.vehicle.category, locale) : null,
+        hasCompleteDateRange,
+        locale,
+        strings: t,
+        referralCode,
+        onOpen: () => setSelected(g.vehicle)
+      },
+      g.vehicle.id
+    )) })),
     selected ? /* @__PURE__ */ jsxRuntime.jsx(
       VehicleBookingModal,
       {

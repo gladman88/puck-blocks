@@ -1423,149 +1423,389 @@ button.sb-lang__flag {
   border-color: transparent;
   font-weight: 600;
 }
+/* Grid: a column is never narrower than ~330px — 3 columns on a 1200px
+   container, 2 on a tablet, 1 full-width column on a phone. */
 .sb-vcatalog__grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(100%, max(330px, calc((100% - 3rem) / 3))), 1fr)
+  );
   gap: 1.5rem;
 }
-@media (max-width: 1000px) {
-  .sb-vcatalog__grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-@media (max-width: 720px) {
-  .sb-vcatalog__grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 460px) {
-  .sb-vcatalog__grid {
-    grid-template-columns: 1fr;
-  }
-}
+/* Catalog card (approved 2026-11-04, reference width 360px). The card scales as
+   a whole: every size below is `N * --sb-vcard-u`, where one unit = 1/360 of the
+   card width (container query units); 1px hairlines stay px. Browsers without
+   container queries (Safari < 16) get the reference px values. */
 .sb-vcard {
-  display: block;
-  width: 100%;
-  padding: 0;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  border: 1px solid var(--sb-border);
-  border-radius: var(--sb-radius);
-  overflow: hidden;
-  background: var(--sb-bg-alt);
-  color: inherit;
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  container-type: inline-size;
+  min-width: 0;
 }
-.sb-vcard:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 204, 51, 0.4);
-}
-.sb-vcard__media {
+.sb-vcard__inner {
+  --sb-vcard-u: calc(100cqw / 360);
+  --sb-vcard-anim: 220ms;
   position: relative;
-  aspect-ratio: 1 / 1;
-  background: var(--sb-surface);
+  overflow: hidden;
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: calc(20 * var(--sb-vcard-u));
+  color: var(--sb-text);
+  font-family: var(--sb-font);
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
 }
-.sb-vcard__media img {
+@supports not (container-type: inline-size) {
+  .sb-vcard__inner {
+    --sb-vcard-u: 1px;
+  }
+}
+.sb-vcard__ph {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  background: #111;
+}
+.sb-vcard__ph img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 50% 50%;
 }
-.sb-vcard__badge {
+.sb-vcard__ph::before {
+  content: '';
   position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  padding: 0.15rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.65rem;
-  font-weight: 700;
+  z-index: 1;
+  inset: 0 0 auto;
+  height: 32%;
+  pointer-events: none;
+  background: linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.26) 45%, rgba(0, 0, 0, 0.08) 78%, transparent);
+}
+.sb-vcard__ph::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  inset: auto 0 0;
+  height: 62%;
+  pointer-events: none;
+  background: linear-gradient(
+    rgba(20, 20, 20, 0) 0%,
+    rgba(20, 20, 20, 0.06) 15%,
+    rgba(20, 20, 20, 0.18) 30%,
+    rgba(20, 20, 20, 0.4) 45%,
+    rgba(20, 20, 20, 0.66) 60%,
+    rgba(20, 20, 20, 0.86) 76%,
+    rgba(20, 20, 20, 0.97) 90%,
+    #141414
+  );
+}
+/* The whole photo (incl. the name) opens the vehicle: a transparent button
+   under the overlays, which let clicks through (pointer-events: none). */
+.sb-vcard__open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.sb-vcard__open:focus-visible {
+  outline: 2px solid var(--sb-accent);
+  outline-offset: -2px;
+}
+.sb-vcard__top {
+  position: absolute;
+  inset: calc(18 * var(--sb-vcard-u)) calc(18 * var(--sb-vcard-u)) auto;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  gap: calc(10 * var(--sb-vcard-u));
+  pointer-events: none;
+}
+.sb-vcard__title {
+  flex: 1;
+  min-width: 0;
+}
+.sb-vcard__name {
+  margin: 0;
+  font-family: var(--sb-hero-font, var(--sb-font));
+  font-weight: 650;
+  font-variation-settings: 'opsz' 144;
+  letter-spacing: 0.023em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: calc(25 * var(--sb-vcard-u));
+  line-height: 1.05;
   color: #fff;
+  text-wrap: balance;
+}
+.sb-vcard__sub {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--sb-vcard-u));
+  margin: calc(6 * var(--sb-vcard-u)) 0 0;
+  font-size: calc(13 * var(--sb-vcard-u));
+  color: rgba(255, 255, 255, 0.88);
+}
+.sb-vcard__sub i {
+  width: calc(3 * var(--sb-vcard-u));
+  height: calc(3 * var(--sb-vcard-u));
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
 }
 .sb-vcard__count {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  padding: 0.15rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.65rem;
-  font-weight: 700;
+  flex: none;
+  padding: calc(4 * var(--sb-vcard-u)) calc(9 * var(--sb-vcard-u));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  font-size: calc(12 * var(--sb-vcard-u));
+  font-weight: 600;
+  white-space: nowrap;
   color: #fff;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.sb-vcard__over {
+  position: absolute;
+  inset: auto calc(16 * var(--sb-vcard-u)) 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: calc(12 * var(--sb-vcard-u));
+  pointer-events: none;
+}
+.sb-vcard__over > * {
+  min-width: 0;
+}
+.sb-vcard__st {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: calc(8 * var(--sb-vcard-u));
+}
+.sb-vcard__status,
+.sb-vcard__range {
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+  transition: opacity var(--sb-vcard-anim) ease;
+}
+.sb-vcard__st.is-copied .sb-vcard__status,
+.sb-vcard__st.is-copied .sb-vcard__range {
+  opacity: 0;
 }
 .sb-vcard__status {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  margin-bottom: 0.35rem;
-  padding: 0.15rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.6rem;
-  font-weight: 700;
+  gap: calc(6 * var(--sb-vcard-u));
+  padding: calc(5 * var(--sb-vcard-u)) calc(10 * var(--sb-vcard-u));
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: calc(12.5 * var(--sb-vcard-u));
+  font-weight: 600;
+  white-space: nowrap;
   color: rgba(255, 255, 255, 0.8);
   background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
 }
 /* "Free from <date>" — a known return date is a more actionable signal than a
-   plain "busy", so it gets the amber highlight treatment (parity with the
-   standalone catalog's original design; owner feedback 2026-07-15: the plain
-   dark chip "looked worse" than this). */
+   plain "busy", so it gets the amber highlight treatment (owner feedback
+   2026-07-15). */
 .sb-vcard__status--free {
   color: #fbbf24;
   background: rgba(251, 191, 36, 0.12);
-  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-color: rgba(251, 191, 36, 0.3);
 }
 .sb-vcard__status--available {
   color: #86efac;
   background: rgba(34, 197, 94, 0.14);
-  border: 1px solid rgba(134, 239, 172, 0.32);
+  border-color: rgba(134, 239, 172, 0.32);
 }
 .sb-vcard__status-dot {
-  width: 0.375rem;
-  height: 0.375rem;
+  flex-shrink: 0;
+  width: calc(7 * var(--sb-vcard-u));
+  height: calc(7 * var(--sb-vcard-u));
   border-radius: 50%;
   background: currentColor;
-  flex-shrink: 0;
 }
-.sb-vcard__overlay {
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  padding: 0.75rem;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.4), transparent);
+.sb-vcard__range {
+  text-align: right;
+  line-height: 1.1;
 }
-.sb-vcard__name {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 700;
+.sb-vcard__range > small {
+  display: block;
+  margin-bottom: calc(3 * var(--sb-vcard-u));
+  font-size: calc(11 * var(--sb-vcard-u));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.sb-vcard__meta {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
-}
-.sb-vcard__year {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
-}
-.sb-vcard__price {
-  font-size: 1.25rem;
+.sb-vcard__range b {
+  font-size: calc(17 * var(--sb-vcard-u));
   font-weight: 700;
-  color: var(--sb-accent);
   white-space: nowrap;
+  color: #fff;
 }
-.sb-vcard__price small {
-  font-size: 0.78rem;
+.sb-vcard__range b span {
+  color: var(--sb-accent);
+}
+/* Fractional day rates («1 833.33 – 2 500 ฿», month price / 30) keep their
+   cents (owner 2026-10-03: «1,833» next to «55,000» did not add up) — smaller
+   type so the status and the range still share one row at any card width. */
+.sb-vcard__range--fraction b {
+  font-size: calc(14.5 * var(--sb-vcard-u));
+}
+.sb-vcard__from small {
+  font-size: calc(12 * var(--sb-vcard-u));
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.75);
+}
+.sb-vcard__toast-slot {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.sb-vcard__toast {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(7 * var(--sb-vcard-u));
+  padding: calc(7 * var(--sb-vcard-u)) calc(12 * var(--sb-vcard-u));
+  border: 1px solid rgba(255, 204, 51, 0.6);
+  border-radius: 999px;
+  font-size: calc(13 * var(--sb-vcard-u));
+  font-weight: 600;
+  white-space: nowrap;
+  color: #fff;
+  background: rgba(20, 20, 20, 0.92);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  /* parked past the card's right edge (clipped by .sb-vcard__inner) */
+  transform: translateX(calc(100% + 18 * var(--sb-vcard-u)));
+  transition: transform var(--sb-vcard-anim) ease, opacity var(--sb-vcard-anim) ease;
+}
+.sb-vcard__toast.is-shown {
+  opacity: 1;
+  transform: none;
+}
+.sb-vcard__toast svg {
+  width: calc(16 * var(--sb-vcard-u));
+  height: calc(16 * var(--sb-vcard-u));
+  color: var(--sb-accent);
+}
+.sb-vcard__tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: calc(8 * var(--sb-vcard-u));
+}
+.sb-vcard__tile {
+  position: relative;
+  min-width: 0;
+  padding: calc(8 * var(--sb-vcard-u)) calc(8 * var(--sb-vcard-u)) calc(9 * var(--sb-vcard-u)) calc(10 * var(--sb-vcard-u));
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: calc(12 * var(--sb-vcard-u));
+  background: rgba(10, 10, 10, 0.38);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.sb-vcard__tile--best {
+  border-color: var(--sb-accent);
+  background: rgba(40, 32, 6, 0.45);
+}
+.sb-vcard__tile-days {
+  display: block;
+  font-size: calc(12 * var(--sb-vcard-u));
+  font-weight: 600;
+  color: var(--sb-text-muted);
+}
+.sb-vcard__tile-sum {
+  display: block;
+  margin-top: calc(2 * var(--sb-vcard-u));
+  font-size: calc(21 * var(--sb-vcard-u));
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: #fff;
+}
+.sb-vcard__tile-sum--long {
+  font-size: calc(17 * var(--sb-vcard-u));
+  letter-spacing: -0.02em;
+}
+.sb-vcard__tile--best .sb-vcard__tile-sum {
+  color: var(--sb-accent);
+}
+.sb-vcard__flag {
+  position: absolute;
+  top: calc(-9 * var(--sb-vcard-u));
+  right: calc(8 * var(--sb-vcard-u));
+  padding: calc(2 * var(--sb-vcard-u)) calc(7 * var(--sb-vcard-u));
+  border-radius: 999px;
+  font-size: calc(10.5 * var(--sb-vcard-u));
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--sb-accent-ink);
+  background: var(--sb-accent);
+}
+.sb-vcard__body {
+  display: flex;
+  gap: calc(8 * var(--sb-vcard-u));
+  padding: calc(12 * var(--sb-vcard-u)) calc(16 * var(--sb-vcard-u)) calc(16 * var(--sb-vcard-u));
+}
+.sb-vcard__book {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(9 * var(--sb-vcard-u));
+  height: calc(52 * var(--sb-vcard-u));
+  padding: 0;
+  border: 0;
+  border-radius: calc(14 * var(--sb-vcard-u));
+  font: inherit;
+  font-size: calc(16 * var(--sb-vcard-u));
+  font-weight: 700;
+  color: var(--sb-accent-ink);
+  background: var(--sb-accent);
+  cursor: pointer;
+}
+.sb-vcard__share {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: calc(52 * var(--sb-vcard-u));
+  height: calc(52 * var(--sb-vcard-u));
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: calc(14 * var(--sb-vcard-u));
+  color: #fff;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color var(--sb-vcard-anim) ease, color var(--sb-vcard-anim) ease;
+}
+.sb-vcard__share.is-done {
+  border-color: var(--sb-accent);
+  color: var(--sb-accent);
+}
+.sb-vcard__book svg,
+.sb-vcard__share svg {
+  width: calc(20 * var(--sb-vcard-u));
+  height: calc(20 * var(--sb-vcard-u));
+}
+.sb-vcard__book:focus-visible,
+.sb-vcard__share:focus-visible {
+  outline: 2px solid var(--sb-accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-vcard__inner {
+    --sb-vcard-anim: 0ms;
+  }
 }
 .sb-vcatalog__foot {
   margin-top: 1.75rem;
