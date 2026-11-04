@@ -169,32 +169,32 @@ describe('VehicleCatalog', () => {
     await screen.findByText('Забронировать');
     expect(screen.getByText('1 день')).toBeTruthy(); // min===max===1 → singular
     expect(screen.getByText('1-29 дней')).toBeTruthy(); // range with min 1 → plural (HIGH fix)
-    expect(screen.queryByText('Указать WhatsApp вручную')).toBeNull();
+    expect(screen.queryByText('Забронировать вручную')).toBeNull();
     expect(screen.queryByText('Отправить запрос')).toBeNull();
 
-    // step 2 (choice): dates + Telegram + «Указать WhatsApp вручную» — still no manual form
+    // step 2 (choice): dates + Telegram + «Забронировать вручную» — still no manual form
     fireEvent.click(screen.getByText('Забронировать'));
-    await screen.findByText('Указать WhatsApp вручную');
+    await screen.findByText('Забронировать вручную');
     expect(screen.queryByText('Отправить запрос')).toBeNull();
 
     // No period picked yet → both booking buttons are inactive (no more
     // "today – tomorrow" default); the period is picked in the calendar.
-    expect((screen.getByText('Указать WhatsApp вручную').closest('button') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('Забронировать вручную').closest('button') as HTMLButtonElement).disabled).toBe(true);
     const days = Array.from(
       document.querySelectorAll<HTMLButtonElement>('.sb-avcal__day:not(.is-outside) .sb-avcal__day-button'),
     ).filter((b) => !b.disabled);
     fireEvent.click(days[0]);
     fireEvent.click(document.querySelector('.sb-avcal__nav--next')!);
     fireEvent.click(document.querySelector<HTMLButtonElement>('.sb-avcal__day:not(.is-outside) .sb-avcal__day-button')!);
-    expect((screen.getByText('Указать WhatsApp вручную').closest('button') as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByText('Забронировать вручную').closest('button') as HTMLButtonElement).disabled).toBe(false);
 
     // step 3 (form): the manual request form
-    fireEvent.click(screen.getByText('Указать WhatsApp вручную'));
+    fireEvent.click(screen.getByText('Забронировать вручную'));
     expect(await screen.findByText('Отправить запрос')).toBeTruthy();
 
     // ‹ Назад returns to the choice step
     fireEvent.click(screen.getByText(/Назад/));
-    await screen.findByText('Указать WhatsApp вручную');
+    await screen.findByText('Забронировать вручную');
     expect(screen.queryByText('Отправить запрос')).toBeNull();
   });
 

@@ -1,6 +1,16 @@
+import { useEffect, useRef, type MutableRefObject } from 'react';
 import { DeliveryAddressPicker, type PickedLocation } from './DeliveryAddressPicker';
 
 export type { PickedLocation };
+
+/** Which address row: delivery (`pickup`) or collection (`dropoff`). */
+export type AddressRowKind = 'pickup' | 'dropoff';
+/** Filled by DeliveryAddressSection: call it to bring the customer to a row's
+ *  address field («Укажите адрес» in the price summary). */
+export type AskAddressHandle = MutableRefObject<((kind: AddressRowKind) => void) | null>;
+
+/** How long the address field keeps `is-attention` (two flashes in CSS). */
+const ATTENTION_MS = 1200;
 
 /** A resolved delivery/collection price quote (from /catalog/delivery-quote/).
  *  `matched=false` means no zone matched → the manager sets the price ("on
@@ -82,9 +92,11 @@ interface ToggleRowProps {
   /** When true the picker is hidden (collection is mirroring the delivery
    *  address) — the toggle + children still show. */
   hidePicker?: boolean;
+  rowRef?: React.Ref<HTMLDivElement>;
 }
 
 function ToggleRow({
+  rowRef,
   label,
   enabled,
   location,
@@ -97,7 +109,7 @@ function ToggleRow({
   hidePicker,
 }: ToggleRowProps) {
   return (
-    <div className="sb-vd__addr-row">
+    <div className="sb-vd__addr-row" ref={rowRef}>
       <button
         type="button"
         role="switch"
@@ -152,6 +164,9 @@ interface DeliveryAddressSectionProps {
   onDropoffSelect: (location: PickedLocation) => void;
   onDropoffSameToggle: (same: boolean) => void;
   strings: DeliveryAddressStrings;
+  /** Optional: the section fills it with "go to this row's address field" —
+   *  scroll the row to the centre, focus the search input, flash its border. */
+  askAddressRef?: AskAddressHandle;
 }
 
 /**
@@ -182,7 +197,41 @@ export function DeliveryAddressSection({
   onDropoffSelect,
   onDropoffSameToggle,
   strings,
+  askAddressRef,
 }: DeliveryAddressSectionProps) {
+  const pickupRowRef = useRef<HTMLDivElement>(null);
+  const dropoffRowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!askAddressRef) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let flashed: HTMLInputElement | null = null;
+    askAddressRef.current = (kind) => {
+      const row = (kind === 'pickup' ? pickupRowRef : dropoffRowRef).current;
+      if (!row) return;
+      if (typeof row.scrollIntoView === 'function') row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      // The row's own search field (marked by DeliveryAddressPicker); absent
+      // when address search is unavailable → scrolling to the row is all we do.
+      const input = row.querySelector<HTMLInputElement>('[data-sb-addr-search]');
+      if (!input) return;
+      input.focus({ preventScroll: true });
+      if (timer) clearTimeout(timer);
+      flashed?.classList.remove('is-attention');
+      // Restart the animation on a repeated tap.
+      void input.offsetWidth;
+      input.classList.add('is-attention');
+      flashed = input;
+      timer = setTimeout(() => {
+        input.classList.remove('is-attention');
+        timer = null;
+      }, ATTENTION_MS);
+    };
+    return () => {
+      if (timer) clearTimeout(timer);
+      askAddressRef.current = null;
+    };
+  }, [askAddressRef]);
+
   // The "same as delivery" shortcut only makes sense once delivery is on and
   // actually has an address to mirror.
   const canMirrorPickup = pickupEnabled && pickupLocation != null;
@@ -197,6 +246,7 @@ export function DeliveryAddressSection({
     <div className="sb-vd__addr-section">
       <span className="sb-vd__section-label">{strings.title}</span>
       <ToggleRow
+        rowRef={pickupRowRef}
         label={strings.pickupToggle}
         enabled={pickupEnabled}
         location={pickupLocation}
@@ -207,6 +257,7 @@ export function DeliveryAddressSection({
         cost={pickupEnabled ? pickupCost : null}
       />
       <ToggleRow
+        rowRef={dropoffRowRef}
         label={strings.dropoffToggle}
         enabled={dropoffEnabled}
         location={dropoffLocation}

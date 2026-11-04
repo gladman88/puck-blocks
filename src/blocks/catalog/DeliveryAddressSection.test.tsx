@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor, act } from '@testing-library/react';
 import {
   DeliveryAddressSection,
   type DeliveryAddressStrings,
   type DeliveryCost,
+  type AskAddressHandle,
 } from './DeliveryAddressSection';
 import type { PickedLocation } from './DeliveryAddressPicker';
 
@@ -41,6 +42,7 @@ interface SectionProps {
   onPickupSelect: (location: PickedLocation) => void;
   onDropoffSelect: (location: PickedLocation) => void;
   onDropoffSameToggle: (same: boolean) => void;
+  askAddressRef?: AskAddressHandle;
 }
 
 function renderSection(overrides: Partial<SectionProps> = {}) {
@@ -253,5 +255,44 @@ describe('DeliveryAddressSection (puck-blocks)', () => {
       />,
     );
     expect(screen.getByText('1,000 THB')).toBeTruthy();
+  });
+  it('ask address focuses the pickup search input and sets is-attention', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const scrollIntoView = vi.fn();
+    const origScroll = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    class FakeSessionToken {}
+    window.google = {
+      maps: {
+        importLibrary: vi.fn(() =>
+          Promise.resolve({
+            AutocompleteSuggestion: { fetchAutocompleteSuggestions: vi.fn() },
+            AutocompleteSessionToken: FakeSessionToken,
+          }),
+        ),
+      },
+    } as unknown as typeof window.google;
+    try {
+      const askAddressRef: AskAddressHandle = { current: null };
+      renderSection({ apiKey: 'test-key', pickupEnabled: true, dropoffEnabled: true, askAddressRef });
+      const inputs = screen.getAllByTestId('delivery-address-input') as HTMLInputElement[];
+      const pickupInput = inputs[0];
+      await waitFor(() => expect(pickupInput.disabled).toBe(false));
+
+      act(() => askAddressRef.current!('pickup'));
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' });
+      expect(document.activeElement).toBe(pickupInput);
+      expect(pickupInput.classList.contains('is-attention')).toBe(true);
+      expect(inputs[1].classList.contains('is-attention')).toBe(false);
+
+      act(() => {
+        vi.advanceTimersByTime(1300);
+      });
+      expect(pickupInput.classList.contains('is-attention')).toBe(false);
+    } finally {
+      HTMLElement.prototype.scrollIntoView = origScroll;
+      delete (window as { google?: unknown }).google;
+      vi.useRealTimers();
+    }
   });
 });

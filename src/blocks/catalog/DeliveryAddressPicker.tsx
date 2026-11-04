@@ -442,6 +442,8 @@ export function DeliveryAddressPicker({ apiKey, value, onSelect, strings }: Deli
           }}
           aria-label={strings.searchPlaceholder}
           data-testid="delivery-address-input"
+          // DeliveryAddressSection finds this field for «Укажите адрес» (focus + flash).
+          data-sb-addr-search=""
         />
         {open && suggestions.length > 0 ? (
           <ul className="sb-vd__addr-suggest" data-testid="delivery-address-suggestions">

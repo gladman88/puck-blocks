@@ -1328,7 +1328,8 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
             setTimeout(() => setOpen(false), 150);
           },
           "aria-label": strings.searchPlaceholder,
-          "data-testid": "delivery-address-input"
+          "data-testid": "delivery-address-input",
+          "data-sb-addr-search": ""
         }
       ),
       open && suggestions.length > 0 ? /* @__PURE__ */ jsx("ul", { className: "sb-vd__addr-suggest", "data-testid": "delivery-address-suggestions", children: suggestions.map((p, i) => /* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsxs("button", { type: "button", onMouseDown: (e) => e.preventDefault(), onClick: () => selectPrediction(p), children: [
@@ -1358,6 +1359,7 @@ function DeliveryAddressPicker({ apiKey, value, onSelect, strings }) {
     ] }) : null
   ] });
 }
+var ATTENTION_MS = 1200;
 function isQuote(c) {
   return c != null && c !== "loading";
 }
@@ -1388,6 +1390,7 @@ function CostLine({ cost, strings }) {
   ] });
 }
 function ToggleRow({
+  rowRef,
   label,
   enabled,
   location,
@@ -1399,7 +1402,7 @@ function ToggleRow({
   children,
   hidePicker
 }) {
-  return /* @__PURE__ */ jsxs("div", { className: "sb-vd__addr-row", children: [
+  return /* @__PURE__ */ jsxs("div", { className: "sb-vd__addr-row", ref: rowRef, children: [
     /* @__PURE__ */ jsxs(
       "button",
       {
@@ -1450,8 +1453,37 @@ function DeliveryAddressSection({
   onPickupSelect,
   onDropoffSelect,
   onDropoffSameToggle,
-  strings
+  strings,
+  askAddressRef
 }) {
+  const pickupRowRef = useRef(null);
+  const dropoffRowRef = useRef(null);
+  useEffect(() => {
+    if (!askAddressRef) return;
+    let timer = null;
+    let flashed = null;
+    askAddressRef.current = (kind) => {
+      const row = (kind === "pickup" ? pickupRowRef : dropoffRowRef).current;
+      if (!row) return;
+      if (typeof row.scrollIntoView === "function") row.scrollIntoView({ block: "center", behavior: "smooth" });
+      const input = row.querySelector("[data-sb-addr-search]");
+      if (!input) return;
+      input.focus({ preventScroll: true });
+      if (timer) clearTimeout(timer);
+      flashed?.classList.remove("is-attention");
+      void input.offsetWidth;
+      input.classList.add("is-attention");
+      flashed = input;
+      timer = setTimeout(() => {
+        input.classList.remove("is-attention");
+        timer = null;
+      }, ATTENTION_MS);
+    };
+    return () => {
+      if (timer) clearTimeout(timer);
+      askAddressRef.current = null;
+    };
+  }, [askAddressRef]);
   const canMirrorPickup = pickupEnabled && pickupLocation != null;
   const mirroring = canMirrorPickup && dropoffSameAsPickup;
   const showTotal = pickupEnabled && dropoffEnabled && isQuote(pickupCost) && pickupCost.matched && isQuote(dropoffCost) && dropoffCost.matched;
@@ -1460,6 +1492,7 @@ function DeliveryAddressSection({
     /* @__PURE__ */ jsx(
       ToggleRow,
       {
+        rowRef: pickupRowRef,
         label: strings.pickupToggle,
         enabled: pickupEnabled,
         location: pickupLocation,
@@ -1473,6 +1506,7 @@ function DeliveryAddressSection({
     /* @__PURE__ */ jsx(
       ToggleRow,
       {
+        rowRef: dropoffRowRef,
         label: strings.dropoffToggle,
         enabled: dropoffEnabled,
         location: dropoffLocation,
@@ -1726,6 +1760,96 @@ function formatDayPrice(value) {
     maximumFractionDigits: digits
   });
 }
+function isMoney(v) {
+  return typeof v === "string" && Number.isFinite(parseFloat(v));
+}
+function parsePriceQuote(j) {
+  if (!j || typeof j !== "object") return null;
+  const o = j;
+  const rental = o.rental;
+  if (!rental || typeof rental !== "object" || !isMoney(rental.total) || !Array.isArray(rental.lines)) return null;
+  if (!isMoney(o.total)) return null;
+  const lines = [];
+  for (const l of rental.lines) {
+    const r = l;
+    if (!r || typeof r.days !== "number" || !isMoney(r.rate_per_day) || !isMoney(r.amount)) return null;
+    lines.push({ days: r.days, rate_per_day: r.rate_per_day, amount: r.amount });
+  }
+  if (lines.length === 0) return null;
+  const accessories = [];
+  for (const a of Array.isArray(o.accessories) ? o.accessories : []) {
+    const r = a;
+    if (!r || typeof r.accessory_id !== "string" || typeof r.quantity !== "number" || !isMoney(r.amount)) return null;
+    accessories.push({ accessory_id: r.accessory_id, quantity: r.quantity, amount: r.amount });
+  }
+  return {
+    total_days: typeof o.total_days === "number" ? o.total_days : 0,
+    rental: { total: rental.total, lines },
+    accessories,
+    total: o.total
+  };
+}
+function toSatang(value) {
+  const n = typeof value === "number" ? value : parseFloat(value);
+  return Math.round(n * 100);
+}
+function legView(leg) {
+  if (!leg.enabled) return null;
+  if (!leg.hasLocation) return { kind: "ask" };
+  const c = leg.cost;
+  if (c != null && c !== "loading" && c.matched) return { kind: "priced", satang: toSatang(c.price) };
+  return null;
+}
+function PriceSummary({ quote, accessoryNames, pickup, dropoff, locale, strings, onAskAddress, stale = false }) {
+  if (quote.accessories.some((acc) => !accessoryNames[acc.accessory_id])) return null;
+  const pickupView = legView(pickup);
+  const dropoffView = legView(dropoff);
+  let totalSatang = toSatang(quote.total);
+  if (pickupView?.kind === "priced") totalSatang += pickupView.satang;
+  if (dropoffView?.kind === "priced") totalSatang += dropoffView.satang;
+  const amount = (satang) => `${money(satang / 100)} ${strings.currency}`;
+  const legRow = (kind, label, view) => {
+    if (!view) return null;
+    return /* @__PURE__ */ jsxs("div", { className: "sb-vd__sum-row", "data-sum": kind, children: [
+      /* @__PURE__ */ jsx("span", { className: "sb-vd__sum-label", children: label }),
+      view.kind === "ask" ? /* @__PURE__ */ jsx("button", { type: "button", className: "sb-vd__sum-ask", onClick: () => onAskAddress(kind), children: strings.ask }) : /* @__PURE__ */ jsx("span", { className: "sb-vd__sum-value", children: amount(view.satang) })
+    ] });
+  };
+  return /* @__PURE__ */ jsxs("div", { className: `sb-vd__sum${stale ? " is-stale" : ""}`, "aria-busy": stale || void 0, children: [
+    /* @__PURE__ */ jsx("span", { className: "sb-vd__section-label", children: strings.title }),
+    /* @__PURE__ */ jsxs("div", { className: "sb-vd__sum-card", children: [
+      quote.rental.lines.map((line, i) => /* @__PURE__ */ jsxs("div", { className: "sb-vd__sum-row", "data-sum": "rental", children: [
+        /* @__PURE__ */ jsxs("span", { className: "sb-vd__sum-label", children: [
+          strings.rental,
+          " \xB7 ",
+          pluralDays(line.days, locale),
+          " \xD7 ",
+          formatDayPrice(parseFloat(line.rate_per_day)),
+          " ",
+          strings.currency
+        ] }),
+        /* @__PURE__ */ jsx("span", { className: "sb-vd__sum-value", children: amount(toSatang(line.amount)) })
+      ] }, `r${i}`)),
+      quote.accessories.map((acc) => {
+        const satang = toSatang(acc.amount);
+        return /* @__PURE__ */ jsxs("div", { className: "sb-vd__sum-row", "data-sum": "accessory", children: [
+          /* @__PURE__ */ jsxs("span", { className: "sb-vd__sum-label", children: [
+            accessoryNames[acc.accessory_id],
+            " \xD7 ",
+            acc.quantity
+          ] }),
+          /* @__PURE__ */ jsx("span", { className: "sb-vd__sum-value", children: satang === 0 ? strings.free : amount(satang) })
+        ] }, acc.accessory_id);
+      }),
+      legRow("pickup", strings.delivery, pickupView),
+      legRow("dropoff", strings.collection, dropoffView),
+      /* @__PURE__ */ jsxs("div", { className: "sb-vd__sum-row sb-vd__sum-row--total", "data-sum": "total", children: [
+        /* @__PURE__ */ jsx("span", { className: "sb-vd__sum-label", children: strings.total }),
+        /* @__PURE__ */ jsx("span", { className: "sb-vd__sum-value", children: amount(totalSatang) })
+      ] })
+    ] })
+  ] });
+}
 var S = {
   ru: {
     close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
@@ -1759,7 +1883,7 @@ var S = {
     send: "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u043F\u0440\u043E\u0441",
     sending: "\u041E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C\u2026",
     tgQuick: "\u0411\u0440\u043E\u043D\u044C \u0432 1 \u043A\u043B\u0438\u043A \u0447\u0435\u0440\u0435\u0437 Telegram",
-    tgQuickSub: "\u0411\u0435\u0437 \u0444\u043E\u0440\u043C \u2014 \u0431\u043E\u0442 \u0437\u0430\u043F\u043E\u043B\u043D\u0438\u0442 \u0432\u0441\u0451 \u0437\u0430 \u0432\u0430\u0441",
+    tgQuickSub: "\u0411\u0435\u0437 \u0444\u043E\u0440\u043C \u2014 \u0434\u0430\u043D\u043D\u044B\u0435 \u0437\u0430\u043F\u043E\u043B\u043D\u044F\u0442\u0441\u044F \u0441\u0430\u043C\u0438",
     or: "\u0438\u043B\u0438",
     howToBook: "\u041A\u0430\u043A \u0437\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C?",
     back: "\u041D\u0430\u0437\u0430\u0434",
@@ -1771,8 +1895,8 @@ var S = {
     // же клиент заводился повторно, каждый раз с новым реф-агентом. Telegram
     // остаётся доступен, но только через гарантированно-настоящий chat_id из
     // кнопки «в 1 клик» выше.
-    manual: "\u0423\u043A\u0430\u0437\u0430\u0442\u044C WhatsApp \u0432\u0440\u0443\u0447\u043D\u0443\u044E",
-    manualSub: "\u0418\u043C\u044F \u0438 \u043D\u043E\u043C\u0435\u0440 \u2014 \u0437\u0430\u0439\u043C\u0451\u0442 30 \u0441\u0435\u043A\u0443\u043D\u0434",
+    manual: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0432\u0440\u0443\u0447\u043D\u0443\u044E",
+    manualSub: "\u0417\u0430\u043F\u043E\u043B\u043D\u0438\u0442\u0435 \u0444\u043E\u0440\u043C\u0443 \u0432\u0440\u0443\u0447\u043D\u0443\u044E",
     dateGet: "\u0414\u0430\u0442\u0430 \u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u044F",
     dateReturn: "\u0414\u0430\u0442\u0430 \u0432\u043E\u0437\u0432\u0440\u0430\u0442\u0430",
     phoneLabel: "\u041D\u043E\u043C\u0435\u0440 WhatsApp",
@@ -1795,6 +1919,14 @@ var S = {
     deliveryCostLoading: "\u0421\u0447\u0438\u0442\u0430\u0435\u043C \u0441\u0442\u043E\u0438\u043C\u043E\u0441\u0442\u044C\u2026",
     deliveryCostByRequest: "\u043F\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0443",
     deliveryCostTotal: "\u0414\u043E\u0441\u0442\u0430\u0432\u043A\u0430 \u0438 \u043F\u0440\u0438\u0451\u043C\u043A\u0430",
+    // Блок «Стоимость» перед кнопками брони (владелец 2026-11-04).
+    sumTitle: "\u0421\u0442\u043E\u0438\u043C\u043E\u0441\u0442\u044C",
+    sumRental: "\u0410\u0440\u0435\u043D\u0434\u0430",
+    sumFree: "\u0431\u0435\u0441\u043F\u043B\u0430\u0442\u043D\u043E",
+    sumDelivery: "\u0414\u043E\u0441\u0442\u0430\u0432\u043A\u0430 \u043F\u043E \u0430\u0434\u0440\u0435\u0441\u0443",
+    sumCollection: "\u0417\u0430\u0431\u0435\u0440\u0451\u043C \u043F\u043E \u0430\u0434\u0440\u0435\u0441\u0443",
+    sumAsk: "\u0423\u043A\u0430\u0436\u0438\u0442\u0435 \u0430\u0434\u0440\u0435\u0441",
+    sumTotal: "\u0418\u0442\u043E\u0433\u043E",
     // Календарь занятости на шаге «Как забронировать?» (владелец 2026-10-09).
     datePlaceholder: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435",
     datesTitle: "\u0414\u0430\u0442\u044B \u0430\u0440\u0435\u043D\u0434\u044B",
@@ -1852,14 +1984,14 @@ var S = {
     send: "Send request",
     sending: "Sending\u2026",
     tgQuick: "1-click booking via Telegram",
-    tgQuickSub: "No forms \u2014 the bot fills everything in for you",
+    tgQuickSub: "No forms \u2014 your details fill in automatically",
     or: "or",
     howToBook: "How to book?",
     back: "Back",
     bookCta: "Book",
     formTitle: "Booking request",
-    manual: "Enter WhatsApp manually",
-    manualSub: "Name and number \u2014 takes 30 seconds",
+    manual: "Book manually",
+    manualSub: "Fill in the form manually",
     dateGet: "Pick-up date",
     dateReturn: "Return date",
     phoneLabel: "WhatsApp number",
@@ -1882,6 +2014,13 @@ var S = {
     deliveryCostLoading: "Calculating price\u2026",
     deliveryCostByRequest: "on request",
     deliveryCostTotal: "Delivery & collection",
+    sumTitle: "Price",
+    sumRental: "Rental",
+    sumFree: "free",
+    sumDelivery: "Delivery",
+    sumCollection: "Collection",
+    sumAsk: "Enter address",
+    sumTotal: "Total",
     datePlaceholder: "Select",
     datesTitle: "Rental dates",
     datesEdit: "Change",
@@ -1958,6 +2097,21 @@ async function fetchAvailability(apiBase, ids) {
     return { units: [], today: null };
   }
 }
+async function fetchPriceQuote(apiBase, body, signal) {
+  try {
+    const res = await fetch(`${apiBase}/api/v1/catalog/price-quote/`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...HEADERS },
+      body: JSON.stringify(body),
+      signal
+    });
+    if (res.status !== 200) return null;
+    return parsePriceQuote(await res.json());
+  } catch {
+    return null;
+  }
+}
+var PRICE_QUOTE_DEBOUNCE_MS = 300;
 var MAX_AVAILABILITY_IDS = 20;
 function withPeriod(text) {
   return text.endsWith(".") ? text : `${text}.`;
@@ -2170,6 +2324,35 @@ function VehicleBookingModal({
       cancelled = true;
     };
   }, [apiBase, effectiveDropoffLocation?.lat, effectiveDropoffLocation?.lng]);
+  const [priceQuote, setPriceQuote] = useState(null);
+  const priceQuoteActive = datesValid && !conflict && !availLoading;
+  const accessoriesKey = selectedAccessories.map((a) => `${a.accessory_id}:${a.quantity}`).join(",");
+  const priceQuoteKey = `${bookingVehicleId}|${start}|${end}|${accessoriesKey}`;
+  useEffect(() => {
+    if (!priceQuoteActive) {
+      setPriceQuote(null);
+      return;
+    }
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => {
+      fetchPriceQuote(
+        apiBase,
+        { vehicle_id: bookingVehicleId, start_date: start, end_date: end, accessories: selectedAccessories },
+        ctrl.signal
+      ).then((q) => {
+        if (!ctrl.signal.aborted) setPriceQuote(q ? { key: priceQuoteKey, quote: q } : null);
+      });
+    }, PRICE_QUOTE_DEBOUNCE_MS);
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+  }, [apiBase, priceQuoteActive, bookingVehicleId, start, end, accessoriesKey]);
+  const askAddressRef = useRef(null);
+  const accessoryNames = {};
+  for (const group of detail?.accessories ?? []) {
+    for (const item of group.items) accessoryNames[item.id] = locale === "ru" ? item.name_ru : item.name_en;
+  }
   const submit = async (e) => {
     e.preventDefault();
     if (submittingRef.current || submitting || !datesValid || !name.trim() || !contact.trim()) return;
@@ -2823,9 +3006,32 @@ function VehicleBookingModal({
                     costByRequest: t.deliveryCostByRequest,
                     costTotal: t.deliveryCostTotal,
                     currency: t.priceUnit
-                  }
+                  },
+                  askAddressRef
                 }
               ),
+              priceQuoteActive && priceQuote ? /* @__PURE__ */ jsx(
+                PriceSummary,
+                {
+                  quote: priceQuote.quote,
+                  stale: priceQuote.key !== priceQuoteKey,
+                  accessoryNames,
+                  pickup: { enabled: pickupEnabled, hasLocation: effectivePickupLocation != null, cost: pickupCost },
+                  dropoff: { enabled: dropoffEnabled, hasLocation: effectiveDropoffLocation != null, cost: dropoffCost },
+                  locale,
+                  strings: {
+                    title: t.sumTitle,
+                    rental: t.sumRental,
+                    free: t.sumFree,
+                    delivery: t.sumDelivery,
+                    collection: t.sumCollection,
+                    ask: t.sumAsk,
+                    total: t.sumTotal,
+                    currency: t.priceUnit
+                  },
+                  onAskAddress: (kind) => askAddressRef.current?.(kind)
+                }
+              ) : null,
               /* @__PURE__ */ jsxs("div", { className: "sb-vd__book-actions", children: [
                 conflict ? /* @__PURE__ */ jsx("p", { className: "sb-avcal__ask", children: t.askHint }) : null,
                 /* @__PURE__ */ jsxs(
@@ -2836,7 +3042,7 @@ function VehicleBookingModal({
                     disabled: !datesValid || availLoading || tgSubmitting,
                     onClick: handleTelegramBooking,
                     children: [
-                      /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-icon", "aria-hidden": true, children: "\u2708" }),
+                      /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-icon", "aria-hidden": true, children: /* @__PURE__ */ jsx(ContactIcon, { kind: "telegram" }) }),
                       /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
                         /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: conflict ? t.tgAsk : t.tgQuick }),
                         /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: tgSubmitting ? t.loading : conflict ? t.tgAskSub : t.tgQuickSub })
@@ -2855,7 +3061,28 @@ function VehicleBookingModal({
                     disabled: !datesValid || availLoading,
                     onClick: () => setStage("form"),
                     children: [
-                      /* @__PURE__ */ jsx("span", { className: "sb-vd__option-icon", "aria-hidden": true, children: "\u270E" }),
+                      /* @__PURE__ */ jsx("span", { className: "sb-vd__option-icon", "aria-hidden": true, children: /* @__PURE__ */ jsxs(
+                        "svg",
+                        {
+                          viewBox: "0 0 24 24",
+                          width: "22",
+                          height: "22",
+                          fill: "none",
+                          stroke: "currentColor",
+                          strokeWidth: "2",
+                          strokeLinecap: "round",
+                          strokeLinejoin: "round",
+                          "aria-hidden": "true",
+                          children: [
+                            /* @__PURE__ */ jsx("rect", { width: "8", height: "4", x: "8", y: "2", rx: "1" }),
+                            /* @__PURE__ */ jsx("path", { d: "M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4" }),
+                            /* @__PURE__ */ jsx("path", { d: "M16 4h2a2 2 0 0 1 2 2v2" }),
+                            /* @__PURE__ */ jsx("path", { d: "M8 11h5" }),
+                            /* @__PURE__ */ jsx("path", { d: "M8 15h2" }),
+                            /* @__PURE__ */ jsx("path", { d: "M21.378 13.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" })
+                          ]
+                        }
+                      ) }),
                       /* @__PURE__ */ jsxs("span", { className: "sb-vd__tg-text", children: [
                         /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-title", children: conflict ? t.manualAsk : t.manual }),
                         /* @__PURE__ */ jsx("span", { className: "sb-vd__tg-sub", children: conflict ? t.manualAskSub : t.manualSub })

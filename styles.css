@@ -2752,6 +2752,10 @@ button.sb-lang__flag {
   color: #fff;
   font-size: 1.2rem;
 }
+.sb-vd__tg-icon .sb-ico {
+  width: 24px;
+  height: 24px;
+}
 .sb-vd__tg-text {
   display: flex;
   flex-direction: column;
@@ -2793,8 +2797,8 @@ button.sb-lang__flag {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--sb-surface);
-  color: var(--sb-text-muted);
+  background: var(--sb-accent);
+  color: var(--sb-accent-ink);
   font-size: 1.1rem;
 }
 .sb-vd__field {
@@ -3399,6 +3403,95 @@ button.sb-lang__flag {
   color: var(--sb-text-strong);
 }
 .sb-vd__addr-total b {
+  color: var(--sb-accent);
+  font-weight: 800;
+}
+/* «Укажите адрес» in the price summary → the address field flashes twice. */
+.sb-vd__addr-search .sb-input.is-attention {
+  animation: sb-addr-attention 0.6s ease-in-out 2;
+}
+@keyframes sb-addr-attention {
+  0%,
+  100% {
+    border-color: var(--sb-border);
+    box-shadow: none;
+  }
+  50% {
+    border-color: var(--sb-accent);
+    box-shadow: 0 0 0 3px var(--sb-accent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-vd__addr-search .sb-input.is-attention {
+    animation: none;
+    border-color: var(--sb-accent);
+    box-shadow: 0 0 0 3px var(--sb-accent);
+  }
+}
+/* «Стоимость» — rental lines, accessories, delivery/collection, total; sits
+   between the delivery section and the booking buttons. */
+.sb-vd__sum {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.sb-vd__sum.is-stale .sb-vd__sum-card {
+  opacity: 0.45;
+}
+.sb-vd__sum-card {
+  transition: opacity 0.15s ease;
+}
+.sb-vd__sum-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--sb-border);
+  border-radius: var(--sb-radius);
+  background: var(--sb-bg-alt);
+}
+.sb-vd__sum-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+.sb-vd__sum-label {
+  min-width: 0;
+  color: var(--sb-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sb-vd__sum-value {
+  flex: 0 0 auto;
+  color: var(--sb-text-strong);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.sb-vd__sum-ask {
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--sb-accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.sb-vd__sum-row--total {
+  margin-top: 0.1rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--sb-border);
+  font-size: 1rem;
+}
+.sb-vd__sum-row--total .sb-vd__sum-label {
+  color: var(--sb-text-strong);
+  font-weight: 700;
+}
+.sb-vd__sum-row--total .sb-vd__sum-value {
   color: var(--sb-accent);
   font-weight: 800;
 }

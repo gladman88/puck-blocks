@@ -15,9 +15,16 @@ import {
 } from './dates';
 import { AvailabilityCalendar } from './AvailabilityCalendar';
 import { busyDaysIn, isDayBusy, maxReturnDay, unitCovering, type UnitAvailability } from './availability';
-import { DeliveryAddressSection, type PickedLocation, type DeliveryCost } from './DeliveryAddressSection';
+import {
+  DeliveryAddressSection,
+  type AddressRowKind,
+  type PickedLocation,
+  type DeliveryCost,
+} from './DeliveryAddressSection';
 import { buildSpecRows, type VehicleSpecs } from './specs';
 import { formatDayPrice } from './price';
+import { PriceSummary, parsePriceQuote, type PriceQuote } from './PriceSummary';
+import { ContactIcon } from '../../components/ContactIcon';
 
 interface GalleryImage {
   image_url: string;
@@ -111,7 +118,7 @@ const S = {
     send: 'Отправить запрос',
     sending: 'Отправляем…',
     tgQuick: 'Бронь в 1 клик через Telegram',
-    tgQuickSub: 'Без форм — бот заполнит всё за вас',
+    tgQuickSub: 'Без форм — данные заполнятся сами',
     or: 'или',
     howToBook: 'Как забронировать?',
     back: 'Назад',
@@ -123,8 +130,8 @@ const S = {
     // же клиент заводился повторно, каждый раз с новым реф-агентом. Telegram
     // остаётся доступен, но только через гарантированно-настоящий chat_id из
     // кнопки «в 1 клик» выше.
-    manual: 'Указать WhatsApp вручную',
-    manualSub: 'Имя и номер — займёт 30 секунд',
+    manual: 'Забронировать вручную',
+    manualSub: 'Заполните форму вручную',
     dateGet: 'Дата получения',
     dateReturn: 'Дата возврата',
     phoneLabel: 'Номер WhatsApp',
@@ -147,6 +154,14 @@ const S = {
     deliveryCostLoading: 'Считаем стоимость…',
     deliveryCostByRequest: 'по запросу',
     deliveryCostTotal: 'Доставка и приёмка',
+    // Блок «Стоимость» перед кнопками брони (владелец 2026-11-04).
+    sumTitle: 'Стоимость',
+    sumRental: 'Аренда',
+    sumFree: 'бесплатно',
+    sumDelivery: 'Доставка по адресу',
+    sumCollection: 'Заберём по адресу',
+    sumAsk: 'Укажите адрес',
+    sumTotal: 'Итого',
     // Календарь занятости на шаге «Как забронировать?» (владелец 2026-10-09).
     datePlaceholder: 'Выберите',
     datesTitle: 'Даты аренды',
@@ -205,14 +220,14 @@ const S = {
     send: 'Send request',
     sending: 'Sending…',
     tgQuick: '1-click booking via Telegram',
-    tgQuickSub: 'No forms — the bot fills everything in for you',
+    tgQuickSub: 'No forms — your details fill in automatically',
     or: 'or',
     howToBook: 'How to book?',
     back: 'Back',
     bookCta: 'Book',
     formTitle: 'Booking request',
-    manual: 'Enter WhatsApp manually',
-    manualSub: 'Name and number — takes 30 seconds',
+    manual: 'Book manually',
+    manualSub: 'Fill in the form manually',
     dateGet: 'Pick-up date',
     dateReturn: 'Return date',
     phoneLabel: 'WhatsApp number',
@@ -235,6 +250,13 @@ const S = {
     deliveryCostLoading: 'Calculating price…',
     deliveryCostByRequest: 'on request',
     deliveryCostTotal: 'Delivery & collection',
+    sumTitle: 'Price',
+    sumRental: 'Rental',
+    sumFree: 'free',
+    sumDelivery: 'Delivery',
+    sumCollection: 'Collection',
+    sumAsk: 'Enter address',
+    sumTotal: 'Total',
     datePlaceholder: 'Select',
     datesTitle: 'Rental dates',
     datesEdit: 'Change',
@@ -341,6 +363,36 @@ async function fetchAvailability(
     return { units: [], today: null };
   }
 }
+
+/** Rental + accessories price for the picked dates — the SAME calculation the
+ *  booking request writes (server-side). Any failure / non-200 / incomplete
+ *  matrix (`rental: null`) → null → no price block, no error message. */
+async function fetchPriceQuote(
+  apiBase: string,
+  body: {
+    vehicle_id: string;
+    start_date: string;
+    end_date: string;
+    accessories: { accessory_id: string; quantity: number }[];
+  },
+  signal: AbortSignal,
+): Promise<PriceQuote | null> {
+  try {
+    const res = await fetch(`${apiBase}/api/v1/catalog/price-quote/`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...HEADERS },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (res.status !== 200) return null;
+    return parsePriceQuote(await res.json());
+  } catch {
+    return null;
+  }
+}
+
+/** Debounce for the price quote (dates / accessory stepper taps). */
+const PRICE_QUOTE_DEBOUNCE_MS = 300;
 
 /** Потолок ручки занятости (`vehicle_ids` > 20 → 400). */
 const MAX_AVAILABILITY_IDS = 20;
@@ -740,6 +792,46 @@ export function VehicleBookingModal({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBase, effectiveDropoffLocation?.lat, effectiveDropoffLocation?.lng]);
+
+  // «Стоимость»: rental + accessories priced by the server for the unit the
+  // request will go to. Only for a free, valid period (busy dates → the request
+  // becomes "find a replacement" — no price). Debounced; a newer request aborts
+  // the older one, so a stale response can never land.
+  // The quote remembers the selection it was priced for: while a newer
+  // selection is being priced the old sums show dimmed (no jump of the buttons
+  // on every stepper tap, and no stale total passed off as current).
+  const [priceQuote, setPriceQuote] = useState<{ key: string; quote: PriceQuote } | null>(null);
+  const priceQuoteActive = datesValid && !conflict && !availLoading;
+  const accessoriesKey = selectedAccessories.map((a) => `${a.accessory_id}:${a.quantity}`).join(',');
+  const priceQuoteKey = `${bookingVehicleId}|${start}|${end}|${accessoriesKey}`;
+  useEffect(() => {
+    if (!priceQuoteActive) {
+      setPriceQuote(null);
+      return;
+    }
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => {
+      fetchPriceQuote(
+        apiBase,
+        { vehicle_id: bookingVehicleId, start_date: start, end_date: end, accessories: selectedAccessories },
+        ctrl.signal,
+      ).then((q) => {
+        if (!ctrl.signal.aborted) setPriceQuote(q ? { key: priceQuoteKey, quote: q } : null);
+      });
+    }, PRICE_QUOTE_DEBOUNCE_MS);
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiBase, priceQuoteActive, bookingVehicleId, start, end, accessoriesKey]);
+
+  // DeliveryAddressSection fills this: «Укажите адрес» → that row's address field.
+  const askAddressRef = useRef<((kind: AddressRowKind) => void) | null>(null);
+  const accessoryNames: Record<string, string> = {};
+  for (const group of detail?.accessories ?? []) {
+    for (const item of group.items) accessoryNames[item.id] = locale === 'ru' ? item.name_ru : item.name_en;
+  }
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -1560,7 +1652,30 @@ export function VehicleBookingModal({
                   costTotal: t.deliveryCostTotal,
                   currency: t.priceUnit,
                 }}
+                askAddressRef={askAddressRef}
               />
+
+              {priceQuoteActive && priceQuote ? (
+                <PriceSummary
+                  quote={priceQuote.quote}
+                  stale={priceQuote.key !== priceQuoteKey}
+                  accessoryNames={accessoryNames}
+                  pickup={{ enabled: pickupEnabled, hasLocation: effectivePickupLocation != null, cost: pickupCost }}
+                  dropoff={{ enabled: dropoffEnabled, hasLocation: effectiveDropoffLocation != null, cost: dropoffCost }}
+                  locale={locale}
+                  strings={{
+                    title: t.sumTitle,
+                    rental: t.sumRental,
+                    free: t.sumFree,
+                    delivery: t.sumDelivery,
+                    collection: t.sumCollection,
+                    ask: t.sumAsk,
+                    total: t.sumTotal,
+                    currency: t.priceUnit,
+                  }}
+                  onAskAddress={(kind) => askAddressRef.current?.(kind)}
+                />
+              ) : null}
 
               <div className="sb-vd__book-actions">
                 {conflict ? <p className="sb-avcal__ask">{t.askHint}</p> : null}
@@ -1571,7 +1686,7 @@ export function VehicleBookingModal({
                   onClick={handleTelegramBooking}
                 >
                   <span className="sb-vd__tg-icon" aria-hidden>
-                    ✈
+                    <ContactIcon kind="telegram" />
                   </span>
                   <span className="sb-vd__tg-text">
                     <span className="sb-vd__tg-title">{conflict ? t.tgAsk : t.tgQuick}</span>
@@ -1594,7 +1709,25 @@ export function VehicleBookingModal({
                   onClick={() => setStage('form')}
                 >
                   <span className="sb-vd__option-icon" aria-hidden>
-                    ✎
+                    {/* «Анкета с ручкой» — Lucide clipboard-pen (ISC). */}
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="22"
+                      height="22"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect width="8" height="4" x="8" y="2" rx="1" />
+                      <path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4" />
+                      <path d="M16 4h2a2 2 0 0 1 2 2v2" />
+                      <path d="M8 11h5" />
+                      <path d="M8 15h2" />
+                      <path d="M21.378 13.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
+                    </svg>
                   </span>
                   <span className="sb-vd__tg-text">
                     <span className="sb-vd__tg-title">{conflict ? t.manualAsk : t.manual}</span>
