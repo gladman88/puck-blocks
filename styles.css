@@ -793,15 +793,22 @@ a.sb-map__line:hover {
    The editor wraps blocks, so there the pair never matches — layout unchanged.
    Without :has (old browsers) the header simply stays solid. */
 .sb-header {
-  transition: background-color 0.25s ease, backdrop-filter 0.25s ease;
+  /* Hairline frame (bottom + the divider before the burger): real 1px borders
+     in one colour — borders snap to whole device pixels, so the horizontal and
+     vertical lines are always the same thickness (no 1px-background lines). */
+  --sb-header-line: rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--sb-header-line);
+  transition: background-color 0.25s ease, backdrop-filter 0.25s ease, border-color 0.25s ease;
 }
 .sb-header:has(+ .sb-hero):not(.is-scrolled) {
+  --sb-header-line: rgba(255, 255, 255, 0.24);
   background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 .sb-header + .sb-hero {
-  margin-top: calc(-1 * var(--sb-header-h));
+  /* header height = bar + its 1px bottom border */
+  margin-top: calc(-1 * var(--sb-header-h) - 1px);
   min-height: 100vh;
   padding-top: calc(var(--sb-section-py) + var(--sb-header-h));
 }
@@ -1043,6 +1050,29 @@ button.sb-lang__flag {
   .sb-header__contacts .sb-icon-link {
     width: 34px;
     height: 34px;
+  }
+  /* Divider before the burger, full bar height: the right group and the burger
+     stretch to the bar so the border runs edge to edge, then the burger sits
+     flush with the bar's right edge. */
+  .sb-header__inner {
+    align-items: stretch;
+  }
+  .sb-header__brand {
+    align-self: center;
+  }
+  .sb-header__right {
+    align-items: stretch;
+    margin-right: -1.25rem;
+  }
+  .sb-header__right > :not(.sb-header__burger) {
+    align-self: center;
+  }
+  .sb-header__burger {
+    width: auto;
+    height: auto;
+    padding: 0 1.1rem 0 1rem;
+    border-left: 1px solid var(--sb-header-line);
+    transition: border-color 0.25s ease;
   }
   /* Keep the wordmark full-size but readable: both words high-contrast, tighter
      tracking to save width next to the action icons + burger. */
