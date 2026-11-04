@@ -44,6 +44,25 @@ describe('Hero URL sanitization (public-page XSS guard)', () => {
     expect(container.querySelector('.sb-hero__accent')?.textContent).toBe('Пхукете');
   });
 
+  it('second button «Каталог» links to the cars catalog anchor', () => {
+    const { container } = render(
+      <Hero heading="t" ctaLabel="Забронировать" ctaHref="#leadform" secondaryLabel="Каталог" secondaryHref="#car" />,
+    );
+    const links = container.querySelectorAll('.sb-hero__cta a');
+    expect(Array.from(links).map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
+      ['Забронировать', '#leadform'],
+      ['Каталог', '#car'],
+    ]);
+    expect(links[1].classList.contains('sb-hero__secondary')).toBe(true);
+  });
+
+  it('no second button without its label or with an unsafe link', () => {
+    const { container: a } = render(<Hero heading="t" ctaLabel="c" ctaHref="#x" secondaryHref="#car" />);
+    expect(a.querySelectorAll('.sb-hero__cta a')).toHaveLength(1);
+    const { container: b } = render(<Hero heading="t" ctaLabel="c" ctaHref="#x" secondaryLabel="К" secondaryHref="javascript:alert(1)" />);
+    expect(b.querySelectorAll('.sb-hero__cta a')).toHaveLength(1);
+  });
+
   it('no WhatsApp/Telegram buttons by the CTA, even for pages saved with them (header has them)', () => {
     const { container } = render(
       <Hero heading="t" ctaLabel="c" ctaHref="#x" whatsapp="https://wa.me/1" telegram="https://t.me/x" />,

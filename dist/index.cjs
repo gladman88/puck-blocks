@@ -41,7 +41,9 @@ function Hero({
   mobileVideo,
   mobileVideoPoster,
   ctaLabel,
-  ctaHref
+  ctaHref,
+  secondaryLabel,
+  secondaryHref
 }) {
   const bg = safeImageUrl(backgroundImage);
   const hevc = safeImageUrl(mobileVideoHevc);
@@ -114,6 +116,8 @@ function Hero({
   }, [hevc, h264]);
   const href = safeHref(ctaHref);
   const hasCta = Boolean(ctaLabel && href);
+  const href2 = safeHref(secondaryHref);
+  const hasSecondary = Boolean(secondaryLabel && href2);
   const hasPoster = hasVideo && Boolean(poster);
   const style = {};
   if (bg) style.backgroundImage = `url("${encodeURI(bg)}")`;
@@ -147,7 +151,10 @@ function Hero({
         /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-hero__inner", children: [
           /* @__PURE__ */ jsxRuntime.jsx("h1", { className: "sb-h1", children: renderHeading(heading, accentWord) }),
           subheading ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-lead", children: subheading }) : null,
-          hasCta ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-hero__cta", children: /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-btn", href, children: ctaLabel }) }) : null
+          hasCta || hasSecondary ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-hero__cta", children: [
+            hasCta ? /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-btn", href, children: ctaLabel }) : null,
+            hasSecondary ? /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-btn sb-hero__secondary", href: href2, children: secondaryLabel }) : null
+          ] }) : null
         ] })
       ]
     }
@@ -4651,7 +4658,9 @@ var internalConfig = {
         mobileVideo: { type: "text", label: "\u0412\u0438\u0434\u0435\u043E \u0434\u043B\u044F \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0430 \u2014 H.264 (\u0437\u0430\u043F\u0430\u0441\u043D\u043E\u0435)" },
         mobileVideoPoster: imageField("\u0417\u0430\u0441\u0442\u0430\u0432\u043A\u0430 \u0432\u0438\u0434\u0435\u043E (\u043A\u0430\u0434\u0440 \u0438\u0437 \u0432\u0438\u0434\u0435\u043E)"),
         ctaLabel: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0442\u0435\u043A\u0441\u0442" },
-        ctaHref: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" }
+        ctaHref: { type: "text", label: "\u041A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0441\u0441\u044B\u043B\u043A\u0430" },
+        secondaryLabel: { type: "text", label: "\u0412\u0442\u043E\u0440\u0430\u044F \u043A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0442\u0435\u043A\u0441\u0442 (\u043F\u0443\u0441\u0442\u043E \u2014 \u043D\u0435\u0442 \u043A\u043D\u043E\u043F\u043A\u0438)" },
+        secondaryHref: { type: "text", label: "\u0412\u0442\u043E\u0440\u0430\u044F \u043A\u043D\u043E\u043F\u043A\u0430 \u2014 \u0441\u0441\u044B\u043B\u043A\u0430 (\u043D\u0430\u043F\u0440. #car \u2014 \u043A \xAB\u0410\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u044F\u043C\xBB)" }
       },
       defaultProps: {
         heading: "\u0410\u0440\u0435\u043D\u0434\u0430 \u0430\u0432\u0442\u043E\u043C\u043E\u0431\u0438\u043B\u0435\u0439 \u0438 \u0431\u0430\u0439\u043A\u043E\u0432 \u043D\u0430 \u041F\u0445\u0443\u043A\u0435\u0442\u0435",
@@ -4661,8 +4670,10 @@ var internalConfig = {
         mobileVideoHevc: "",
         mobileVideo: "",
         mobileVideoPoster: "",
-        ctaLabel: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441\u0435\u0439\u0447\u0430\u0441",
-        ctaHref: "#leadform"
+        ctaLabel: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
+        ctaHref: "#leadform",
+        secondaryLabel: "\u041A\u0430\u0442\u0430\u043B\u043E\u0433",
+        secondaryHref: "#car"
       },
       render: Hero
     },

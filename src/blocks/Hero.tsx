@@ -15,6 +15,9 @@ export interface HeroProps {
   mobileVideoPoster?: string;
   ctaLabel?: string;
   ctaHref?: string;
+  /** Second, outlined button next to the CTA (e.g. «Каталог» → `#car`). */
+  secondaryLabel?: string;
+  secondaryHref?: string;
   /** Legacy: round WhatsApp/Telegram buttons by the CTA were removed (owner
    *  2026-11-04 — the header already has them). Kept optional so pages saved
    *  with these props still type-check; the block ignores them. */
@@ -60,6 +63,8 @@ export function Hero({
   mobileVideoPoster,
   ctaLabel,
   ctaHref,
+  secondaryLabel,
+  secondaryHref,
 }: HeroProps) {
   const bg = safeImageUrl(backgroundImage);
   const hevc = safeImageUrl(mobileVideoHevc);
@@ -135,6 +140,8 @@ export function Hero({
   }, [hevc, h264]);
   const href = safeHref(ctaHref);
   const hasCta = Boolean(ctaLabel && href);
+  const href2 = safeHref(secondaryHref);
+  const hasSecondary = Boolean(secondaryLabel && href2);
 
   const hasPoster = hasVideo && Boolean(poster);
   const style: CSSProperties = {};
@@ -164,11 +171,18 @@ export function Hero({
       <div className="sb-hero__inner">
         <h1 className="sb-h1">{renderHeading(heading, accentWord)}</h1>
         {subheading ? <p className="sb-lead">{subheading}</p> : null}
-        {hasCta ? (
+        {hasCta || hasSecondary ? (
           <div className="sb-hero__cta">
-            <a className="sb-btn" href={href}>
-              {ctaLabel}
-            </a>
+            {hasCta ? (
+              <a className="sb-btn" href={href}>
+                {ctaLabel}
+              </a>
+            ) : null}
+            {hasSecondary ? (
+              <a className="sb-btn sb-hero__secondary" href={href2}>
+                {secondaryLabel}
+              </a>
+            ) : null}
           </div>
         ) : null}
       </div>
