@@ -42,7 +42,7 @@ describe('CardPriceOverlay', () => {
       `23${NB}801${NB}฿`,
       `126${NB}000${NB}฿`,
     ]);
-    expect(container.querySelector('.sb-vcard__tile-sum--long')?.textContent).toBe(`126${NB}000${NB}฿`);
+    expect(container.querySelector('.sb-vcard__tiles')?.classList.contains('sb-vcard__tiles--xl')).toBe(true);
     expect(container.querySelector('.sb-vcard__tile--best .sb-vcard__flag')?.textContent).toBe('−35%');
     expect(container.querySelector('[class*="--fraction"]')).toBeNull();
   });

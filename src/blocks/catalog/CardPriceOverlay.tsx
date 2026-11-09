@@ -43,8 +43,18 @@ const STATUS_MOD: Record<CardStatusTone, string> = {
   busy: '',
 };
 
-/** Six-digit sums («126 000 ฿») get the narrower type to stay in the tile. */
-const LONG_SUM = 100000;
+/**
+ * One type size for the whole row, picked by its longest sum: the reference
+ * 21-unit type fits «7 700 ฿» (7 chars), five-digit «14 267 ฿» needs the
+ * smaller step, six-digit «126 000 ฿» the smallest — otherwise the sum runs
+ * past the tile border (catalog, 2026-11-09).
+ */
+function tilesSizeClass(sums: string[]): string {
+  const longest = Math.max(0, ...sums.map((s) => s.length));
+  if (longest >= 9) return ' sb-vcard__tiles--xl';
+  if (longest >= 8) return ' sb-vcard__tiles--l';
+  return '';
+}
 
 export function CardPriceOverlay({
   statusText,
@@ -96,15 +106,14 @@ export function CardPriceOverlay({
         {statusSlot}
       </div>
       {prices && prices.quotes.length > 0 ? (
-        <div className="sb-vcard__tiles">
+        <div className={`sb-vcard__tiles${tilesSizeClass(prices.quotes.map((q) => `${formatBahtCeil(q.total)}\u00a0฿`))}`}>
           {prices.quotes.map((q) => {
             const best = q.days === 30;
-            const sum = Math.ceil(parseFloat(q.total) - 1e-9);
             return (
               <div key={q.days} className={`sb-vcard__tile${best ? ' sb-vcard__tile--best' : ''}`}>
                 {best && discount > 0 ? <span className="sb-vcard__flag">{`−${discount}%`}</span> : null}
                 <span className="sb-vcard__tile-days">{t.days(q.days)}</span>
-                <span className={`sb-vcard__tile-sum${sum >= LONG_SUM ? ' sb-vcard__tile-sum--long' : ''}`}>
+                <span className="sb-vcard__tile-sum">
                   {`${formatBahtCeil(q.total)}\u00a0฿`}
                 </span>
               </div>

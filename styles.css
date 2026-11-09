@@ -1784,8 +1784,13 @@ button.sb-lang__flag {
   white-space: nowrap;
   color: #fff;
 }
-.sb-vcard__tile-sum--long {
+/* Size step for the whole row by its longest sum (CardPriceOverlay). */
+.sb-vcard__tiles--l .sb-vcard__tile-sum {
   font-size: calc(17 * var(--sb-vcard-u));
+  letter-spacing: -0.02em;
+}
+.sb-vcard__tiles--xl .sb-vcard__tile-sum {
+  font-size: calc(15 * var(--sb-vcard-u));
   letter-spacing: -0.02em;
 }
 .sb-vcard__tile--best .sb-vcard__tile-sum {

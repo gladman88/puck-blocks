@@ -1851,7 +1851,12 @@ var STATUS_MOD = {
   free: " sb-vcard__status--free",
   busy: ""
 };
-var LONG_SUM = 1e5;
+function tilesSizeClass(sums) {
+  const longest = Math.max(0, ...sums.map((s) => s.length));
+  if (longest >= 9) return " sb-vcard__tiles--xl";
+  if (longest >= 8) return " sb-vcard__tiles--l";
+  return "";
+}
 function CardPriceOverlay({
   statusText,
   statusTone,
@@ -1893,13 +1898,12 @@ function CardPriceOverlay({
       ] }) : /* @__PURE__ */ jsxRuntime.jsx("b", { className: "sb-vcard__from", children: /* @__PURE__ */ jsxRuntime.jsx("small", { children: t.onRequest }) }) }),
       statusSlot
     ] }),
-    prices && prices.quotes.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vcard__tiles", children: prices.quotes.map((q) => {
+    prices && prices.quotes.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: `sb-vcard__tiles${tilesSizeClass(prices.quotes.map((q) => `${formatBahtCeil(q.total)}\xA0\u0E3F`))}`, children: prices.quotes.map((q) => {
       const best = q.days === 30;
-      const sum = Math.ceil(parseFloat(q.total) - 1e-9);
       return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: `sb-vcard__tile${best ? " sb-vcard__tile--best" : ""}`, children: [
         best && discount > 0 ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__flag", children: `\u2212${discount}%` }) : null,
         /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__tile-days", children: t.days(q.days) }),
-        /* @__PURE__ */ jsxRuntime.jsx("span", { className: `sb-vcard__tile-sum${sum >= LONG_SUM ? " sb-vcard__tile-sum--long" : ""}`, children: `${formatBahtCeil(q.total)}\xA0\u0E3F` })
+        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__tile-sum", children: `${formatBahtCeil(q.total)}\xA0\u0E3F` })
       ] }, q.days);
     }) }) : null
   ] });

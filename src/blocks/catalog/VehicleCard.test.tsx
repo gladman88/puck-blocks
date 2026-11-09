@@ -117,12 +117,22 @@ describe('VehicleCard', () => {
     expect(zero.container.querySelector('.sb-vcard__flag')).toBeNull();
   });
 
-  it('six-digit sum gets the long class', () => {
-    const big = { ...prices, quotes: [...prices.quotes.slice(0, 2), { days: 30, total: '126000.00' }] };
-    const { container } = renderCard({ vehicle: { ...vehicle, card_prices: big } });
-    const sums = Array.from(container.querySelectorAll('.sb-vcard__tile-sum'));
-    expect(sums.map((s) => s.classList.contains('sb-vcard__tile-sum--long'))).toEqual([false, false, true]);
-    expect(sums[2].textContent).toBe(`126${NB}000${NB}฿`);
+  it('one type step for the whole tile row, by its longest sum', () => {
+    const tiles = (quotes: { days: number; total: string }[]) => {
+      const { container } = renderCard({ vehicle: { ...vehicle, card_prices: { ...prices, quotes } } });
+      const row = container.querySelector('.sb-vcard__tiles')!;
+      const cls = ['sb-vcard__tiles--l', 'sb-vcard__tiles--xl'].filter((c) => row.classList.contains(c));
+      cleanup();
+      return cls;
+    };
+    // «4 200 ฿ / 7 700 ฿» fit the reference type; one five-digit sum shrinks the whole row.
+    expect(tiles([{ days: 7, total: '4200.00' }, { days: 14, total: '7700.00' }])).toEqual([]);
+    expect(
+      tiles([{ days: 7, total: '4200.00' }, { days: 14, total: '7700.00' }, { days: 30, total: '14266.40' }]),
+    ).toEqual(['sb-vcard__tiles--l']);
+    expect(
+      tiles([{ days: 7, total: '84000.00' }, { days: 14, total: '154000.00' }, { days: 30, total: '180000.00' }]),
+    ).toEqual(['sb-vcard__tiles--xl']);
   });
 
   it('no card_prices falls back to from-price / on request', () => {
