@@ -23,7 +23,13 @@ export interface FeatureCardsProps {
  * optional video occupying one grid cell — mirrors the site's «как в свою» block
  * (heading + features + video together, NOT a separate promo block).
  */
-export function FeatureCards({ heading, items, videoUrl, videoIndex }: FeatureCardsProps) {
+export function FeatureCards({
+  heading,
+  items,
+  videoUrl,
+  videoIndex,
+  puck,
+}: FeatureCardsProps & { puck?: { metadata?: { locale?: string } } }) {
   const list = items ?? [];
   const hasVideo = Boolean(videoUrl && videoUrl.trim());
   const vIdx = typeof videoIndex === 'number' && videoIndex >= 0 ? videoIndex : list.length;
@@ -32,7 +38,7 @@ export function FeatureCards({ heading, items, videoUrl, videoIndex }: FeatureCa
   const pushVideo = () =>
     cells.push(
       <div className="sb-feature sb-feature--video" key="video">
-        <VideoEmbed url={videoUrl as string} title={heading} />
+        <VideoEmbed url={videoUrl as string} title={heading} locale={puck?.metadata?.locale === 'en' ? 'en' : 'ru'} />
       </div>,
     );
 

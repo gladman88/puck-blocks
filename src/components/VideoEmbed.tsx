@@ -1,5 +1,11 @@
 import { useState } from 'react';
 import { safeHref } from '../sanitize';
+import type { SiteLocale } from './LanguageSwitcher';
+
+const LABELS: Record<SiteLocale, { video: string; watch: string }> = {
+  ru: { video: 'Видео', watch: 'Смотреть видео' },
+  en: { video: 'Video', watch: 'Watch video' },
+};
 
 /** Extract an 11-char YouTube id from the common URL shapes. */
 export function youtubeId(url: string): string | null {
@@ -20,7 +26,8 @@ export function youtubeId(url: string): string | null {
  * click (no JS cost until played). A non-YouTube URL falls back to a "watch"
  * link. Renders nothing if the URL is empty/unsafe.
  */
-export function VideoEmbed({ url, title }: { url: string; title?: string }) {
+export function VideoEmbed({ url, title, locale = 'ru' }: { url: string; title?: string; locale?: SiteLocale }) {
+  const t = LABELS[locale];
   const [playing, setPlaying] = useState(false);
   const id = youtubeId(url);
 
@@ -31,7 +38,7 @@ export function VideoEmbed({ url, title }: { url: string; title?: string }) {
           <iframe
             className="sb-video__iframe"
             src={`https://www.youtube.com/embed/${id}?autoplay=1&rel=0`}
-            title={title ?? 'Видео'}
+            title={title ?? t.video}
             allow="autoplay; encrypted-media; picture-in-picture"
             allowFullScreen
           />
@@ -40,7 +47,7 @@ export function VideoEmbed({ url, title }: { url: string; title?: string }) {
             type="button"
             className="sb-video__poster"
             onClick={() => setPlaying(true)}
-            aria-label="Смотреть видео"
+            aria-label={t.watch}
           >
             <img src={`https://img.youtube.com/vi/${id}/hqdefault.jpg`} alt="" loading="lazy" />
             <span className="sb-video__play" aria-hidden>
@@ -60,7 +67,7 @@ export function VideoEmbed({ url, title }: { url: string; title?: string }) {
       <span className="sb-video__play" aria-hidden>
         ▶
       </span>
-      Смотреть видео
+      {t.watch}
     </a>
   );
 }

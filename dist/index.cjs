@@ -201,6 +201,10 @@ function StatCounters({ heading, items }) {
     )) })
   ] });
 }
+var LABELS = {
+  ru: { video: "\u0412\u0438\u0434\u0435\u043E", watch: "\u0421\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0432\u0438\u0434\u0435\u043E" },
+  en: { video: "Video", watch: "Watch video" }
+};
 function youtubeId(url) {
   const patterns = [
     /youtu\.be\/([\w-]{11})/,
@@ -213,7 +217,8 @@ function youtubeId(url) {
   }
   return null;
 }
-function VideoEmbed({ url, title }) {
+function VideoEmbed({ url, title, locale = "ru" }) {
+  const t = LABELS[locale];
   const [playing, setPlaying] = react.useState(false);
   const id = youtubeId(url);
   if (id) {
@@ -222,7 +227,7 @@ function VideoEmbed({ url, title }) {
       {
         className: "sb-video__iframe",
         src: `https://www.youtube.com/embed/${id}?autoplay=1&rel=0`,
-        title: title ?? "\u0412\u0438\u0434\u0435\u043E",
+        title: title ?? t.video,
         allow: "autoplay; encrypted-media; picture-in-picture",
         allowFullScreen: true
       }
@@ -232,7 +237,7 @@ function VideoEmbed({ url, title }) {
         type: "button",
         className: "sb-video__poster",
         onClick: () => setPlaying(true),
-        "aria-label": "\u0421\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0432\u0438\u0434\u0435\u043E",
+        "aria-label": t.watch,
         children: [
           /* @__PURE__ */ jsxRuntime.jsx("img", { src: `https://img.youtube.com/vi/${id}/hqdefault.jpg`, alt: "", loading: "lazy" }),
           /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-video__play", "aria-hidden": true, children: "\u25B6" })
@@ -244,7 +249,7 @@ function VideoEmbed({ url, title }) {
   if (!href) return null;
   return /* @__PURE__ */ jsxRuntime.jsxs("a", { className: "sb-video sb-video__link", href, target: "_blank", rel: "noopener noreferrer", children: [
     /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-video__play", "aria-hidden": true, children: "\u25B6" }),
-    "\u0421\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0432\u0438\u0434\u0435\u043E"
+    t.watch
   ] });
 }
 function AboutPromo({
@@ -252,7 +257,8 @@ function AboutPromo({
   text,
   image,
   videoUrl,
-  imagePosition = "right"
+  imagePosition = "right",
+  puck
 }) {
   const img = safeImageUrl(image);
   const hasVideo = Boolean(videoUrl && videoUrl.trim());
@@ -265,19 +271,25 @@ function AboutPromo({
   }
   return /* @__PURE__ */ jsxRuntime.jsx(Section, { className: imagePosition === "left" ? "sb-about--reverse" : "", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-about__grid", children: [
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-about__media", children: [
-      hasVideo ? /* @__PURE__ */ jsxRuntime.jsx(VideoEmbed, { url: videoUrl, title: heading }) : null,
+      hasVideo ? /* @__PURE__ */ jsxRuntime.jsx(VideoEmbed, { url: videoUrl, title: heading, locale: puck?.metadata?.locale === "en" ? "en" : "ru" }) : null,
       img ? /* @__PURE__ */ jsxRuntime.jsx("img", { className: "sb-about__img", src: img, alt: heading, loading: "lazy" }) : null
     ] }),
     body
   ] }) });
 }
-function FeatureCards({ heading, items, videoUrl, videoIndex }) {
+function FeatureCards({
+  heading,
+  items,
+  videoUrl,
+  videoIndex,
+  puck
+}) {
   const list = items ?? [];
   const hasVideo = Boolean(videoUrl && videoUrl.trim());
   const vIdx = typeof videoIndex === "number" && videoIndex >= 0 ? videoIndex : list.length;
   const cells = [];
   const pushVideo = () => cells.push(
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-feature sb-feature--video", children: /* @__PURE__ */ jsxRuntime.jsx(VideoEmbed, { url: videoUrl, title: heading }) }, "video")
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-feature sb-feature--video", children: /* @__PURE__ */ jsxRuntime.jsx(VideoEmbed, { url: videoUrl, title: heading, locale: puck?.metadata?.locale === "en" ? "en" : "ru" }) }, "video")
   );
   list.forEach((item, i) => {
     if (hasVideo && i === vIdx) pushVideo();
@@ -305,7 +317,16 @@ function TermsAccordion({ heading, anchorId, items }) {
     ] }, index))
   ] });
 }
-function Carousel({ title, children }) {
+var LABELS2 = {
+  ru: { prev: "\u041D\u0430\u0437\u0430\u0434", next: "\u0412\u043F\u0435\u0440\u0451\u0434" },
+  en: { prev: "Previous", next: "Next" }
+};
+function Carousel({
+  title,
+  children,
+  locale = "ru"
+}) {
+  const t = LABELS2[locale];
   const ref = react.useRef(null);
   const scrollByDir = (dir) => {
     const el = ref.current;
@@ -316,21 +337,26 @@ function Carousel({ title, children }) {
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-carousel__head", children: [
       /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-carousel__title", children: title }),
       /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-carousel__nav", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: () => scrollByDir(-1), "aria-label": "\u041D\u0430\u0437\u0430\u0434", children: "\u2039" }),
-        /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: () => scrollByDir(1), "aria-label": "\u0412\u043F\u0435\u0440\u0451\u0434", children: "\u203A" })
+        /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: () => scrollByDir(-1), "aria-label": t.prev, children: "\u2039" }),
+        /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: () => scrollByDir(1), "aria-label": t.next, children: "\u203A" })
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-carousel__track", ref, children })
   ] });
 }
-function Stars({ rating }) {
+var STRINGS = {
+  ru: { more: "\u0427\u0438\u0442\u0430\u0442\u044C \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E", close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C", review: "\u041E\u0442\u0437\u044B\u0432", videoReview: "\u0412\u0438\u0434\u0435\u043E-\u043E\u0442\u0437\u044B\u0432", outOf5: (n) => `${n} \u0438\u0437 5` },
+  en: { more: "Read full review", close: "Close", review: "Review", videoReview: "Video review", outOf5: (n) => `${n} out of 5` }
+};
+function Stars({ rating, locale }) {
   const full = Math.max(0, Math.min(5, Math.round(rating)));
-  return /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-rcard__stars", "aria-label": `${full} \u0438\u0437 5`, children: [
+  return /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "sb-rcard__stars", "aria-label": STRINGS[locale].outOf5(full), children: [
     "\u2605\u2605\u2605\u2605\u2605".slice(0, full),
     /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-rcard__stars-empty", children: "\u2605\u2605\u2605\u2605\u2605".slice(0, 5 - full) })
   ] });
 }
-function TextCard({ review }) {
+function TextCard({ review, locale }) {
+  const t = STRINGS[locale];
   const [open, setOpen] = react.useState(false);
   const name = review.name?.trim();
   const avatar = safeImageUrl(review.avatar ?? "");
@@ -341,12 +367,12 @@ function TextCard({ review }) {
       avatar ? /* @__PURE__ */ jsxRuntime.jsx("img", { className: "sb-rcard__avatar", src: avatar, alt: "", loading: "lazy" }) : /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-rcard__avatar sb-rcard__avatar--initial", "aria-hidden": true, children: initial }),
       /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-rcard__meta", children: [
         name ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-rcard__name", children: name }) : null,
-        review.rating ? /* @__PURE__ */ jsxRuntime.jsx(Stars, { rating: review.rating }) : null
+        review.rating ? /* @__PURE__ */ jsxRuntime.jsx(Stars, { rating: review.rating, locale }) : null
       ] })
     ] }),
     review.text ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-rcard__text", children: review.text }) : null,
     screenshot ? /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
-      /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-rcard__more", onClick: () => setOpen(true), children: "\u0427\u0438\u0442\u0430\u0442\u044C \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E" }),
+      /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-rcard__more", onClick: () => setOpen(true), children: t.more }),
       open && typeof document !== "undefined" ? reactDom.createPortal(
         /* @__PURE__ */ jsxRuntime.jsxs(
           "div",
@@ -356,13 +382,13 @@ function TextCard({ review }) {
             "aria-modal": "true",
             onClick: () => setOpen(false),
             children: [
-              /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-lightbox__close", "aria-label": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C", children: "\xD7" }),
+              /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-lightbox__close", "aria-label": t.close, children: "\xD7" }),
               /* @__PURE__ */ jsxRuntime.jsx(
                 "img",
                 {
                   className: "sb-lightbox__img",
                   src: screenshot,
-                  alt: name ? `\u041E\u0442\u0437\u044B\u0432 \u2014 ${name}` : "\u041E\u0442\u0437\u044B\u0432",
+                  alt: name ? `${t.review} \u2014 ${name}` : t.review,
                   onClick: (e) => e.stopPropagation()
                 }
               )
@@ -374,19 +400,27 @@ function TextCard({ review }) {
     ] }) : null
   ] });
 }
-function MediaCard({ item }) {
+function MediaCard({ item, locale }) {
   const photo = safeImageUrl(item.photo ?? "");
   return /* @__PURE__ */ jsxRuntime.jsxs("figure", { className: "sb-rmedia", children: [
-    item.videoUrl ? /* @__PURE__ */ jsxRuntime.jsx(VideoEmbed, { url: item.videoUrl, title: item.caption || "\u0412\u0438\u0434\u0435\u043E-\u043E\u0442\u0437\u044B\u0432" }) : photo ? /* @__PURE__ */ jsxRuntime.jsx("img", { className: "sb-rmedia__photo", src: photo, alt: item.caption ?? "", loading: "lazy" }) : null,
+    item.videoUrl ? /* @__PURE__ */ jsxRuntime.jsx(VideoEmbed, { url: item.videoUrl, title: item.caption || STRINGS[locale].videoReview, locale }) : photo ? /* @__PURE__ */ jsxRuntime.jsx("img", { className: "sb-rmedia__photo", src: photo, alt: item.caption ?? "", loading: "lazy" }) : null,
     item.caption ? /* @__PURE__ */ jsxRuntime.jsx("figcaption", { className: "sb-rmedia__caption", children: item.caption }) : null
   ] });
 }
-function ReviewsCarousel({ heading, anchorId, textReviews, mediaReviews }) {
+function ReviewsCarousel({
+  heading,
+  anchorId,
+  textReviews,
+  mediaReviews,
+  locale: localeProp,
+  puck
+}) {
+  const locale = localeProp ?? (puck?.metadata?.locale === "en" ? "en" : "ru");
   const texts = (textReviews ?? []).filter((r) => r.name || r.text);
   const media = (mediaReviews ?? []).filter((m) => m.videoUrl || m.photo);
   return /* @__PURE__ */ jsxRuntime.jsxs(Section, { id: anchorId || "reviews", children: [
-    texts.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx(Carousel, { title: heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2 sb-h2--inline", children: heading }) : null, children: texts.map((r, i) => /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-carousel__cell sb-carousel__cell--text", children: /* @__PURE__ */ jsxRuntime.jsx(TextCard, { review: r }) }, i)) }) : heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: heading }) : null,
-    media.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx(Carousel, { children: media.map((m, i) => /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-carousel__cell sb-carousel__cell--media", children: /* @__PURE__ */ jsxRuntime.jsx(MediaCard, { item: m }) }, i)) }) : null
+    texts.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx(Carousel, { locale, title: heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2 sb-h2--inline", children: heading }) : null, children: texts.map((r, i) => /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-carousel__cell sb-carousel__cell--text", children: /* @__PURE__ */ jsxRuntime.jsx(TextCard, { review: r, locale }) }, i)) }) : heading ? /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: heading }) : null,
+    media.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx(Carousel, { locale, children: media.map((m, i) => /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-carousel__cell sb-carousel__cell--media", children: /* @__PURE__ */ jsxRuntime.jsx(MediaCard, { item: m, locale }) }, i)) }) : null
   ] });
 }
 var base = {
@@ -522,7 +556,7 @@ function LanguageSwitcher({ current, className = "", onSelect }) {
     );
   }) });
 }
-var STRINGS = {
+var STRINGS2 = {
   ru: { menu: "\u041C\u0435\u043D\u044E", close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C", call: "\u041F\u043E\u0437\u0432\u043E\u043D\u0438\u0442\u044C" },
   en: { menu: "Menu", close: "Close", call: "Call" }
 };
@@ -551,7 +585,7 @@ function SiteHeader({
   puck
 }) {
   const locale = localeProp ?? (puck?.metadata?.locale === "en" ? "en" : "ru");
-  const t = STRINGS[locale];
+  const t = STRINGS2[locale];
   const [open, setOpen] = react.useState(false);
   const [scrolled, setScrolled] = react.useState(false);
   react.useEffect(() => {
@@ -1579,7 +1613,7 @@ function DeliveryAddressSection({
 }
 
 // src/blocks/catalog/specs.ts
-var LABELS = {
+var LABELS3 = {
   ru: {
     engine: "\u0414\u0432\u0438\u0433\u0430\u0442\u0435\u043B\u044C",
     battery: "\u0411\u0430\u0442\u0430\u0440\u0435\u044F",
@@ -1747,7 +1781,7 @@ function enumLabel(value, locale) {
   return ENUM_LABELS[locale][value.toLowerCase()] ?? value;
 }
 function buildSpecRows(d, locale) {
-  const L = LABELS[locale];
+  const L = LABELS3[locale];
   const U = UNITS[locale];
   const rows = [];
   const push = (key, value) => {
@@ -3186,7 +3220,7 @@ function VehicleBookingModal({
                     statusTone: coverStatus.tone,
                     prices: d.card_prices ?? vehicle.card_prices ?? null,
                     minPricePerDay: price ?? null,
-                    strings: STRINGS2[locale]
+                    strings: STRINGS3[locale]
                   }
                 ) : null
               ] }),
@@ -4113,7 +4147,7 @@ function setVehicleParam(id) {
 function categoryLabel(category, locale) {
   return locale === "en" && category.name_en ? category.name_en : category.name;
 }
-var STRINGS2 = {
+var STRINGS3 = {
   ru: {
     all: "\u0412\u0441\u0435",
     from: "\u043E\u0442",
@@ -4272,7 +4306,7 @@ function VehicleCatalog({
   puck
 }) {
   const locale = localeProp ?? (puck?.metadata?.locale === "en" ? "en" : "ru");
-  const t = STRINGS2[locale];
+  const t = STRINGS3[locale];
   const preload = !showFilters ? puck?.metadata?.catalogPreload : void 0;
   const preloadedVehicles = preload?.vehicles?.[vehicleType];
   const hasPreload = Array.isArray(preloadedVehicles);

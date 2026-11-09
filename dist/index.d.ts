@@ -64,7 +64,13 @@ interface AboutPromoProps {
  * Headline promo block: text on one side, media (video and/or image) on the
  * other. 2-col on desktop, stacked on mobile. Renders text-only when no media.
  */
-declare function AboutPromo({ heading, text, image, videoUrl, imagePosition, }: AboutPromoProps): react.JSX.Element;
+declare function AboutPromo({ heading, text, image, videoUrl, imagePosition, puck, }: AboutPromoProps & {
+    puck?: {
+        metadata?: {
+            locale?: string;
+        };
+    };
+}): react.JSX.Element;
 
 interface FeatureItem {
     icon?: string;
@@ -84,7 +90,13 @@ interface FeatureCardsProps {
  * optional video occupying one grid cell — mirrors the site's «как в свою» block
  * (heading + features + video together, NOT a separate promo block).
  */
-declare function FeatureCards({ heading, items, videoUrl, videoIndex }: FeatureCardsProps): react.JSX.Element;
+declare function FeatureCards({ heading, items, videoUrl, videoIndex, puck, }: FeatureCardsProps & {
+    puck?: {
+        metadata?: {
+            locale?: string;
+        };
+    };
+}): react.JSX.Element;
 
 interface TermItem {
     title: string;
@@ -98,35 +110,6 @@ interface TermsAccordionProps {
 }
 /** Collapsible terms/conditions (native <details>, no JS, accessible). */
 declare function TermsAccordion({ heading, anchorId, items }: TermsAccordionProps): react.JSX.Element;
-
-interface TextReview {
-    name?: string;
-    rating?: number;
-    text?: string;
-    avatar?: string;
-    /** Full-review screenshot opened by «Читать полностью». */
-    screenshot?: string;
-}
-interface MediaReview {
-    /** Video link (YouTube preferred — plays inline). */
-    videoUrl?: string;
-    /** Photo / screenshot (used when there is no video). */
-    photo?: string;
-    caption?: string;
-}
-interface ReviewsCarouselProps {
-    heading?: string;
-    /** Section anchor id so the header nav can scroll here (e.g. "reviews"). */
-    anchorId?: string;
-    textReviews?: TextReview[];
-    mediaReviews?: MediaReview[];
-}
-/**
- * Reviews section with TWO independent carousels: text testimonials (cards with
- * avatar + stars + text) and media reviews (portrait video / photo). Mirrors
- * the original site, where the two are separate rows.
- */
-declare function ReviewsCarousel({ heading, anchorId, textReviews, mediaReviews }: ReviewsCarouselProps): react.JSX.Element;
 
 /**
  * Language switcher — two circular flag links (RU / EN) in a glassy pill.
@@ -152,6 +135,44 @@ interface LanguageSwitcherProps {
     onSelect?: (locale: SiteLocale) => void;
 }
 declare function LanguageSwitcher({ current, className, onSelect }: LanguageSwitcherProps): react.JSX.Element;
+
+type PuckInjected$2 = {
+    puck?: {
+        metadata?: {
+            locale?: string;
+        };
+    };
+};
+interface TextReview {
+    name?: string;
+    rating?: number;
+    text?: string;
+    avatar?: string;
+    /** Full-review screenshot opened by «Читать полностью». */
+    screenshot?: string;
+}
+interface MediaReview {
+    /** Video link (YouTube preferred — plays inline). */
+    videoUrl?: string;
+    /** Photo / screenshot (used when there is no video). */
+    photo?: string;
+    caption?: string;
+}
+interface ReviewsCarouselProps {
+    heading?: string;
+    /** Section anchor id so the header nav can scroll here (e.g. "reviews"). */
+    anchorId?: string;
+    textReviews?: TextReview[];
+    mediaReviews?: MediaReview[];
+    /** Override the Puck metadata locale (for non-Puck hosts). */
+    locale?: SiteLocale;
+}
+/**
+ * Reviews section with TWO independent carousels: text testimonials (cards with
+ * avatar + stars + text) and media reviews (portrait video / photo). Mirrors
+ * the original site, where the two are separate rows.
+ */
+declare function ReviewsCarousel({ heading, anchorId, textReviews, mediaReviews, locale: localeProp, puck, }: ReviewsCarouselProps & PuckInjected$2): react.JSX.Element;
 
 interface NavLink {
     label: string;

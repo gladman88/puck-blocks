@@ -83,6 +83,20 @@ describe('ReviewsCarousel', () => {
     expect(container.querySelectorAll('.sb-carousel').length).toBe(2);
     expect(container.querySelector('.sb-rcard__stars')?.getAttribute('aria-label')).toBe('4 из 5');
   });
+
+  it('English page (puck metadata locale) gets English labels', () => {
+    const { container } = render(
+      <ReviewsCarousel
+        puck={{ metadata: { locale: 'en' } }}
+        textReviews={[{ name: 'A', rating: 5, text: 'ok', screenshot: 'https://cdn/a.png' }]}
+        mediaReviews={[{ videoUrl: 'https://example.com/v.mp4' }]}
+      />,
+    );
+    expect(container.querySelector('.sb-rcard__more')?.textContent).toBe('Read full review');
+    expect(container.querySelector('.sb-video__link')?.textContent).toContain('Watch video');
+    expect(container.querySelector('.sb-rcard__stars')?.getAttribute('aria-label')).toBe('5 out of 5');
+    expect(container.querySelector('.sb-carousel__nav button')?.getAttribute('aria-label')).toBe('Previous');
+  });
 });
 
 describe('AboutPromo', () => {

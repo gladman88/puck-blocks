@@ -21,7 +21,8 @@ export function AboutPromo({
   image,
   videoUrl,
   imagePosition = 'right',
-}: AboutPromoProps) {
+  puck,
+}: AboutPromoProps & { puck?: { metadata?: { locale?: string } } }) {
   const img = safeImageUrl(image);
   const hasVideo = Boolean(videoUrl && videoUrl.trim());
 
@@ -40,7 +41,7 @@ export function AboutPromo({
     <Section className={imagePosition === 'left' ? 'sb-about--reverse' : ''}>
       <div className="sb-about__grid">
         <div className="sb-about__media">
-          {hasVideo ? <VideoEmbed url={videoUrl as string} title={heading} /> : null}
+          {hasVideo ? <VideoEmbed url={videoUrl as string} title={heading} locale={puck?.metadata?.locale === 'en' ? 'en' : 'ru'} /> : null}
           {img ? <img className="sb-about__img" src={img} alt={heading} loading="lazy" /> : null}
         </div>
         {body}

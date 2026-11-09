@@ -4,6 +4,17 @@ import { Section } from '../components/Section';
 import { Carousel } from '../components/Carousel';
 import { VideoEmbed } from '../components/VideoEmbed';
 import { safeImageUrl } from '../sanitize';
+import type { SiteLocale } from '../components/LanguageSwitcher';
+
+type PuckInjected = { puck?: { metadata?: { locale?: string } } };
+
+const STRINGS: Record<
+  SiteLocale,
+  { more: string; close: string; review: string; videoReview: string; outOf5: (n: number) => string }
+> = {
+  ru: { more: 'Читать полностью', close: 'Закрыть', review: 'Отзыв', videoReview: 'Видео-отзыв', outOf5: (n) => `${n} из 5` },
+  en: { more: 'Read full review', close: 'Close', review: 'Review', videoReview: 'Video review', outOf5: (n) => `${n} out of 5` },
+};
 
 export interface TextReview {
   name?: string;
@@ -28,19 +39,22 @@ export interface ReviewsCarouselProps {
   anchorId?: string;
   textReviews?: TextReview[];
   mediaReviews?: MediaReview[];
+  /** Override the Puck metadata locale (for non-Puck hosts). */
+  locale?: SiteLocale;
 }
 
-function Stars({ rating }: { rating: number }) {
+function Stars({ rating, locale }: { rating: number; locale: SiteLocale }) {
   const full = Math.max(0, Math.min(5, Math.round(rating)));
   return (
-    <span className="sb-rcard__stars" aria-label={`${full} из 5`}>
+    <span className="sb-rcard__stars" aria-label={STRINGS[locale].outOf5(full)}>
       {'★★★★★'.slice(0, full)}
       <span className="sb-rcard__stars-empty">{'★★★★★'.slice(0, 5 - full)}</span>
     </span>
   );
 }
 
-function TextCard({ review }: { review: TextReview }) {
+function TextCard({ review, locale }: { review: TextReview; locale: SiteLocale }) {
+  const t = STRINGS[locale];
   const [open, setOpen] = useState(false);
   const name = review.name?.trim();
   const avatar = safeImageUrl(review.avatar ?? '');
@@ -58,14 +72,14 @@ function TextCard({ review }: { review: TextReview }) {
         )}
         <div className="sb-rcard__meta">
           {name ? <p className="sb-rcard__name">{name}</p> : null}
-          {review.rating ? <Stars rating={review.rating} /> : null}
+          {review.rating ? <Stars rating={review.rating} locale={locale} /> : null}
         </div>
       </div>
       {review.text ? <p className="sb-rcard__text">{review.text}</p> : null}
       {screenshot ? (
         <>
           <button type="button" className="sb-rcard__more" onClick={() => setOpen(true)}>
-            Читать полностью
+            {t.more}
           </button>
           {open && typeof document !== 'undefined'
             ? createPortal(
@@ -75,13 +89,13 @@ function TextCard({ review }: { review: TextReview }) {
                   aria-modal="true"
                   onClick={() => setOpen(false)}
                 >
-                  <button type="button" className="sb-lightbox__close" aria-label="Закрыть">
+                  <button type="button" className="sb-lightbox__close" aria-label={t.close}>
                     ×
                   </button>
                   <img
                     className="sb-lightbox__img"
                     src={screenshot}
-                    alt={name ? `Отзыв — ${name}` : 'Отзыв'}
+                    alt={name ? `${t.review} — ${name}` : t.review}
                     onClick={(e) => e.stopPropagation()}
                   />
                 </div>,
@@ -94,12 +108,12 @@ function TextCard({ review }: { review: TextReview }) {
   );
 }
 
-function MediaCard({ item }: { item: MediaReview }) {
+function MediaCard({ item, locale }: { item: MediaReview; locale: SiteLocale }) {
   const photo = safeImageUrl(item.photo ?? '');
   return (
     <figure className="sb-rmedia">
       {item.videoUrl ? (
-        <VideoEmbed url={item.videoUrl} title={item.caption || 'Видео-отзыв'} />
+        <VideoEmbed url={item.videoUrl} title={item.caption || STRINGS[locale].videoReview} locale={locale} />
       ) : photo ? (
         <img className="sb-rmedia__photo" src={photo} alt={item.caption ?? ''} loading="lazy" />
       ) : null}
@@ -113,17 +127,25 @@ function MediaCard({ item }: { item: MediaReview }) {
  * avatar + stars + text) and media reviews (portrait video / photo). Mirrors
  * the original site, where the two are separate rows.
  */
-export function ReviewsCarousel({ heading, anchorId, textReviews, mediaReviews }: ReviewsCarouselProps) {
+export function ReviewsCarousel({
+  heading,
+  anchorId,
+  textReviews,
+  mediaReviews,
+  locale: localeProp,
+  puck,
+}: ReviewsCarouselProps & PuckInjected) {
+  const locale: SiteLocale = localeProp ?? (puck?.metadata?.locale === 'en' ? 'en' : 'ru');
   const texts = (textReviews ?? []).filter((r) => r.name || r.text);
   const media = (mediaReviews ?? []).filter((m) => m.videoUrl || m.photo);
 
   return (
     <Section id={anchorId || 'reviews'}>
       {texts.length > 0 ? (
-        <Carousel title={heading ? <h2 className="sb-h2 sb-h2--inline">{heading}</h2> : null}>
+        <Carousel locale={locale} title={heading ? <h2 className="sb-h2 sb-h2--inline">{heading}</h2> : null}>
           {texts.map((r, i) => (
             <div className="sb-carousel__cell sb-carousel__cell--text" key={i}>
-              <TextCard review={r} />
+              <TextCard review={r} locale={locale} />
             </div>
           ))}
         </Carousel>
@@ -132,10 +154,10 @@ export function ReviewsCarousel({ heading, anchorId, textReviews, mediaReviews }
       ) : null}
 
       {media.length > 0 ? (
-        <Carousel>
+        <Carousel locale={locale}>
           {media.map((m, i) => (
             <div className="sb-carousel__cell sb-carousel__cell--media" key={i}>
-              <MediaCard item={m} />
+              <MediaCard item={m} locale={locale} />
             </div>
           ))}
         </Carousel>

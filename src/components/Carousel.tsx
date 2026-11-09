@@ -1,10 +1,25 @@
 import { useRef, type ReactNode } from 'react';
+import type { SiteLocale } from './LanguageSwitcher';
+
+const LABELS: Record<SiteLocale, { prev: string; next: string }> = {
+  ru: { prev: 'Назад', next: 'Вперёд' },
+  en: { prev: 'Previous', next: 'Next' },
+};
 
 /**
  * Horizontal scroll-snap carousel with prev/next arrows in a top-right header.
  * Client-interactive (scrolls the track on click). Used for review rows.
  */
-export function Carousel({ title, children }: { title?: ReactNode; children: ReactNode }) {
+export function Carousel({
+  title,
+  children,
+  locale = 'ru',
+}: {
+  title?: ReactNode;
+  children: ReactNode;
+  locale?: SiteLocale;
+}) {
+  const t = LABELS[locale];
   const ref = useRef<HTMLDivElement>(null);
 
   const scrollByDir = (dir: number) => {
@@ -18,10 +33,10 @@ export function Carousel({ title, children }: { title?: ReactNode; children: Rea
       <div className="sb-carousel__head">
         <div className="sb-carousel__title">{title}</div>
         <div className="sb-carousel__nav">
-          <button type="button" onClick={() => scrollByDir(-1)} aria-label="Назад">
+          <button type="button" onClick={() => scrollByDir(-1)} aria-label={t.prev}>
             ‹
           </button>
-          <button type="button" onClick={() => scrollByDir(1)} aria-label="Вперёд">
+          <button type="button" onClick={() => scrollByDir(1)} aria-label={t.next}>
             ›
           </button>
         </div>
