@@ -34,7 +34,8 @@ export function LeadForm({
 }: LeadFormProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [method, setMethod] = useState('whatsapp');
+  // Telegram first and preselected (owner decision 2026-11-10).
+  const [method, setMethod] = useState('telegram');
   const [status, setStatus] = useState<Status>('idle');
   const img = safeImageUrl(image);
 
@@ -91,8 +92,8 @@ export function LeadForm({
                 value={method}
                 onChange={(event) => setMethod(event.target.value)}
               >
-                <option value="whatsapp">WhatsApp</option>
                 <option value="telegram">Telegram</option>
+                <option value="whatsapp">WhatsApp</option>
                 <option value="phone">Телефон</option>
               </select>
               <button className="sb-btn" type="submit" disabled={status === 'sending'}>

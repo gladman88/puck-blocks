@@ -64,6 +64,38 @@ export interface CatalogVehicle {
    *  null/absent (incomplete price list or an older backend) → «по запросу» /
    *  «от N ฿/день» instead of the per-day range and the 7/14/30-day sums. */
   card_prices?: CardPrices | null;
+  /** Directory model of the vehicle (`slug` — its page `/<locale>/<cars|bikes>/<slug>`);
+   *  null/absent (no published page, older backend) → the card is not a link. */
+  vehicle_model?: { id: string | number; slug: string } | null;
+  /** Trim of the model («Premium»); '' / null / absent — none. */
+  trim?: string | null;
+}
+
+/** Model page of a vehicle — `/ru/cars/zeekr-7x`, `/en/bikes/honda-adv-160`;
+ *  undefined when the vehicle has no model slug. */
+export function vehicleModelHref(
+  v: Pick<CatalogVehicle, 'vehicle_type' | 'vehicle_model'>,
+  locale: 'ru' | 'en',
+): string | undefined {
+  const slug = v.vehicle_model?.slug;
+  if (!slug) return undefined;
+  return `/${locale}/${v.vehicle_type === 'motorcycle' ? 'bikes' : 'cars'}/${slug}`;
+}
+
+const UNIT_WORDS = {
+  car: { ru: ['машина', 'машины', 'машин'], en: ['car', 'cars'] },
+  motorcycle: { ru: ['байк', 'байка', 'байков'], en: ['bike', 'bikes'] },
+} as const;
+
+/** Group size: «1 машина / 3 машины / 5 машин», «1 байк / 3 байка / 5 байков»;
+ *  en «1 car / 3 cars», «1 bike / 3 bikes». */
+function pluralUnits(n: number, kind: CatalogVehicle['vehicle_type'], lang: 'ru' | 'en'): string {
+  const words = UNIT_WORDS[kind === 'motorcycle' ? 'motorcycle' : 'car'];
+  if (lang === 'en') return `${n} ${n === 1 ? words.en[0] : words.en[1]}`;
+  const a = Math.abs(n) % 10;
+  const b = Math.abs(n) % 100;
+  const word = a === 1 && b !== 11 ? words.ru[0] : a >= 2 && a <= 4 && (b < 12 || b > 14) ? words.ru[1] : words.ru[2];
+  return `${n} ${word}`;
 }
 
 /** `card_prices` of the public catalog list (decimal strings, as the API sends them). */
@@ -166,7 +198,7 @@ export const STRINGS = {
     freeFrom: 'свободно с',
     onRequest: 'по запросу',
     available: 'свободно',
-    total: 'всего',
+    units: (n: number, kind: CatalogVehicle['vehicle_type'] = 'car') => pluralUnits(n, kind, 'ru'),
     viewAll: 'Смотреть весь каталог',
     empty: 'Нет доступных вариантов',
     loading: 'Загрузка…',
@@ -207,7 +239,7 @@ export const STRINGS = {
     freeFrom: 'free from',
     onRequest: 'on request',
     available: 'available',
-    total: 'total',
+    units: (n: number, kind: CatalogVehicle['vehicle_type'] = 'car') => pluralUnits(n, kind, 'en'),
     viewAll: 'View full catalog',
     empty: 'No vehicles available',
     loading: 'Loading…',
@@ -255,9 +287,11 @@ function buildFilteredVehiclesUrl(apiBase: string, f: CatalogFilterState): strin
   return `${apiBase}/api/v1/catalog/vehicles/${s ? `?${s}` : ''}`;
 }
 
-interface VehicleGroup {
-  /** Representative unit (cheapest available, or earliest-freeing if all busy). */
+export interface VehicleGroup {
+  /** Representative unit (`pickRepresentative`), availability of the group. */
   vehicle: CatalogVehicle;
+  /** Every unit of the group, incoming order. */
+  units: CatalogVehicle[];
   total: number;
   availableCount: number;
 }
@@ -268,48 +302,85 @@ export function vehicleGroupKey(v: Pick<CatalogVehicle, 'brand' | 'model' | 'yea
   return `${v.brand}:${v.model}:${v.year ?? ''}:${v.color ?? ''}`;
 }
 
-// Group identical units (same brand/model/year/colour) into one card, mirroring
-// frontend_catalog: the card shows a representative + a count, not one card per
-// physical unit.
-function groupVehicles(vehicles: CatalogVehicle[]): VehicleGroup[] {
+type RepresentativeLike = Pick<CatalogVehicle, 'is_available' | 'free_from' | 'min_price_per_day'>;
+
+/**
+ * The unit that stands for a group (catalog card, model-page card, trim):
+ * free today → the cheapest of the free ones; none free → the one freed
+ * earliest (units with a date first), then the cheaper. Ties keep the incoming
+ * order. The ONE rule for the home catalog and the model / category pages.
+ */
+export function pickRepresentative<T extends RepresentativeLike>(group: readonly T[]): T {
+  const available = group.filter((v) => v.is_available);
+  if (available.length === 0) {
+    const withDate = group.filter((v) => v.free_from);
+    const candidates = withDate.length > 0 ? withDate : group;
+    return candidates.reduce((a, b) => {
+      if (a.free_from !== b.free_from) return (a.free_from ?? '9999') <= (b.free_from ?? '9999') ? a : b;
+      return (a.min_price_per_day ?? Infinity) <= (b.min_price_per_day ?? Infinity) ? a : b;
+    });
+  }
+  const withPrice = available.filter((v) => v.min_price_per_day !== null);
+  return withPrice.length > 0
+    ? withPrice.reduce((a, b) => ((a.min_price_per_day ?? 0) <= (b.min_price_per_day ?? 0) ? a : b))
+    : available[0];
+}
+
+/**
+ * Units grouped into cards (a representative + a count, not one card per
+ * physical unit), mirroring frontend_catalog. `keyFn` decides the group: the
+ * home catalog — `vehicleGroupKey` (brand/model/year/colour), the site pages —
+ * the model of the directory.
+ */
+export function groupVehicles(
+  vehicles: readonly CatalogVehicle[],
+  keyFn: (v: CatalogVehicle) => string = vehicleGroupKey,
+): VehicleGroup[] {
   const groups = new Map<string, CatalogVehicle[]>();
   for (const v of vehicles) {
-    const key = vehicleGroupKey(v);
+    const key = keyFn(v);
     const existing = groups.get(key);
     if (existing) existing.push(v);
     else groups.set(key, [v]);
   }
 
   return Array.from(groups.values()).map((group) => {
-    const available = group.filter((v) => v.is_available);
-    const availableCount = available.length;
-
-    let representative: CatalogVehicle;
-    if (availableCount === 0) {
-      const withDate = group.filter((v) => v.free_from);
-      const candidates = withDate.length > 0 ? withDate : group;
-      representative = candidates.reduce((a, b) => {
-        if (a.free_from !== b.free_from) return (a.free_from ?? '9999') <= (b.free_from ?? '9999') ? a : b;
-        return (a.min_price_per_day ?? Infinity) <= (b.min_price_per_day ?? Infinity) ? a : b;
-      });
-    } else {
-      const withPrice = available.filter((v) => v.min_price_per_day !== null);
-      representative =
-        withPrice.length > 0
-          ? withPrice.reduce((a, b) => ((a.min_price_per_day ?? 0) <= (b.min_price_per_day ?? 0) ? a : b))
-          : available[0];
-    }
-
+    const availableCount = group.filter((v) => v.is_available).length;
+    const representative = pickRepresentative(group);
     return {
       vehicle: {
         ...representative,
         is_available: availableCount > 0,
         free_from: availableCount > 0 ? null : representative.free_from,
       },
+      units: group,
       total: group.length,
       availableCount,
     };
   });
+}
+
+/**
+ * Card order of the tab grids (the site's cars/bikes sections, category and
+ * type pages): models with a unit free today first, then the cheaper
+ * `min_price_per_day` (no price — last), then the incoming order (stable).
+ * The filter-bar mode (`showFilters`) keeps its own sort and does not use it.
+ */
+export function orderCatalogCards<
+  T extends { vehicle: Pick<CatalogVehicle, 'min_price_per_day'>; availableCount: number },
+>(cards: readonly T[]): T[] {
+  const price = (c: T) => c.vehicle.min_price_per_day ?? Infinity;
+  return cards
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => {
+      const free = Number(b.c.availableCount > 0) - Number(a.c.availableCount > 0);
+      if (free !== 0) return free;
+      const pa = price(a.c);
+      const pb = price(b.c);
+      if (pa !== pb) return pa < pb ? -1 : 1;
+      return a.i - b.i;
+    })
+    .map(({ c }) => c);
 }
 
 type PuckInjected = {
@@ -552,15 +623,19 @@ export function VehicleCatalog({
     return groupVehicles(list);
   }, [vehicles, activeCat, showFilters]);
 
-  // Keep available transport ahead of unavailable transport for every
-  // availability context: today without dates, or the selected range. This is
-  // a stable partition performed after the regular catalog/price order, so the
-  // existing category and price order remains intact inside each section.
+  // Tab mode: `orderCatalogCards` (free today → cheaper → backend order).
+  // It used to return the backend order untouched (category/price/brand/model),
+  // so a busy model could stand before one free today (prod 2026-11-10,
+  // «Премиум»: «свободно с 15 дек.» ahead of «Свободно сегодня»).
+  // Filter mode keeps available transport ahead of unavailable transport for
+  // every availability context: today without dates, or the selected range —
+  // a stable partition after the chosen sort.
   const displayGroups = useMemo(() => {
-    const availableOnly = showFilters && filters.availableOnly && filters.availableFrom && filters.availableTo;
+    if (!showFilters) return orderCatalogCards(groups);
+    const availableOnly = filters.availableOnly && filters.availableFrom && filters.availableTo;
     const filtered = availableOnly ? groups.filter((group) => group.availableCount > 0) : groups;
 
-    const regularOrder = !showFilters || filters.sort === 'default'
+    const regularOrder = filters.sort === 'default'
       ? filtered
       : [...filtered].sort((a, b) => {
         const pa = a.vehicle.min_price_per_day ?? Infinity;
@@ -569,7 +644,7 @@ export function VehicleCatalog({
         return (pa - pb) * dir;
       });
 
-    if (!showFilters || availableOnly) return regularOrder;
+    if (availableOnly) return regularOrder;
     return [...regularOrder].sort((a, b) => Number(b.availableCount > 0) - Number(a.availableCount > 0));
   }, [groups, showFilters, filters.availableOnly, filters.availableFrom, filters.availableTo, filters.sort]);
 
@@ -649,6 +724,10 @@ export function VehicleCatalog({
                 strings={t}
                 referralCode={referralCode}
                 onOpen={() => setSelected(g.vehicle)}
+                // Model page link (SEO) on the site's tab grids only: the
+                // filter mode is the standalone catalog on its own domain,
+                // where a site-relative model path does not exist.
+                href={showFilters ? undefined : vehicleModelHref(g.vehicle, locale)}
               />
             ))}
           </div>

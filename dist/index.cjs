@@ -556,6 +556,10 @@ function LanguageSwitcher({ current, className = "", onSelect }) {
     );
   }) });
 }
+function withLinkBase(href, linkBase) {
+  const base2 = (linkBase ?? "").trim();
+  return base2 && href.startsWith("#") ? `${base2}${href}` : href;
+}
 var STRINGS2 = {
   ru: { menu: "\u041C\u0435\u043D\u044E", close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C", call: "\u041F\u043E\u0437\u0432\u043E\u043D\u0438\u0442\u044C" },
   en: { menu: "Menu", close: "Close", call: "Call" }
@@ -582,6 +586,7 @@ function SiteHeader({
   telegram,
   instagram,
   locale: localeProp,
+  linkBase,
   puck
 }) {
   const locale = localeProp ?? (puck?.metadata?.locale === "en" ? "en" : "ru");
@@ -646,10 +651,13 @@ function SiteHeader({
       children: /* @__PURE__ */ jsxRuntime.jsx(ContactIcon, { kind })
     }
   );
-  const navLinks = (links ?? []).map((link) => ({ label: link.label, href: safeHref(link.href) })).filter((l) => Boolean(l.href));
+  const navLinks = (links ?? []).map((link) => {
+    const href = safeHref(link.href);
+    return { label: link.label, href: href ? withLinkBase(href, linkBase) : href };
+  }).filter((l) => Boolean(l.href));
   return /* @__PURE__ */ jsxRuntime.jsxs("header", { className: `sb-header${scrolled ? " is-scrolled" : ""}`, children: [
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-header__inner", children: [
-      /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-header__brand", href: "/", children: logoNode }),
+      /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-header__brand", href: linkBase?.trim() || "/", children: logoNode }),
       /* @__PURE__ */ jsxRuntime.jsx("nav", { className: "sb-header__nav", children: navLinks.map((link, index) => /* @__PURE__ */ jsxRuntime.jsx("a", { href: link.href, children: link.label }, index)) }),
       /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-header__right", children: [
         /* @__PURE__ */ jsxRuntime.jsx(LanguageSwitcher, { current: locale, className: "sb-lang--header sb-only-desktop" }),
@@ -725,8 +733,10 @@ function Footer({
   address,
   whatsapp,
   telegram,
-  instagram
+  instagram,
+  linkBase
 }) {
+  const anchor = (href) => href ? withLinkBase(href, linkBase) : href;
   const phoneHref = phone ? safeHref(phone.startsWith("tel:") ? phone : `tel:${phone.replace(/\s+/g, "")}`) : void 0;
   const emailHref = email ? safeHref(email.startsWith("mailto:") ? email : `mailto:${email}`) : void 0;
   const socials = [];
@@ -749,8 +759,8 @@ function Footer({
       note ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-footer__note", children: note }) : null
     ] }),
     (columns ?? []).map((col, index) => {
-      const titleHref = safeHref(col.titleHref);
-      const links = (col.links ?? []).map((l) => ({ label: l.label, href: safeHref(l.href) })).filter((l) => Boolean(l.href));
+      const titleHref = anchor(safeHref(col.titleHref));
+      const links = (col.links ?? []).map((l) => ({ label: l.label, href: anchor(safeHref(l.href)) })).filter((l) => Boolean(l.href));
       return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-footer__col", children: [
         /* @__PURE__ */ jsxRuntime.jsx("h4", { children: titleHref ? /* @__PURE__ */ jsxRuntime.jsx("a", { href: titleHref, children: col.title }) : col.title }),
         links.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-footer__list", children: links.map((l, i) => /* @__PURE__ */ jsxRuntime.jsx("a", { href: l.href, children: l.label }, i)) }) : null
@@ -789,7 +799,7 @@ function LeadForm({
 }) {
   const [name, setName] = react.useState("");
   const [phone, setPhone] = react.useState("");
-  const [method, setMethod] = react.useState("whatsapp");
+  const [method, setMethod] = react.useState("telegram");
   const [status, setStatus] = react.useState("idle");
   const img = safeImageUrl(image);
   const onSubmit = async (event) => {
@@ -846,8 +856,8 @@ function LeadForm({
             value: method,
             onChange: (event) => setMethod(event.target.value),
             children: [
-              /* @__PURE__ */ jsxRuntime.jsx("option", { value: "whatsapp", children: "WhatsApp" }),
               /* @__PURE__ */ jsxRuntime.jsx("option", { value: "telegram", children: "Telegram" }),
+              /* @__PURE__ */ jsxRuntime.jsx("option", { value: "whatsapp", children: "WhatsApp" }),
               /* @__PURE__ */ jsxRuntime.jsx("option", { value: "phone", children: "\u0422\u0435\u043B\u0435\u0444\u043E\u043D" })
             ]
           }
@@ -2033,47 +2043,55 @@ function seasonLabel(start, end, locale) {
 function isCurrentSeason(season, day) {
   return !!day && season.start_date <= day && day <= season.end_date;
 }
-function PriceGrid({ periods, seasons, referenceDate, locale }) {
+function PriceGrid({ periods, seasons, referenceDate, locale, showLabel = true }) {
   const t = S[locale];
   const titleId = react.useId();
   if (periods.length === 0 || seasons.length === 0) return null;
   const last = periods.length - 1;
   return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-pgrid", children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-vd__lab", id: titleId, children: [
+    showLabel ? /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-vd__lab", id: titleId, children: [
       t.title,
       " ",
       /* @__PURE__ */ jsxRuntime.jsxs("em", { children: [
         "\xB7 ",
         t.unit
       ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-pgrid__wrap", children: /* @__PURE__ */ jsxRuntime.jsxs("table", { className: "sb-pgrid__table", "aria-labelledby": titleId, children: [
-      /* @__PURE__ */ jsxRuntime.jsx("thead", { children: /* @__PURE__ */ jsxRuntime.jsxs("tr", { children: [
-        /* @__PURE__ */ jsxRuntime.jsx("th", { scope: "col", children: t.season }),
-        periods.map((p, i) => /* @__PURE__ */ jsxRuntime.jsx("th", { scope: "col", children: periodLabel(p, locale) }, i))
-      ] }) }),
-      /* @__PURE__ */ jsxRuntime.jsx("tbody", { children: seasons.map((s) => {
-        const label = seasonLabel(s.start_date, s.end_date, locale);
-        return /* @__PURE__ */ jsxRuntime.jsxs(
-          "tr",
-          {
-            className: isCurrentSeason(s, referenceDate) ? "is-now" : void 0,
-            children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("th", { scope: "row", children: [
-                label.name,
-                label.years ? /* @__PURE__ */ jsxRuntime.jsx("small", { children: label.years }) : null
-              ] }),
-              periods.map((_, i) => {
-                const raw = s.prices[i];
-                const value = raw === null || raw === void 0 || raw === "" ? "" : formatBahtCeil(raw);
-                return /* @__PURE__ */ jsxRuntime.jsx("td", { className: i === last ? "is-best" : void 0, children: value || "\u2014" }, i);
-              })
-            ]
-          },
-          `${s.start_date}-${s.end_date}`
-        );
-      }) })
-    ] }) }),
+    ] }) : null,
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-pgrid__wrap", children: /* @__PURE__ */ jsxRuntime.jsxs(
+      "table",
+      {
+        className: "sb-pgrid__table",
+        "aria-labelledby": showLabel ? titleId : void 0,
+        "aria-label": showLabel ? void 0 : `${t.title} \xB7 ${t.unit}`,
+        children: [
+          /* @__PURE__ */ jsxRuntime.jsx("thead", { children: /* @__PURE__ */ jsxRuntime.jsxs("tr", { children: [
+            /* @__PURE__ */ jsxRuntime.jsx("th", { scope: "col", children: t.season }),
+            periods.map((p, i) => /* @__PURE__ */ jsxRuntime.jsx("th", { scope: "col", children: periodLabel(p, locale) }, i))
+          ] }) }),
+          /* @__PURE__ */ jsxRuntime.jsx("tbody", { children: seasons.map((s) => {
+            const label = seasonLabel(s.start_date, s.end_date, locale);
+            return /* @__PURE__ */ jsxRuntime.jsxs(
+              "tr",
+              {
+                className: isCurrentSeason(s, referenceDate) ? "is-now" : void 0,
+                children: [
+                  /* @__PURE__ */ jsxRuntime.jsxs("th", { scope: "row", children: [
+                    label.name,
+                    label.years ? /* @__PURE__ */ jsxRuntime.jsx("small", { children: label.years }) : null
+                  ] }),
+                  periods.map((_, i) => {
+                    const raw = s.prices[i];
+                    const value = raw === null || raw === void 0 || raw === "" ? "" : formatBahtCeil(raw);
+                    return /* @__PURE__ */ jsxRuntime.jsx("td", { className: i === last ? "is-best" : void 0, children: value || "\u2014" }, i);
+                  })
+                ]
+              },
+              `${s.start_date}-${s.end_date}`
+            );
+          }) })
+        ]
+      }
+    ) }),
     /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-pgrid__legend", children: [
       t.legend[0],
       /* @__PURE__ */ jsxRuntime.jsx("b", { children: t.legend[1] }),
@@ -2502,6 +2520,7 @@ function VehicleBookingModal({
   initialFrom,
   initialTo,
   unitIds,
+  initialStep = "detail",
   onClose
 }) {
   const t = S2[locale];
@@ -2540,7 +2559,9 @@ function VehicleBookingModal({
   const [dropoffSameAsPickup, setDropoffSameAsPickup] = react.useState(true);
   const [submitting, setSubmitting] = react.useState(false);
   const submittingRef = react.useRef(false);
-  const [stage, setStage] = react.useState("detail");
+  const [stage, setStage] = react.useState(
+    initialStep === "booking" ? "choice" : "detail"
+  );
   const [err, setErr] = react.useState("");
   const [tgSubmitting, setTgSubmitting] = react.useState(false);
   const tgSubmittingRef = react.useRef(false);
@@ -2983,6 +3004,12 @@ function VehicleBookingModal({
     }
     setStage("choice");
   };
+  const bookedOnOpenRef = react.useRef(false);
+  react.useEffect(() => {
+    if (initialStep !== "booking" || bookedOnOpenRef.current || !d) return;
+    bookedOnOpenRef.current = true;
+    onBook();
+  }, [d]);
   const renderAccessories = () => {
     if (!d || (d.accessories ?? []).length === 0) return null;
     return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vd__accessories", children: [
@@ -3616,6 +3643,9 @@ function VehicleBookingModal({
     document.body
   );
 }
+function isModifiedClick(e) {
+  return e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
+}
 function formatCardDate(iso, locale) {
   try {
     return new Date(iso).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-GB", {
@@ -3636,9 +3666,15 @@ function VehicleCard({
   locale,
   strings: t,
   referralCode,
-  onOpen
+  onOpen,
+  href
 }) {
   const toast = useCopiedToast();
+  const onLinkClick = (e) => {
+    if (e.defaultPrevented || isModifiedClick(e)) return;
+    e.preventDefault();
+    onOpen();
+  };
   const handleShare = async () => {
     const outcome = await shareVehicle({
       vehicleId: v.id,
@@ -3648,14 +3684,14 @@ function VehicleCard({
     });
     if (outcome === "copied") toast.show();
   };
-  const countLabel = total > 1 ? availableCount > 0 ? `${availableCount} ${t.available}` : `${total} ${t.total}` : null;
+  const countLabel = total > 1 ? availableCount > 0 ? `${availableCount} ${t.available}` : t.units(total, v.vehicle_type) : null;
   const statusText = v.is_available ? hasCompleteDateRange ? t.availableSelected : t.availableToday : v.free_from ? `${t.freeFrom} ${formatCardDate(v.free_from, locale)}` : t.busy;
   const statusTone = v.is_available ? "available" : v.free_from ? "free" : "busy";
   const shown = toast.shown;
   return /* @__PURE__ */ jsxRuntime.jsx("article", { className: "sb-vcard", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__inner", children: [
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__ph", children: [
       v.photo_url ? /* @__PURE__ */ jsxRuntime.jsx("img", { src: v.photo_url, alt: v.display_name, loading: "lazy" }) : null,
-      /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-vcard__open", "aria-label": v.display_name, onClick: onOpen }),
+      href ? /* @__PURE__ */ jsxRuntime.jsx("a", { className: "sb-vcard__open", href, "aria-label": v.display_name, onClick: onLinkClick }) : /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-vcard__open", "aria-label": v.display_name, onClick: onOpen }),
       /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-vcard__top", children: [
         /* @__PURE__ */ jsxRuntime.jsx(CardTitle, { name: v.display_name, year: v.year, categoryName }),
         countLabel ? /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-vcard__count", children: countLabel }) : null
@@ -4147,6 +4183,23 @@ function setVehicleParam(id) {
 function categoryLabel(category, locale) {
   return locale === "en" && category.name_en ? category.name_en : category.name;
 }
+function vehicleModelHref(v, locale) {
+  const slug = v.vehicle_model?.slug;
+  if (!slug) return void 0;
+  return `/${locale}/${v.vehicle_type === "motorcycle" ? "bikes" : "cars"}/${slug}`;
+}
+var UNIT_WORDS = {
+  car: { ru: ["\u043C\u0430\u0448\u0438\u043D\u0430", "\u043C\u0430\u0448\u0438\u043D\u044B", "\u043C\u0430\u0448\u0438\u043D"], en: ["car", "cars"] },
+  motorcycle: { ru: ["\u0431\u0430\u0439\u043A", "\u0431\u0430\u0439\u043A\u0430", "\u0431\u0430\u0439\u043A\u043E\u0432"], en: ["bike", "bikes"] }
+};
+function pluralUnits(n, kind, lang) {
+  const words = UNIT_WORDS[kind === "motorcycle" ? "motorcycle" : "car"];
+  if (lang === "en") return `${n} ${n === 1 ? words.en[0] : words.en[1]}`;
+  const a = Math.abs(n) % 10;
+  const b = Math.abs(n) % 100;
+  const word = a === 1 && b !== 11 ? words.ru[0] : a >= 2 && a <= 4 && (b < 12 || b > 14) ? words.ru[1] : words.ru[2];
+  return `${n} ${word}`;
+}
 var STRINGS3 = {
   ru: {
     all: "\u0412\u0441\u0435",
@@ -4161,7 +4214,7 @@ var STRINGS3 = {
     freeFrom: "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u043E \u0441",
     onRequest: "\u043F\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0443",
     available: "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u043E",
-    total: "\u0432\u0441\u0435\u0433\u043E",
+    units: (n, kind = "car") => pluralUnits(n, kind, "ru"),
     viewAll: "\u0421\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0432\u0435\u0441\u044C \u043A\u0430\u0442\u0430\u043B\u043E\u0433",
     empty: "\u041D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0445 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432",
     loading: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026",
@@ -4202,7 +4255,7 @@ var STRINGS3 = {
     freeFrom: "free from",
     onRequest: "on request",
     available: "available",
-    total: "total",
+    units: (n, kind = "car") => pluralUnits(n, kind, "en"),
     viewAll: "View full catalog",
     empty: "No vehicles available",
     loading: "Loading\u2026",
@@ -4245,39 +4298,52 @@ function buildFilteredVehiclesUrl(apiBase, f) {
 function vehicleGroupKey(v) {
   return `${v.brand}:${v.model}:${v.year ?? ""}:${v.color ?? ""}`;
 }
-function groupVehicles(vehicles) {
+function pickRepresentative(group) {
+  const available = group.filter((v) => v.is_available);
+  if (available.length === 0) {
+    const withDate = group.filter((v) => v.free_from);
+    const candidates = withDate.length > 0 ? withDate : group;
+    return candidates.reduce((a, b) => {
+      if (a.free_from !== b.free_from) return (a.free_from ?? "9999") <= (b.free_from ?? "9999") ? a : b;
+      return (a.min_price_per_day ?? Infinity) <= (b.min_price_per_day ?? Infinity) ? a : b;
+    });
+  }
+  const withPrice = available.filter((v) => v.min_price_per_day !== null);
+  return withPrice.length > 0 ? withPrice.reduce((a, b) => (a.min_price_per_day ?? 0) <= (b.min_price_per_day ?? 0) ? a : b) : available[0];
+}
+function groupVehicles(vehicles, keyFn = vehicleGroupKey) {
   const groups = /* @__PURE__ */ new Map();
   for (const v of vehicles) {
-    const key = vehicleGroupKey(v);
+    const key = keyFn(v);
     const existing = groups.get(key);
     if (existing) existing.push(v);
     else groups.set(key, [v]);
   }
   return Array.from(groups.values()).map((group) => {
-    const available = group.filter((v) => v.is_available);
-    const availableCount = available.length;
-    let representative;
-    if (availableCount === 0) {
-      const withDate = group.filter((v) => v.free_from);
-      const candidates = withDate.length > 0 ? withDate : group;
-      representative = candidates.reduce((a, b) => {
-        if (a.free_from !== b.free_from) return (a.free_from ?? "9999") <= (b.free_from ?? "9999") ? a : b;
-        return (a.min_price_per_day ?? Infinity) <= (b.min_price_per_day ?? Infinity) ? a : b;
-      });
-    } else {
-      const withPrice = available.filter((v) => v.min_price_per_day !== null);
-      representative = withPrice.length > 0 ? withPrice.reduce((a, b) => (a.min_price_per_day ?? 0) <= (b.min_price_per_day ?? 0) ? a : b) : available[0];
-    }
+    const availableCount = group.filter((v) => v.is_available).length;
+    const representative = pickRepresentative(group);
     return {
       vehicle: {
         ...representative,
         is_available: availableCount > 0,
         free_from: availableCount > 0 ? null : representative.free_from
       },
+      units: group,
       total: group.length,
       availableCount
     };
   });
+}
+function orderCatalogCards(cards) {
+  const price = (c) => c.vehicle.min_price_per_day ?? Infinity;
+  return cards.map((c, i) => ({ c, i })).sort((a, b) => {
+    const free = Number(b.c.availableCount > 0) - Number(a.c.availableCount > 0);
+    if (free !== 0) return free;
+    const pa = price(a.c);
+    const pb = price(b.c);
+    if (pa !== pb) return pa < pb ? -1 : 1;
+    return a.i - b.i;
+  }).map(({ c }) => c);
 }
 function defaultActiveCat(catList, vehList, defaultCategory) {
   const want = (defaultCategory ?? "").trim().toLowerCase();
@@ -4436,15 +4502,16 @@ function VehicleCatalog({
     return groupVehicles(list);
   }, [vehicles, activeCat, showFilters]);
   const displayGroups = react.useMemo(() => {
-    const availableOnly = showFilters && filters.availableOnly && filters.availableFrom && filters.availableTo;
+    if (!showFilters) return orderCatalogCards(groups);
+    const availableOnly = filters.availableOnly && filters.availableFrom && filters.availableTo;
     const filtered = availableOnly ? groups.filter((group) => group.availableCount > 0) : groups;
-    const regularOrder = !showFilters || filters.sort === "default" ? filtered : [...filtered].sort((a, b) => {
+    const regularOrder = filters.sort === "default" ? filtered : [...filtered].sort((a, b) => {
       const pa = a.vehicle.min_price_per_day ?? Infinity;
       const pb = b.vehicle.min_price_per_day ?? Infinity;
       const dir = filters.sort === "price_asc" ? 1 : -1;
       return (pa - pb) * dir;
     });
-    if (!showFilters || availableOnly) return regularOrder;
+    if (availableOnly) return regularOrder;
     return [...regularOrder].sort((a, b) => Number(b.availableCount > 0) - Number(a.availableCount > 0));
   }, [groups, showFilters, filters.availableOnly, filters.availableFrom, filters.availableTo, filters.sort]);
   const selectedUnitIds = react.useMemo(() => {
@@ -4498,7 +4565,8 @@ function VehicleCatalog({
         locale,
         strings: t,
         referralCode,
-        onOpen: () => setSelected(g.vehicle)
+        onOpen: () => setSelected(g.vehicle),
+        href: showFilters ? void 0 : vehicleModelHref(g.vehicle, locale)
       },
       g.vehicle.id
     )) })),
@@ -5090,19 +5158,891 @@ var internalConfig = {
 };
 var puckConfig = internalConfig;
 
+// src/pages/model.ts
+var trimKey = (trim) => (trim ?? "").trim().toLowerCase();
+function buildVersions(units) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const u of units) {
+    const key = trimKey(u.trim);
+    const list = groups.get(key);
+    if (list) list.push(u);
+    else groups.set(key, [u]);
+  }
+  return Array.from(groups.entries()).map(([key, list]) => {
+    const unit = pickRepresentative(list);
+    return {
+      key,
+      trim: (unit.trim ?? "").trim(),
+      units: list,
+      unit,
+      availableCount: list.filter((u) => u.is_available).length
+    };
+  }).sort((a, b) => {
+    if (!a.key !== !b.key) return a.key ? 1 : -1;
+    return a.trim.localeCompare(b.trim);
+  });
+}
+function defaultVersion(versions) {
+  if (versions.length === 0) return null;
+  const best = pickRepresentative(versions.map((v) => v.unit));
+  return versions.find((v) => v.unit === best) ?? versions[0];
+}
+function formatLongDate(iso, locale) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(locale === "ru" ? "ru-RU" : "en-GB", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC"
+  });
+}
+function trimLabel(trim, baseLabel) {
+  return trim.trim() || baseLabel;
+}
+function seatsOf(u) {
+  const n = typeof u.seats === "number" ? u.seats : u.seats ? Number(u.seats) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+function versionSubtitle(version, versions, seatsCount) {
+  const seats = new Set(versions.map((v) => seatsOf(v.unit)));
+  const own = seatsOf(version.unit);
+  if (seats.size > 1 && own !== null) return seatsCount(own);
+  return version.unit.year ? String(version.unit.year) : "";
+}
+function priceFromMinDays(unit, today, model) {
+  const cp = unit.card_prices;
+  if (!cp) return null;
+  const want = Math.round(parseFloat(cp.per_day_min) * 100);
+  const periods = unit.pricing_periods ?? [];
+  const seasons = unit.pricing_seasons ?? [];
+  const season = seasons.find((s) => isCurrentSeason(s, today)) ?? seasons[0];
+  if (season) {
+    const matching = season.prices.flatMap(
+      (p, i) => p !== null && p !== void 0 && periods[i] && Math.round(Number(p) * 100) === want ? [periods[i].min_days] : []
+    );
+    if (matching.length > 0) return Math.min(...matching);
+  }
+  if (model?.price_from_per_day && Math.round(parseFloat(model.price_from_per_day) * 100) === want) {
+    return model.price_from_min_days;
+  }
+  return null;
+}
+function versionPrice(unit, today, model) {
+  const cp = unit.card_prices;
+  if (cp) {
+    const from = formatBahtCeil(cp.per_day_min);
+    const max = formatBahtCeil(cp.per_day_max);
+    return { from, maxDay: max !== from ? max : null, minDays: priceFromMinDays(unit, today, model) };
+  }
+  if (unit.min_price_per_day !== null && unit.min_price_per_day !== void 0) {
+    return { from: formatBahtCeil(unit.min_price_per_day), maxDay: null, minDays: null };
+  }
+  return { from: null, maxDay: null, minDays: null };
+}
+var ModelPageContext = react.createContext(null);
+function useModelPage() {
+  return react.useContext(ModelPageContext);
+}
+function ModelPageProvider({ model, locale, booking, today, children }) {
+  const versions = react.useMemo(() => buildVersions(model.units), [model.units]);
+  const [selectedKey, setSelectedKey] = react.useState(null);
+  const [open, setOpen] = react.useState(false);
+  const day = today ?? todayISO();
+  const selected = react.useMemo(
+    () => versions.find((v) => v.key === selectedKey) ?? defaultVersion(versions),
+    [versions, selectedKey]
+  );
+  const select = react.useCallback((key) => setSelectedKey(key), []);
+  const openBooking = react.useCallback(() => setOpen(true), []);
+  const value = react.useMemo(
+    () => ({ model, locale, today: day, versions, selected, select, openBooking }),
+    [model, locale, day, versions, selected, select, openBooking]
+  );
+  return /* @__PURE__ */ jsxRuntime.jsxs(ModelPageContext.Provider, { value, children: [
+    children,
+    open && selected ? /* @__PURE__ */ jsxRuntime.jsx(
+      VehicleBookingModal,
+      {
+        ...booking,
+        vehicle: selected.unit,
+        unitIds: selected.units.map((u) => u.id),
+        locale,
+        initialStep: "booking",
+        onClose: () => setOpen(false)
+      }
+    ) : null
+  ] });
+}
+
+// src/pages/strings.ts
+function fromDaysRu(n) {
+  const a = Math.abs(n) % 10;
+  const b = Math.abs(n) % 100;
+  return `${n} ${a === 1 && b !== 11 ? "\u0434\u043D\u044F" : "\u0434\u043D\u0435\u0439"}`;
+}
+function pluralRu(n, one, few, many) {
+  const a = Math.abs(n) % 10;
+  const b = Math.abs(n) % 100;
+  const word = a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many;
+  return `${n} ${word}`;
+}
+var PAGE_STRINGS = {
+  ru: {
+    rentInPhuket: "\u0430\u0440\u0435\u043D\u0434\u0430 \u043D\u0430 \u041F\u0445\u0443\u043A\u0435\u0442\u0435",
+    baseTrim: "\u0411\u0430\u0437\u043E\u0432\u0430\u044F",
+    trims: "\u041A\u043E\u043C\u043F\u043B\u0435\u043A\u0442\u0430\u0446\u0438\u0438",
+    seatsCount: (n) => pluralRu(n, "\u043C\u0435\u0441\u0442\u043E", "\u043C\u0435\u0441\u0442\u0430", "\u043C\u0435\u0441\u0442"),
+    from: "\u043E\u0442",
+    perDay: "/ \u0441\u0443\u0442\u043A\u0438",
+    priceNote: (minDays, maxDay) => [
+      minDays && minDays > 1 ? `\u043F\u0440\u0438 \u0430\u0440\u0435\u043D\u0434\u0435 \u043E\u0442 ${fromDaysRu(minDays)}` : null,
+      maxDay ? `\u0437\u0430 1 \u0434\u0435\u043D\u044C \u2014 ${maxDay}\xA0\u0E3F` : null
+    ].filter(Boolean).join(" \xB7 "),
+    onRequest: "\u0426\u0435\u043D\u0430 \u043F\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0443",
+    days: (n) => pluralDays(n, "ru"),
+    deposit: "\u0414\u0435\u043F\u043E\u0437\u0438\u0442",
+    or: "\u0438\u043B\u0438",
+    book: "\u0417\u0430\u0431\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
+    ask: "\u0417\u0430\u0434\u0430\u0442\u044C \u0432\u043E\u043F\u0440\u043E\u0441",
+    trust: ["\u041F\u043E\u0434\u0430\u0447\u0430 \u0437\u0430 2 \u0447\u0430\u0441\u0430", "\u041E\u0444\u0438\u0446\u0438\u0430\u043B\u044C\u043D\u044B\u0439 \u0434\u043E\u0433\u043E\u0432\u043E\u0440", "\u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430 \u043D\u0430 \u0440\u0443\u0441\u0441\u043A\u043E\u043C"],
+    statusFree: "\u0421\u0432\u043E\u0431\u043E\u0434\u043D\u0430 \u0441\u0435\u0439\u0447\u0430\u0441",
+    statusFreesOn: (date) => `\u041E\u0441\u0432\u043E\u0431\u043E\u0434\u0438\u0442\u0441\u044F ${date}`,
+    gallery: "\u0424\u043E\u0442\u043E",
+    prevPhoto: "\u041F\u0440\u0435\u0434\u044B\u0434\u0443\u0449\u0435\u0435 \u0444\u043E\u0442\u043E",
+    nextPhoto: "\u0421\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u0435 \u0444\u043E\u0442\u043E",
+    photoN: (n) => `\u0424\u043E\u0442\u043E ${n}`,
+    breadcrumbs: "\u041D\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u043E\u043D\u043D\u0430\u044F \u0446\u0435\u043F\u043E\u0447\u043A\u0430",
+    about: "\u041E \u043C\u043E\u0434\u0435\u043B\u0438",
+    keyFacts: "\u0413\u043B\u0430\u0432\u043D\u043E\u0435",
+    factRangeEv: "\u043D\u0430 \u043E\u0434\u043D\u043E\u043C \u0437\u0430\u0440\u044F\u0434\u0435",
+    factRange: "\u0437\u0430\u043F\u0430\u0441 \u0445\u043E\u0434\u0430",
+    factConsumption: "\u0440\u0430\u0441\u0445\u043E\u0434",
+    factPower: "\u043C\u043E\u0449\u043D\u043E\u0441\u0442\u044C",
+    factSprint: "\u0434\u043E 100 \u043A\u043C/\u0447",
+    factSeats: "\u043C\u0435\u0441\u0442 \u0432 \u0441\u0430\u043B\u043E\u043D\u0435",
+    specs: "\u0425\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438",
+    groupEngine: "\u0414\u0432\u0438\u0433\u0430\u0442\u0435\u043B\u044C \u0438 \u0437\u0430\u043F\u0430\u0441 \u0445\u043E\u0434\u0430",
+    groupDynamics: "\u0414\u0438\u043D\u0430\u043C\u0438\u043A\u0430",
+    groupBody: "\u041A\u0443\u0437\u043E\u0432 \u0438 \u0441\u0430\u043B\u043E\u043D",
+    seatsRow: "\u041C\u0435\u0441\u0442",
+    perDayRow: "\u0412 \u0441\u0443\u0442\u043A\u0438",
+    monthRow: "30 \u0434\u043D\u0435\u0439",
+    freeRow: "\u0421\u0432\u043E\u0431\u043E\u0434\u043D\u0430",
+    freeNow: "\u0441\u0435\u0439\u0447\u0430\u0441",
+    freeFrom: (date) => `\u0441 ${date}`,
+    busy: "\u0437\u0430\u043D\u044F\u0442\u0430",
+    choose: "\u0412\u044B\u0431\u0440\u0430\u0442\u044C",
+    chosen: "\u0412\u044B\u0431\u0440\u0430\u043D\u0430",
+    modelsCount: (n) => pluralRu(n, "\u043C\u043E\u0434\u0435\u043B\u044C", "\u043C\u043E\u0434\u0435\u043B\u0438", "\u043C\u043E\u0434\u0435\u043B\u0435\u0439"),
+    statsPrice: (minDays) => `/ \u0441\u0443\u0442\u043A\u0438${minDays && minDays > 1 ? ` \u043F\u0440\u0438 \u0430\u0440\u0435\u043D\u0434\u0435 \u043E\u0442 ${fromDaysRu(minDays)}` : ""}`,
+    statsFree: (n) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u0430" : "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u044B"} \u0441\u0435\u0433\u043E\u0434\u043D\u044F`,
+    categories: "\u041A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438"
+  },
+  en: {
+    rentInPhuket: "rental in Phuket",
+    baseTrim: "Standard",
+    trims: "Trims",
+    seatsCount: (n) => `${n} ${n === 1 ? "seat" : "seats"}`,
+    from: "from",
+    perDay: "/ day",
+    priceNote: (minDays, maxDay) => [
+      minDays && minDays > 1 ? `for rentals of ${minDays}+ days` : null,
+      maxDay ? `1 day \u2014 ${maxDay}\xA0\u0E3F` : null
+    ].filter(Boolean).join(" \xB7 "),
+    onRequest: "Price on request",
+    days: (n) => pluralDays(n, "en"),
+    deposit: "Deposit",
+    or: "or",
+    book: "Book",
+    ask: "Ask a question",
+    trust: ["Delivery in 2 hours", "Official rental contract", "Support in Russian and English"],
+    statusFree: "Available now",
+    statusFreesOn: (date) => `Free from ${date}`,
+    gallery: "Photos",
+    prevPhoto: "Previous photo",
+    nextPhoto: "Next photo",
+    photoN: (n) => `Photo ${n}`,
+    breadcrumbs: "Breadcrumbs",
+    about: "About the model",
+    keyFacts: "Key facts",
+    factRangeEv: "on one charge",
+    factRange: "range",
+    factConsumption: "consumption",
+    factPower: "power",
+    factSprint: "0\u2013100 km/h",
+    factSeats: "seats",
+    specs: "Specifications",
+    groupEngine: "Engine and range",
+    groupDynamics: "Performance",
+    groupBody: "Body and interior",
+    seatsRow: "Seats",
+    perDayRow: "Per day",
+    monthRow: "30 days",
+    freeRow: "Available",
+    freeNow: "now",
+    freeFrom: (date) => `from ${date}`,
+    busy: "booked",
+    choose: "Choose",
+    chosen: "Chosen",
+    modelsCount: (n) => `${n} ${n === 1 ? "model" : "models"}`,
+    statsPrice: (minDays) => `/ day${minDays && minDays > 1 ? ` for rentals of ${minDays}+ days` : ""}`,
+    statsFree: (n) => `${n} available today`,
+    categories: "Categories"
+  }
+};
+function Breadcrumbs({ crumbs, locale }) {
+  if (crumbs.length === 0) return null;
+  return /* @__PURE__ */ jsxRuntime.jsx("nav", { className: "sb-mp-crumbs", "aria-label": PAGE_STRINGS[locale].breadcrumbs, children: crumbs.map((c, i) => /* @__PURE__ */ jsxRuntime.jsxs(react.Fragment, { children: [
+    i > 0 ? /* @__PURE__ */ jsxRuntime.jsx("span", { "aria-hidden": "true", children: "/" }) : null,
+    c.href ? /* @__PURE__ */ jsxRuntime.jsx("a", { href: c.href, children: c.label }) : /* @__PURE__ */ jsxRuntime.jsx("b", { "aria-current": "page", children: c.label })
+  ] }, `${i}-${c.label}`)) });
+}
+function Svg({ children, className = "sb-mp-ic" }) {
+  return /* @__PURE__ */ jsxRuntime.jsx(
+    "svg",
+    {
+      className,
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      children
+    }
+  );
+}
+var PATHS = {
+  chevronLeft: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "m15 18-6-6 6-6" }),
+  chevronRight: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "m9 18 6-6-6-6" }),
+  calendar: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M16 2v4M8 2v4M3 10h18" })
+  ] }),
+  shield: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" }),
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "m9 12 2 2 4-4" })
+  ] }),
+  route: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "6", cy: "19", r: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "18", cy: "5", r: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16" })
+  ] }),
+  gauge: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M12 14l4-4" }),
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M3.34 19a10 10 0 1 1 17.32 0" })
+  ] }),
+  timer: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "12", cy: "14", r: "8" }),
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M12 10v4l2 2M10 2h4" })
+  ] }),
+  users: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "9", cy: "7", r: "4" }),
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" })
+  ] }),
+  engine: /* @__PURE__ */ jsxRuntime.jsx(jsxRuntime.Fragment, { children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M4 10h2V8h4V6h4v2h3l2 3h2v5h-2l-2 3H8l-2-3H4z" }) }),
+  battery: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("rect", { x: "2", y: "7", width: "18", height: "10", rx: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M22 11v2M6 11v2M10 11v2" })
+  ] }),
+  fuel: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M3 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18M3 22h12M3 10h12" }),
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M15 13h2a2 2 0 0 1 2 2v3a1.5 1.5 0 0 0 3 0V9l-3-3" })
+  ] }),
+  gearbox: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "5", cy: "6", r: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "12", cy: "6", r: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "19", cy: "6", r: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "5", cy: "18", r: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "12", cy: "18", r: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M5 8v8M12 8v8M19 8v4H5" })
+  ] }),
+  drive: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "6", cy: "6", r: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "18", cy: "6", r: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "6", cy: "18", r: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "18", cy: "18", r: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M8 6h8M8 18h8M12 6v12" })
+  ] }),
+  speed: /* @__PURE__ */ jsxRuntime.jsx(jsxRuntime.Fragment, { children: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M5 12h14M13 6l6 6-6 6" }) }),
+  car: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M5 17H3v-5l2-5h14l2 5v5h-2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M3 12h18" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "7.5", cy: "17", r: "2" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "16.5", cy: "17", r: "2" })
+  ] }),
+  height: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" }),
+  weight: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M6 8h12l2 13H4z" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "12", cy: "5", r: "3" })
+  ] }),
+  bolt: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M13 2 3 14h9l-1 8 10-12h-9z" }),
+  check: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M20 6 9 17l-5-5" }),
+  truck: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M3 6h11v10H3zM14 9h4l3 3v4h-7" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "7", cy: "17.5", r: "1.8" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "17", cy: "17.5", r: "1.8" })
+  ] }),
+  contract: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" }),
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M14 2v6h6M8 13h8M8 17h5" })
+  ] }),
+  chat: /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" }),
+  tag: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("path", { d: "M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" }),
+    /* @__PURE__ */ jsxRuntime.jsx("circle", { cx: "7", cy: "7", r: "1.5" })
+  ] })
+};
+function PageIcon({ name, className }) {
+  return /* @__PURE__ */ jsxRuntime.jsx(Svg, { className, children: PATHS[name] });
+}
+function IconBadge({ name }) {
+  return /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-mp-badge", "aria-hidden": "true", children: /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name }) });
+}
+var MODEL_HERO_ID = "sb-model-hero";
+var TRUST_ICONS = ["truck", "contract", "chat"];
+function slidesOf(unit) {
+  const imgs = [...unit.gallery_images ?? []].sort((a, b) => a.position - b.position);
+  const slides = imgs.map((g) => {
+    const src = g.display_url ?? g.image_url;
+    return src ? { src, thumb: g.thumb_url ?? src } : null;
+  }).filter((s) => s !== null);
+  if (slides.length === 0 && unit.photo_url) slides.push({ src: unit.photo_url, thumb: unit.photo_url });
+  return slides;
+}
+function Gallery({ unit, alt, locale }) {
+  const t = PAGE_STRINGS[locale];
+  const slides = react.useMemo(() => slidesOf(unit), [unit]);
+  const [index, setIndex] = react.useState(0);
+  const n = slides.length;
+  const current = slides[Math.min(index, Math.max(0, n - 1))];
+  const go = (step) => setIndex((i) => (i + step + n) % n);
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-mp-gal", "aria-label": t.gallery, children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-mp-gal__main", children: [
+      current ? /* @__PURE__ */ jsxRuntime.jsx(
+        "img",
+        {
+          src: current.src,
+          alt,
+          ...index === 0 ? { fetchPriority: "high" } : { loading: "lazy" }
+        },
+        current.src
+      ) : null,
+      n > 1 ? /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-mp-gal__nav sb-mp-gal__nav--prev", "aria-label": t.prevPhoto, onClick: () => go(-1), children: /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: "chevronLeft" }) }),
+        /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-mp-gal__nav sb-mp-gal__nav--next", "aria-label": t.nextPhoto, onClick: () => go(1), children: /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: "chevronRight" }) }),
+        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-mp-gal__count", children: `${index + 1} / ${n}` })
+      ] }) : null
+    ] }),
+    n > 1 ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-mp-gal__thumbs", children: slides.map((s, i) => /* @__PURE__ */ jsxRuntime.jsx(
+      "button",
+      {
+        type: "button",
+        className: `sb-mp-thumb${i === index ? " is-on" : ""}`,
+        "aria-label": t.photoN(i + 1),
+        "aria-pressed": i === index,
+        onClick: () => setIndex(i),
+        children: /* @__PURE__ */ jsxRuntime.jsx("img", { src: s.thumb, alt: "", loading: "lazy" })
+      },
+      s.src
+    )) }) : null
+  ] });
+}
+function Deposit({ unit, locale }) {
+  const t = PAGE_STRINGS[locale];
+  const list = [...unit.deposits ?? []].filter((d) => formatMoney(d.amount)).sort((a, b) => Number(b.currency_code === "THB") - Number(a.currency_code === "THB"));
+  if (list.length === 0) return null;
+  const sum = (d) => `${formatMoney(d.amount)}\xA0${d.currency_code === "THB" ? "\u0E3F" : d.currency_code}`;
+  const [first, ...rest] = list;
+  return /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-mp-deposit", children: [
+    /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: "shield" }),
+    /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.deposit }),
+    /* @__PURE__ */ jsxRuntime.jsx("b", { children: sum(first) }),
+    rest.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx("i", { children: `${t.or} ${rest.map(sum).join(" \xB7 ")}` }) : null
+  ] });
+}
+function ModelHero({ crumbs = [], telegramUrl, whatsappUrl }) {
+  const page = useModelPage();
+  if (!page || !page.selected) return null;
+  const { model, locale, today, versions, selected, select, openBooking } = page;
+  const t = PAGE_STRINGS[locale];
+  const c = STRINGS3[locale];
+  const unit = selected.unit;
+  const rows = buildSpecRows(unit, locale);
+  const tags = [
+    model.category ? categoryLabel(model.category, locale) : null,
+    rows.find((r) => r.key === "fuel")?.value ?? null,
+    rows.find((r) => r.key === "body")?.value ?? null
+  ].filter((x) => Boolean(x));
+  const price = versionPrice(unit, today, model);
+  const note = price.from ? t.priceNote(price.minDays, price.maxDay) : "";
+  const available = selected.availableCount > 0;
+  const statusText = available ? t.statusFree : unit.free_from ? t.statusFreesOn(formatLongDate(unit.free_from, locale)) : c.busy;
+  const statusMod = available ? "" : unit.free_from ? " sb-mp-status--soon" : " sb-mp-status--busy";
+  const quotes = unit.card_prices?.quotes ?? [];
+  const discount = Math.round(unit.card_prices?.month_discount_pct ?? 0);
+  return /* @__PURE__ */ jsxRuntime.jsx("section", { className: "sb-section sb-mp-hero", id: MODEL_HERO_ID, children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-container", children: [
+    /* @__PURE__ */ jsxRuntime.jsx(Breadcrumbs, { crumbs, locale }),
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-mp-hero__grid", children: [
+      /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-mp-hero__media", children: /* @__PURE__ */ jsxRuntime.jsx(Gallery, { unit, alt: model.label, locale }, unit.id) }),
+      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-mp-book", children: [
+        tags.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-mp-book__tags", children: tags.map((tag) => /* @__PURE__ */ jsxRuntime.jsx("span", { children: tag }, tag)) }) : null,
+        /* @__PURE__ */ jsxRuntime.jsxs("h1", { className: "sb-mp-title", children: [
+          model.label,
+          " ",
+          /* @__PURE__ */ jsxRuntime.jsx("small", { children: t.rentInPhuket })
+        ] }),
+        versions.length > 1 ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-mp-seg", style: { ["--n"]: versions.length }, role: "group", "aria-label": t.trims, children: versions.map((v) => {
+          const sub = versionSubtitle(v, versions, t.seatsCount);
+          const on = v.key === selected.key;
+          return /* @__PURE__ */ jsxRuntime.jsxs(
+            "button",
+            {
+              type: "button",
+              className: on ? "is-on" : void 0,
+              "aria-pressed": on,
+              onClick: () => select(v.key),
+              children: [
+                trimLabel(v.trim, t.baseTrim),
+                sub ? /* @__PURE__ */ jsxRuntime.jsx("i", { children: sub }) : null
+              ]
+            },
+            v.key
+          );
+        }) }) : null,
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-mp-book__body", children: [
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-mp-price-row", children: [
+            price.from ? /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "sb-mp-price", children: [
+              /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-mp-price__from", children: t.from }),
+              /* @__PURE__ */ jsxRuntime.jsx("b", { children: `${price.from}\xA0\u0E3F` }),
+              /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-mp-price__unit", children: t.perDay })
+            ] }) : /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-mp-price", children: /* @__PURE__ */ jsxRuntime.jsx("span", { className: "sb-mp-price__from", children: t.onRequest }) }),
+            /* @__PURE__ */ jsxRuntime.jsxs("span", { className: `sb-mp-status${statusMod}`, children: [
+              /* @__PURE__ */ jsxRuntime.jsx("i", { "aria-hidden": "true" }),
+              statusText
+            ] })
+          ] }),
+          note ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-mp-price__note", children: note }) : null,
+          quotes.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-mp-tilerow", children: quotes.map((q) => {
+            const best = q.days === 30;
+            return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: `sb-mp-tile${best ? " sb-mp-tile--best" : ""}`, children: [
+              best && discount > 0 ? /* @__PURE__ */ jsxRuntime.jsx("em", { children: `\u2212${discount}%` }) : null,
+              /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.days(q.days) }),
+              /* @__PURE__ */ jsxRuntime.jsx("b", { children: `${formatBahtCeil(q.total)}\xA0\u0E3F` })
+            ] }, q.days);
+          }) }) : null,
+          /* @__PURE__ */ jsxRuntime.jsx(Deposit, { unit, locale })
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-mp-actions", children: [
+          /* @__PURE__ */ jsxRuntime.jsxs("button", { type: "button", className: "sb-btn sb-mp-cta", onClick: openBooking, children: [
+            /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: "calendar" }),
+            t.book
+          ] }),
+          telegramUrl || whatsappUrl ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-mp-ask", children: [
+            /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.ask }),
+            telegramUrl ? /* @__PURE__ */ jsxRuntime.jsxs("a", { className: "sb-mp-btn-ghost", href: telegramUrl, target: "_blank", rel: "noopener noreferrer", children: [
+              /* @__PURE__ */ jsxRuntime.jsx(ContactIcon, { kind: "telegram", className: "sb-mp-ic" }),
+              "Telegram"
+            ] }) : null,
+            whatsappUrl ? /* @__PURE__ */ jsxRuntime.jsxs("a", { className: "sb-mp-btn-ghost", href: whatsappUrl, target: "_blank", rel: "noopener noreferrer", children: [
+              /* @__PURE__ */ jsxRuntime.jsx(ContactIcon, { kind: "whatsapp", className: "sb-mp-ic" }),
+              "WhatsApp"
+            ] }) : null
+          ] }) : null
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsx("ul", { className: "sb-mp-trust", children: t.trust.map((label, i) => /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
+          /* @__PURE__ */ jsxRuntime.jsx(IconBadge, { name: TRUST_ICONS[i] }),
+          label
+        ] }, label)) })
+      ] })
+    ] })
+  ] }) });
+}
+function splitValue(row) {
+  const i = row.value.indexOf("\xA0");
+  return i < 0 ? { number: row.value, unit: "" } : { number: row.value.slice(0, i), unit: row.value.slice(i + 1) };
+}
+function keyFacts(specs, locale) {
+  const t = PAGE_STRINGS[locale];
+  const rows = buildSpecRows(specs, locale);
+  const row = (key) => rows.find((r) => r.key === key);
+  const electric = specs.fuel_type === "electric";
+  const picks = [
+    row("range") ? [row("range"), "route", electric ? t.factRangeEv : t.factRange] : [row("fuel_consumption") ?? row("power_consumption"), "fuel", t.factConsumption],
+    [row("power"), "gauge", t.factPower],
+    [row("sprint"), "timer", t.factSprint],
+    [row("seats"), "users", t.factSeats]
+  ];
+  return picks.filter((p) => Boolean(p[0])).map(([r, icon, caption]) => ({ key: r.key, icon, caption, ...splitValue(r) }));
+}
+function ModelOverview({ about, specs, eyebrow, locale: localeProp }) {
+  const page = useModelPage();
+  const locale = localeProp ?? page?.locale ?? "ru";
+  const t = PAGE_STRINGS[locale];
+  const source = specs ?? page?.selected?.unit;
+  const facts = source ? keyFacts(source, locale) : [];
+  const paragraphs = about.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  if (facts.length === 0 && paragraphs.length === 0) return null;
+  const kicker = eyebrow ?? page?.model.label;
+  return /* @__PURE__ */ jsxRuntime.jsx("section", { className: "sb-section sb-mp-sec", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-container sb-mp-about", children: [
+    facts.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx("ul", { className: "sb-mp-facts", "aria-label": t.keyFacts, children: facts.map((f) => /* @__PURE__ */ jsxRuntime.jsxs("li", { className: "sb-mp-fact", children: [
+      /* @__PURE__ */ jsxRuntime.jsx(IconBadge, { name: f.icon }),
+      /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("b", { children: [
+          f.number,
+          f.unit ? /* @__PURE__ */ jsxRuntime.jsx("small", { children: f.unit }) : null
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsx("span", { children: f.caption })
+      ] })
+    ] }, f.key)) }) : null,
+    paragraphs.length > 0 ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-mp-about__text", children: [
+      kicker ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-mp-eyebrow", children: kicker }) : null,
+      /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: t.about }),
+      paragraphs.map((p, i) => /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-mp-text", children: p }, i))
+    ] }) : null
+  ] }) });
+}
+var GROUP_OF = {
+  engine: "engine",
+  battery: "engine",
+  fuel: "engine",
+  range: "engine",
+  tank: "engine",
+  fuel_consumption: "engine",
+  power_consumption: "engine",
+  power: "dynamics",
+  transmission: "dynamics",
+  drive: "dynamics",
+  sprint: "dynamics",
+  max_speed: "dynamics",
+  body: "body",
+  seats: "body",
+  clearance: "body",
+  weight: "body"
+};
+var ROW_ICON = {
+  engine: "engine",
+  battery: "battery",
+  fuel: "fuel",
+  range: "route",
+  tank: "fuel",
+  fuel_consumption: "fuel",
+  power_consumption: "bolt",
+  power: "gauge",
+  transmission: "gearbox",
+  drive: "drive",
+  sprint: "timer",
+  max_speed: "speed",
+  body: "car",
+  seats: "users",
+  clearance: "height",
+  weight: "weight"
+};
+var GROUP_ICON = { engine: "engine", dynamics: "timer", body: "car" };
+function SpecGroups({ specs, eyebrow, locale: localeProp }) {
+  const page = useModelPage();
+  const locale = localeProp ?? page?.locale ?? "ru";
+  const t = PAGE_STRINGS[locale];
+  const source = specs ?? page?.selected?.unit;
+  if (!source) return null;
+  const rows = buildSpecRows(source, locale);
+  const titles = {
+    engine: t.groupEngine,
+    dynamics: t.groupDynamics,
+    body: t.groupBody
+  };
+  const groups = ["engine", "dynamics", "body"].map((id) => ({ id, rows: rows.filter((r) => GROUP_OF[r.key] === id) })).filter((g) => g.rows.length > 0);
+  if (groups.length === 0) return null;
+  const kicker = eyebrow ?? page?.model.label;
+  return /* @__PURE__ */ jsxRuntime.jsx("section", { className: "sb-section sb-mp-sec sb-mp-sec--alt", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-container", children: [
+    kicker ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-mp-eyebrow", children: kicker }) : null,
+    /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: t.specs }),
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-mp-specs", children: groups.map((g) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-mp-sgroup", children: [
+      /* @__PURE__ */ jsxRuntime.jsxs("h3", { children: [
+        /* @__PURE__ */ jsxRuntime.jsx(IconBadge, { name: GROUP_ICON[g.id] }),
+        titles[g.id]
+      ] }),
+      /* @__PURE__ */ jsxRuntime.jsx("ul", { children: g.rows.map((r) => /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+          /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: ROW_ICON[r.key] ?? "check" }),
+          r.label
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsx("b", { children: r.value })
+      ] }, r.key)) })
+    ] }, g.id)) })
+  ] }) });
+}
+function seatsValue(v) {
+  const s = v.unit.seats;
+  return s === null || s === void 0 || s === "" ? null : String(s);
+}
+function TrimCompare({ eyebrow }) {
+  const page = useModelPage();
+  if (!page || page.versions.length < 2) return null;
+  const { model, locale, versions, selected, select } = page;
+  const t = PAGE_STRINGS[locale];
+  const kicker = eyebrow ?? model.label;
+  const choose = (key) => {
+    select(key);
+    if (typeof document !== "undefined") {
+      document.getElementById(MODEL_HERO_ID)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+  return /* @__PURE__ */ jsxRuntime.jsx("section", { className: "sb-section sb-mp-sec", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-container", children: [
+    kicker ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "sb-mp-eyebrow", children: kicker }) : null,
+    /* @__PURE__ */ jsxRuntime.jsx("h2", { className: "sb-h2", children: t.trims }),
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-mp-cmps", style: { ["--n"]: Math.min(versions.length, 3) }, children: versions.map((v) => {
+      const name = trimLabel(v.trim, t.baseTrim);
+      const cp = v.unit.card_prices;
+      const range = cp ? `${formatBahtCeil(cp.per_day_min)}${cp.per_day_min === cp.per_day_max ? "" : ` \u2013 ${formatBahtCeil(cp.per_day_max)}`}\xA0\u0E3F` : null;
+      const month = cp?.quotes.find((q) => q.days === 30);
+      const free = v.availableCount > 0 ? t.freeNow : v.unit.free_from ? t.freeFrom(formatCardDate(v.unit.free_from, locale)) : t.busy;
+      const seats = seatsValue(v);
+      const on = selected?.key === v.key;
+      return /* @__PURE__ */ jsxRuntime.jsxs("article", { className: `sb-mp-cmp${on ? " is-on" : ""}`, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-mp-cmp__ph", children: v.unit.photo_url ? /* @__PURE__ */ jsxRuntime.jsx("img", { src: v.unit.photo_url, alt: `${model.label} ${name}`, loading: "lazy" }) : null }),
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-mp-cmp__b", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("h3", { children: name }),
+          /* @__PURE__ */ jsxRuntime.jsxs("ul", { children: [
+            seats ? /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
+              /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+                /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: "users" }),
+                t.seatsRow
+              ] }),
+              /* @__PURE__ */ jsxRuntime.jsx("b", { children: seats })
+            ] }) : null,
+            range ? /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
+              /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+                /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: "calendar" }),
+                t.perDayRow
+              ] }),
+              /* @__PURE__ */ jsxRuntime.jsx("b", { children: range })
+            ] }) : null,
+            month ? /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
+              /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+                /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: "timer" }),
+                t.monthRow
+              ] }),
+              /* @__PURE__ */ jsxRuntime.jsx("b", { children: `${formatBahtCeil(month.total)}\xA0\u0E3F` })
+            ] }) : null,
+            /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
+              /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+                /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: "check" }),
+                t.freeRow
+              ] }),
+              /* @__PURE__ */ jsxRuntime.jsx("b", { children: free })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", className: "sb-mp-btn-ghost", "aria-pressed": on, onClick: () => choose(v.key), children: on ? t.chosen : t.choose })
+        ] })
+      ] }, v.key);
+    }) })
+  ] }) });
+}
+var modelKey = (v) => v.vehicle_model?.slug ? `m:${v.vehicle_model.slug}` : `g:${vehicleGroupKey(v)}`;
+function ModelGrid({
+  vehicles,
+  locale,
+  booking,
+  onlySlugs,
+  categoryId,
+  limit,
+  showCategory = true
+}) {
+  const t = STRINGS3[locale];
+  const [open, setOpen] = react.useState(null);
+  const cards = react.useMemo(() => {
+    const slugs = onlySlugs ? new Set(onlySlugs) : null;
+    const list = vehicles.filter(
+      (v) => (!slugs || v.vehicle_model?.slug && slugs.has(v.vehicle_model.slug)) && (!categoryId || v.category?.id === categoryId)
+    );
+    const ordered = orderCatalogCards(groupVehicles(list, modelKey));
+    return limit !== void 0 ? ordered.slice(0, limit) : ordered;
+  }, [vehicles, onlySlugs, categoryId, limit]);
+  if (cards.length === 0) return null;
+  return /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-vcatalog__grid", children: cards.map((c) => /* @__PURE__ */ jsxRuntime.jsx(
+      VehicleCard,
+      {
+        vehicle: c.vehicle,
+        total: c.total,
+        availableCount: c.availableCount,
+        categoryName: showCategory && c.vehicle.category ? categoryLabel(c.vehicle.category, locale) : null,
+        hasCompleteDateRange: false,
+        locale,
+        strings: t,
+        referralCode: booking.referralCode,
+        onOpen: () => setOpen(c),
+        href: vehicleModelHref(c.vehicle, locale)
+      },
+      c.vehicle.id
+    )) }),
+    open ? /* @__PURE__ */ jsxRuntime.jsx(
+      VehicleBookingModal,
+      {
+        ...booking,
+        vehicle: open.vehicle,
+        unitIds: open.units.map((u) => u.id),
+        locale,
+        onClose: () => setOpen(null)
+      }
+    ) : null
+  ] });
+}
+function cheapest(models) {
+  let best = null;
+  for (const m of models) {
+    if (!m.price_from_per_day) continue;
+    if (!best || parseFloat(m.price_from_per_day) < parseFloat(best.price_from_per_day)) best = m;
+  }
+  return best ? { price: formatBahtCeil(best.price_from_per_day), minDays: best.price_from_min_days } : null;
+}
+function CategoryHeader({
+  locale,
+  section,
+  h1,
+  crumbs = [],
+  models,
+  sectionModels,
+  categories,
+  currentSlug
+}) {
+  const t = PAGE_STRINGS[locale];
+  const from = cheapest(models);
+  const freeToday = models.filter((m) => m.available_today_count > 0).length;
+  const pool = sectionModels ?? models;
+  const chips = categories.filter((c) => c.is_published && c.section === section && c.slug).map((c) => ({ c, count: pool.filter((m) => m.category?.id === c.id).length })).filter((x) => x.count > 0);
+  return /* @__PURE__ */ jsxRuntime.jsx("header", { className: "sb-section sb-mc-head", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-container", children: [
+    /* @__PURE__ */ jsxRuntime.jsx(Breadcrumbs, { crumbs, locale }),
+    /* @__PURE__ */ jsxRuntime.jsx("h1", { className: "sb-mc-h1", children: h1 }),
+    /* @__PURE__ */ jsxRuntime.jsxs("ul", { className: "sb-mc-stats", children: [
+      /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
+        /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: "car" }),
+        t.modelsCount(models.length)
+      ] }),
+      from ? /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
+        /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: "calendar" }),
+        /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+          `${t.from} `,
+          /* @__PURE__ */ jsxRuntime.jsx("b", { children: `${from.price}\xA0\u0E3F` }),
+          ` ${t.statsPrice(from.minDays)}`
+        ] })
+      ] }) : null,
+      freeToday > 0 ? /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
+        /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: "check" }),
+        t.statsFree(freeToday)
+      ] }) : null
+    ] }),
+    chips.length > 0 ? /* @__PURE__ */ jsxRuntime.jsx("nav", { className: "sb-mc-chips", "aria-label": t.categories, children: chips.map(({ c, count }) => {
+      const on = c.slug === currentSlug;
+      return /* @__PURE__ */ jsxRuntime.jsxs(
+        "a",
+        {
+          className: `sb-mc-chip${on ? " is-on" : ""}`,
+          href: `/${locale}/${section}/${c.slug}`,
+          "aria-current": on ? "page" : void 0,
+          children: [
+            categoryLabel(c, locale),
+            /* @__PURE__ */ jsxRuntime.jsx("i", { children: count })
+          ]
+        },
+        c.id
+      );
+    }) }) : null
+  ] }) });
+}
+function MobileBookingBar({ telegramUrl }) {
+  const page = useModelPage();
+  if (!page || !page.selected) return null;
+  const { locale, today, model, selected, openBooking } = page;
+  const t = PAGE_STRINGS[locale];
+  const price = versionPrice(selected.unit, today, model);
+  return /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "sb-mp-mbar-spacer", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "sb-mp-mbar", children: [
+      /* @__PURE__ */ jsxRuntime.jsx("div", { children: price.from ? /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+          t.from,
+          " "
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsx("b", { children: `${price.from}\xA0\u0E3F` }),
+        /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+          " ",
+          t.perDay
+        ] })
+      ] }) : /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.onRequest }) }),
+      telegramUrl ? /* @__PURE__ */ jsxRuntime.jsx(
+        "a",
+        {
+          className: "sb-mp-mbar__tg",
+          href: telegramUrl,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          "aria-label": "Telegram",
+          children: /* @__PURE__ */ jsxRuntime.jsx(ContactIcon, { kind: "telegram", className: "sb-mp-ic" })
+        }
+      ) : null,
+      /* @__PURE__ */ jsxRuntime.jsxs("button", { type: "button", className: "sb-btn", onClick: openBooking, children: [
+        /* @__PURE__ */ jsxRuntime.jsx(PageIcon, { name: "calendar" }),
+        t.book
+      ] })
+    ] })
+  ] });
+}
+
 exports.AboutPromo = AboutPromo;
+exports.Breadcrumbs = Breadcrumbs;
+exports.CATALOG_STRINGS = STRINGS3;
+exports.CardPriceOverlay = CardPriceOverlay;
+exports.CardTitle = CardTitle;
+exports.CategoryHeader = CategoryHeader;
 exports.ContactIcon = ContactIcon;
 exports.FeatureCards = FeatureCards;
 exports.Footer = Footer;
 exports.Hero = Hero;
 exports.LanguageSwitcher = LanguageSwitcher;
 exports.LeadForm = LeadForm;
+exports.MODEL_HERO_ID = MODEL_HERO_ID;
 exports.MapContacts = MapContacts;
+exports.MobileBookingBar = MobileBookingBar;
+exports.ModelGrid = ModelGrid;
+exports.ModelHero = ModelHero;
+exports.ModelOverview = ModelOverview;
+exports.ModelPageProvider = ModelPageProvider;
+exports.PAGE_STRINGS = PAGE_STRINGS;
+exports.PriceGrid = PriceGrid;
 exports.ReviewsCarousel = ReviewsCarousel;
 exports.RichText = RichText;
 exports.SiteHeader = SiteHeader;
+exports.SpecGroups = SpecGroups;
 exports.StatCounters = StatCounters;
 exports.TermsAccordion = TermsAccordion;
+exports.TrimCompare = TrimCompare;
+exports.VehicleBookingModal = VehicleBookingModal;
+exports.VehicleCard = VehicleCard;
 exports.VehicleCatalog = VehicleCatalog;
+exports.buildSpecRows = buildSpecRows;
+exports.buildVersions = buildVersions;
 exports.categoryLabel = categoryLabel;
+exports.defaultVersion = defaultVersion;
+exports.formatBahtCeil = formatBahtCeil;
+exports.formatCardDate = formatCardDate;
+exports.formatDayPrice = formatDayPrice;
+exports.formatMoney = formatMoney;
+exports.groupVehicles = groupVehicles;
+exports.isCurrentSeason = isCurrentSeason;
+exports.orderCatalogCards = orderCatalogCards;
+exports.periodLabel = periodLabel;
+exports.pickRepresentative = pickRepresentative;
+exports.priceFromMinDays = priceFromMinDays;
 exports.puckConfig = puckConfig;
+exports.seasonLabel = seasonLabel;
+exports.trimLabel = trimLabel;
+exports.useModelPage = useModelPage;
+exports.vehicleGroupKey = vehicleGroupKey;
+exports.vehicleModelHref = vehicleModelHref;
+exports.versionPrice = versionPrice;
+exports.versionSubtitle = versionSubtitle;
+exports.withLinkBase = withLinkBase;

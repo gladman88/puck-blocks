@@ -121,6 +121,31 @@ describe('SiteHeader', () => {
   });
 });
 
+describe('SiteHeader — linkBase', () => {
+  const links = [
+    { label: 'Авто', href: '#car' },
+    { label: 'Блог', href: '/ru/blog' },
+  ];
+  it('no linkBase: anchors and the logo link stay as they are (default)', () => {
+    const { container } = render(<SiteHeader logoText="X" links={links} locale="ru" />);
+    expect(container.querySelector('.sb-header__brand')?.getAttribute('href')).toBe('/');
+    expect([...container.querySelectorAll('.sb-header__nav a, nav a')].map((a) => a.getAttribute('href'))).toContain('#car');
+  });
+  it("linkBase='/ru': #car → /ru#car (bar and drawer), other links unchanged, logo → /ru", () => {
+    const { container } = render(<SiteHeader logoText="X" links={links} locale="ru" linkBase="/ru" />);
+    expect(container.querySelector('.sb-header__brand')?.getAttribute('href')).toBe('/ru');
+    const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'));
+    expect(hrefs).toContain('/ru#car');
+    expect(hrefs).toContain('/ru/blog');
+    expect(hrefs).not.toContain('#car');
+    fireEvent.click(container.querySelector('.sb-header__burger') as Element);
+    expect([...document.querySelectorAll('.sb-drawer__nav a')].map((a) => a.getAttribute('href'))).toEqual([
+      '/ru#car',
+      '/ru/blog',
+    ]);
+  });
+});
+
 describe('LanguageSwitcher', () => {
   it('renders both flags and marks the current locale active', () => {
     const { container } = render(<LanguageSwitcher current="ru" />);
@@ -183,7 +208,45 @@ describe('Footer', () => {
   });
 });
 
+describe('Footer — linkBase', () => {
+  const columns = [{ title: 'Отзывы', titleHref: '#reviews', links: [{ label: 'Авто', href: '#car' }, { label: 'Блог', href: '/ru/blog' }] }];
+  it('no linkBase: column anchors unchanged (default)', () => {
+    const { container } = render(<Footer columns={columns} />);
+    expect([...container.querySelectorAll('.sb-footer__col a')].map((a) => a.getAttribute('href'))).toEqual([
+      '#reviews',
+      '#car',
+      '/ru/blog',
+    ]);
+  });
+  it("linkBase='/en': anchors get the page prefix, other links unchanged", () => {
+    const { container } = render(<Footer columns={columns} linkBase="/en" />);
+    expect([...container.querySelectorAll('.sb-footer__col a')].map((a) => a.getAttribute('href'))).toEqual([
+      '/en#reviews',
+      '/en#car',
+      '/ru/blog',
+    ]);
+  });
+});
+
 describe('LeadForm', () => {
+  it('Telegram is the first option and preselected (owner 2026-11-10)', () => {
+    const { container } = render(<LeadForm heading="H" />);
+    const select = container.querySelector('select') as HTMLSelectElement;
+    expect([...select.options].map((o) => o.value)).toEqual(['telegram', 'whatsapp', 'phone']);
+    expect(select.value).toBe('telegram');
+  });
+  it('sends the preselected Telegram when the visitor does not touch the select', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(new Response('{}', { status: 200 })));
+    vi.stubGlobal('fetch', fetchMock);
+    const { container } = render(<LeadForm heading="H" endpoint="/api/lead" />);
+    fireEvent.change(container.querySelector('input[type="tel"]') as HTMLInputElement, { target: { value: '+660000000' } });
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toMatchObject({ contact_method: 'telegram' });
+    vi.unstubAllGlobals();
+  });
+
   it('requires a phone and shows the success message on submit (no endpoint)', () => {
     const { container, getByText, queryByText } = render(
       <LeadForm heading="H" successMessage="Готово!" />,

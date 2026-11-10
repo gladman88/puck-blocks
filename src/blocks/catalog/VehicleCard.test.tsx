@@ -279,7 +279,100 @@ describe('VehicleCard', () => {
     expect(free.container.querySelector('.sb-vcard__top .sb-vcard__count')?.textContent).toBe('3 свободно');
     cleanup();
     const allBusy = renderCard({ total: 4, availableCount: 0, vehicle: { ...vehicle, is_available: false } });
-    expect(allBusy.container.querySelector('.sb-vcard__count')?.textContent).toBe('4 всего');
+    expect(allBusy.container.querySelector('.sb-vcard__count')?.textContent).toBe('4 машины');
+  });
+  it('group size is declined in ru and pluralised in en', () => {
+    expect([1, 2, 5, 11, 21, 22, 25].map((n) => STRINGS.ru.units(n))).toEqual([
+      '1 машина', '2 машины', '5 машин', '11 машин', '21 машина', '22 машины', '25 машин',
+    ]);
+    expect([1, 3].map((n) => STRINGS.en.units(n))).toEqual(['1 car', '3 cars']);
+    const busy = renderCard({ total: 5, availableCount: 0, locale: 'en', strings: STRINGS.en,
+      vehicle: { ...vehicle, is_available: false } });
+    expect(busy.container.querySelector('.sb-vcard__count')?.textContent).toBe('5 cars');
+  });
+  it('bike groups are worded as bikes (ru declension, en plural)', () => {
+    expect([1, 3, 5, 11, 21, 24].map((n) => STRINGS.ru.units(n, 'motorcycle'))).toEqual([
+      '1 байк', '3 байка', '5 байков', '11 байков', '21 байк', '24 байка',
+    ]);
+    expect([1, 3].map((n) => STRINGS.en.units(n, 'motorcycle'))).toEqual(['1 bike', '3 bikes']);
+    const bike: CatalogVehicle = { ...vehicle, vehicle_type: 'motorcycle', is_available: false };
+    const ru = renderCard({ total: 3, availableCount: 0, vehicle: bike });
+    expect(ru.container.querySelector('.sb-vcard__count')?.textContent).toBe('3 байка');
+    cleanup();
+    const en = renderCard({ total: 5, availableCount: 0, locale: 'en', strings: STRINGS.en, vehicle: bike });
+    expect(en.container.querySelector('.sb-vcard__count')?.textContent).toBe('5 bikes');
+  });
+
+  describe('href (model page link)', () => {
+    const HREF = '/ru/cars/byd-seal';
+    it('no href → the open overlay is a button, no link anywhere (default)', () => {
+      const { container } = renderCard();
+      expect(container.querySelector('a')).toBeNull();
+      expect(container.firstElementChild?.tagName).toBe('ARTICLE');
+      expect(container.querySelector('.sb-vcard__open')?.tagName).toBe('BUTTON');
+    });
+    it('href → the card root stays an <article>; the open overlay is the link', () => {
+      const { container } = renderCard({ href: HREF });
+      const root = container.firstElementChild!;
+      expect(root.tagName).toBe('ARTICLE');
+      expect(root.classList.contains('sb-vcard')).toBe(true);
+      const link = screen.getByRole('link', { name: 'BYD Seal 308' });
+      expect(link.classList.contains('sb-vcard__open')).toBe(true);
+      expect(link.getAttribute('href')).toBe(HREF);
+      expect(container.querySelectorAll('a')).toHaveLength(1);
+    });
+    it('no interactive element is nested inside the link', () => {
+      const { container } = renderCard({ href: HREF });
+      const link = screen.getByRole('link');
+      expect(link.querySelector('button')).toBeNull();
+      expect(link.querySelector('a, input, select, textarea')).toBeNull();
+      // «Забронировать» and «Поделиться» are still there, outside the link.
+      const buttons = Array.from(container.querySelectorAll('button'));
+      expect(buttons.map((b) => b.className.split(' ')[0])).toEqual(['sb-vcard__book', 'sb-vcard__share']);
+      expect(buttons.some((b) => b.closest('a'))).toBe(false);
+    });
+    it('a plain click on the link opens the window and does not navigate', () => {
+      const { onOpen } = renderCard({ href: HREF });
+      const click = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+      screen.getByRole('link').dispatchEvent(click);
+      expect(click.defaultPrevented).toBe(true);
+      expect(onOpen).toHaveBeenCalledTimes(1);
+    });
+    it.each([
+      ['ctrl', { ctrlKey: true }],
+      ['meta', { metaKey: true }],
+      ['shift', { shiftKey: true }],
+      ['alt', { altKey: true }],
+      ['middle', { button: 1 }],
+    ])('%s click is left to the browser (new tab/window)', (_, init) => {
+      const { onOpen } = renderCard({ href: HREF });
+      // Record what the card did, then stop jsdom's (unimplemented) navigation.
+      const seen: boolean[] = [];
+      const stop = (e: Event) => {
+        seen.push(e.defaultPrevented);
+        e.preventDefault();
+      };
+      window.addEventListener('click', stop);
+      const click = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, ...init });
+      screen.getByRole('link').dispatchEvent(click);
+      window.removeEventListener('click', stop);
+      expect(seen).toEqual([false]);
+      expect(onOpen).not.toHaveBeenCalled();
+    });
+    it('«Забронировать» next to the link opens the window once', () => {
+      const { container, onOpen } = renderCard({ href: HREF });
+      fireEvent.click(container.querySelector('.sb-vcard__book')!);
+      expect(onOpen).toHaveBeenCalledTimes(1);
+    });
+    it('«Поделиться» next to the link shares and does not open the window', async () => {
+      const writeText = stubClipboard();
+      const { container, onOpen } = renderCard({ href: HREF });
+      await act(async () => {
+        fireEvent.click(container.querySelector('.sb-vcard__share')!);
+      });
+      expect(onOpen).not.toHaveBeenCalled();
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
   });
   it('tile sums are whole baht, rounded up (fractional month rate)', () => {
     renderCard({ vehicle: { ...vehicle, card_prices: { per_day_min: '2166.67', per_day_max: '4000.00', month_discount_pct: 46,

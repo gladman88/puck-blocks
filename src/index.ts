@@ -28,7 +28,7 @@ export type { TermsAccordionProps, TermItem } from './blocks/TermsAccordion';
 export { ReviewsCarousel } from './blocks/ReviewsCarousel';
 export type { ReviewsCarouselProps, TextReview, MediaReview } from './blocks/ReviewsCarousel';
 
-export { SiteHeader } from './blocks/SiteHeader';
+export { SiteHeader, withLinkBase } from './blocks/SiteHeader';
 export type { SiteHeaderProps, NavLink } from './blocks/SiteHeader';
 
 export { Footer } from './blocks/Footer';
@@ -37,16 +37,52 @@ export type { FooterProps } from './blocks/Footer';
 export { LeadForm } from './blocks/LeadForm';
 export type { LeadFormProps } from './blocks/LeadForm';
 
-export { VehicleCatalog, categoryLabel } from './blocks/VehicleCatalog';
+export {
+  VehicleCatalog,
+  categoryLabel,
+  orderCatalogCards,
+  vehicleModelHref,
+  vehicleGroupKey,
+  groupVehicles,
+  pickRepresentative,
+  STRINGS as CATALOG_STRINGS,
+} from './blocks/VehicleCatalog';
 export type {
   VehicleCatalogProps,
   CatalogVehicle,
   CatalogCategory,
   CatalogPreload,
+  CardPrices,
+  VehicleGroup,
   TelegramCatalogUser,
   CatalogFilterState,
   CatalogSortOption,
 } from './blocks/VehicleCatalog';
 
+// Catalog parts reused by the site's model / category pages (no copies there).
+export { VehicleCard, formatCardDate } from './blocks/catalog/VehicleCard';
+export type { VehicleCardProps, VehicleCardStrings } from './blocks/catalog/VehicleCard';
+
+export { CardPriceOverlay, CardTitle } from './blocks/catalog/CardPriceOverlay';
+export type {
+  CardPriceOverlayProps,
+  CardPriceOverlayStrings,
+  CardStatusTone,
+} from './blocks/catalog/CardPriceOverlay';
+
+export { PriceGrid, periodLabel, seasonLabel, isCurrentSeason } from './blocks/catalog/PriceGrid';
+export type { PriceGridProps, PricingPeriod, PricingSeason } from './blocks/catalog/PriceGrid';
+
+export { buildSpecRows } from './blocks/catalog/specs';
+export type { VehicleSpecs, SpecRow } from './blocks/catalog/specs';
+
+export { formatBahtCeil, formatMoney, formatDayPrice } from './blocks/catalog/price';
+
+export { VehicleBookingModal } from './blocks/catalog/VehicleBookingModal';
+export type { VehicleBookingModalProps, CatalogVehicleDetail } from './blocks/catalog/VehicleBookingModal';
+
 export { MapContacts } from './blocks/MapContacts';
 export type { MapContactsProps } from './blocks/MapContacts';
+
+// Model / category / type pages of the site (components, not Puck blocks).
+export * from './pages';

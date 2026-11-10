@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import type { CatalogVehicle } from '../VehicleCatalog';
 import { CardPriceOverlay, CardTitle, CalendarIcon, CheckIcon, ShareIcon } from './CardPriceOverlay';
 import { shareVehicle } from './share';
@@ -16,7 +17,9 @@ export interface VehicleCardStrings {
   availableToday: string;
   availableSelected: string;
   available: string;
-  total: string;
+  /** «3 машины» / «3 байка» / «3 cars» / «3 bikes» — size of a model group
+   *  with no free unit, worded by the vehicle type. */
+  units: (n: number, kind?: CatalogVehicle['vehicle_type']) => string;
   book: string;
   share: string;
   linkCopied: string;
@@ -37,6 +40,17 @@ export interface VehicleCardProps {
   referralCode?: string | null;
   /** Opens the vehicle window (photo/name and «Забронировать»). */
   onOpen: () => void;
+  /** Address of the model page. Set → the stretched open overlay is a link
+   *  (search engines follow it, Ctrl/⌘/Shift/Alt/middle click open it in a new
+   *  tab/window), while a plain click still opens the vehicle window (`onOpen`)
+   *  in place. The "Book"/"Share" buttons stay outside the link.
+   *  Absent → the overlay is a button (as before). */
+  href?: string;
+}
+
+/** A click the browser should handle itself (new tab/window, download). */
+function isModifiedClick(e: MouseEvent): boolean {
+  return e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
 }
 
 export function formatCardDate(iso: string, locale: 'ru' | 'en'): string {
@@ -73,8 +87,19 @@ export function VehicleCard({
   strings: t,
   referralCode,
   onOpen,
+  href,
 }: VehicleCardProps) {
   const toast = useCopiedToast();
+
+  // With `href` the stretched open overlay is a real link (crawlable, opens in
+  // a new tab on Ctrl/⌘/Shift/Alt/middle click); a plain click still opens the
+  // vehicle window in place. The card root stays an `<article>` so the
+  // "Book"/"Share" buttons are siblings of the link, never nested inside it.
+  const onLinkClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.defaultPrevented || isModifiedClick(e)) return;
+    e.preventDefault();
+    onOpen();
+  };
 
   const handleShare = async () => {
     const outcome = await shareVehicle({
@@ -89,7 +114,7 @@ export function VehicleCard({
   };
 
   const countLabel =
-    total > 1 ? (availableCount > 0 ? `${availableCount} ${t.available}` : `${total} ${t.total}`) : null;
+    total > 1 ? (availableCount > 0 ? `${availableCount} ${t.available}` : t.units(total, v.vehicle_type)) : null;
 
   const statusText = v.is_available
     ? hasCompleteDateRange
@@ -106,7 +131,11 @@ export function VehicleCard({
       <div className="sb-vcard__inner">
         <div className="sb-vcard__ph">
           {v.photo_url ? <img src={v.photo_url} alt={v.display_name} loading="lazy" /> : null}
-          <button type="button" className="sb-vcard__open" aria-label={v.display_name} onClick={onOpen} />
+          {href ? (
+            <a className="sb-vcard__open" href={href} aria-label={v.display_name} onClick={onLinkClick} />
+          ) : (
+            <button type="button" className="sb-vcard__open" aria-label={v.display_name} onClick={onOpen} />
+          )}
           <div className="sb-vcard__top">
             <CardTitle name={v.display_name} year={v.year} categoryName={categoryName} />
             {countLabel ? <span className="sb-vcard__count">{countLabel}</span> : null}

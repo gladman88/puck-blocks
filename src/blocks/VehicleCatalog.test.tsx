@@ -1,7 +1,15 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react';
 import { StrictMode } from 'react';
-import { VehicleCatalog, categoryLabel } from './VehicleCatalog';
+import {
+  VehicleCatalog,
+  categoryLabel,
+  groupVehicles,
+  orderCatalogCards,
+  pickRepresentative,
+  vehicleModelHref,
+  type CatalogVehicle,
+} from './VehicleCatalog';
 
 describe('categoryLabel', () => {
   it('uses name_en on the English catalog when the category has been translated', () => {
@@ -70,8 +78,8 @@ describe('VehicleCatalog', () => {
     expect(container.querySelectorAll('.sb-vcatalog__tab').length).toBe(2);
     // card is an <article> with its own buttons (opens the booking modal), not an external link
     expect(container.querySelector('article.sb-vcard')).not.toBeNull();
-    expect(container.querySelector('.sb-vcard__open')).not.toBeNull();
-    expect(container.querySelector('a.sb-vcard')).toBeNull();
+    expect(container.querySelector('.sb-vcard__open')?.tagName).toBe('BUTTON');
+    expect(container.querySelector('a')).toBeNull();
     expect(container.textContent).toContain('5\u00a0000');
     expect(container.querySelector('.sb-vcard__status--available')?.textContent).toContain('Свободно сегодня');
   });
@@ -419,6 +427,126 @@ describe('VehicleCatalog — showFilters=false (site) backward-compat guard', ()
     expect(container.querySelector('.sb-filterbar')).toBeNull();
     const vehiclesCall = fetchMock.mock.calls.find(([u]) => String(u).includes('/vehicles/'));
     expect(vehiclesCall?.[0]).toBe('/api/v1/catalog/vehicles/?vehicle_type=car');
+  });
+});
+
+describe('groupVehicles / pickRepresentative (one rule for the home catalog and the site pages)', () => {
+  const u = (id: string, over: Partial<CatalogVehicle> = {}): CatalogVehicle => ({
+    ...vehicle,
+    id,
+    ...over,
+  });
+
+  it('representative: free today → cheapest free; none free → freed earliest, then cheaper', () => {
+    expect(pickRepresentative([u('a', { min_price_per_day: 6000 }), u('b', { min_price_per_day: 4000 })]).id).toBe('b');
+    expect(
+      pickRepresentative([
+        u('busy-cheap', { is_available: false, free_from: '2026-12-20', min_price_per_day: 1000 }),
+        u('free-dear', { min_price_per_day: 9000 }),
+      ]).id,
+    ).toBe('free-dear');
+    expect(
+      pickRepresentative([
+        u('late', { is_available: false, free_from: '2026-12-20', min_price_per_day: 1000 }),
+        u('nodate', { is_available: false, free_from: null, min_price_per_day: 500 }),
+        u('early-dear', { is_available: false, free_from: '2026-11-16', min_price_per_day: 9000 }),
+        u('early-cheap', { is_available: false, free_from: '2026-11-16', min_price_per_day: 3000 }),
+      ]).id,
+    ).toBe('early-cheap');
+  });
+
+  it('home key — brand/model/year/colour; a custom key groups across colours; counts and group availability', () => {
+    const list = [
+      u('black-busy', { is_available: false, free_from: '2026-12-01' }),
+      u('white-free', { color: 'white', min_price_per_day: 5500 }),
+      u('black-free', { min_price_per_day: 5200 }),
+    ];
+    const home = groupVehicles(list);
+    expect(home.map((g) => [g.vehicle.id, g.total, g.availableCount])).toEqual([
+      ['black-free', 2, 1],
+      ['white-free', 1, 1],
+    ]);
+    const byModel = groupVehicles(list, (v) => v.model);
+    expect(byModel).toHaveLength(1);
+    expect(byModel[0].vehicle.id).toBe('black-free');
+    expect(byModel[0].units.map((v) => v.id)).toEqual(['black-busy', 'white-free', 'black-free']);
+
+    const allBusy = groupVehicles([u('x', { is_available: false, free_from: '2026-12-01' })]);
+    expect(allBusy[0].vehicle).toMatchObject({ is_available: false, free_from: '2026-12-01' });
+  });
+});
+
+describe('orderCatalogCards', () => {
+  const card = (id: string, price: number | null, availableCount: number) => ({
+    id,
+    vehicle: { min_price_per_day: price },
+    availableCount,
+  });
+  it('free today first, then cheaper (no price last), then the incoming order', () => {
+    const out = orderCatalogCards([
+      card('busy-cheap', 1000, 0),
+      card('free-dear', 9000, 1),
+      card('free-noprice', null, 2),
+      card('free-cheap-a', 3000, 1),
+      card('free-cheap-b', 3000, 1),
+      card('busy-dear', 8000, 0),
+    ]);
+    expect(out.map((c) => c.id)).toEqual([
+      'free-cheap-a', 'free-cheap-b', 'free-dear', 'free-noprice', 'busy-cheap', 'busy-dear',
+    ]);
+  });
+  it('does not mutate its input', () => {
+    const input = [card('a', 2, 0), card('b', 1, 1)];
+    orderCatalogCards(input);
+    expect(input.map((c) => c.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('VehicleCatalog — tab mode card order (free today → price)', () => {
+  it('a model free today stands before a busy one even when the backend lists the busy one first (prod «Премиум» 2026-11-10)', async () => {
+    const premium = { ...vehicle, id: 'p', display_name: 'Zeekr 009 Premium', brand: 'Zeekr', model: '009 Premium',
+      min_price_per_day: 7000, is_available: false, free_from: '2026-12-15' };
+    const base = { ...vehicle, id: 'b', display_name: 'Zeekr 009', brand: 'Zeekr', model: '009', min_price_per_day: 8000 };
+    const cheapFree = { ...vehicle, id: 'c', display_name: 'BYD Seal', brand: 'BYD', model: 'Seal', min_price_per_day: 2000 };
+    stubFetch([cat], [premium, base, cheapFree]);
+    const { container, findByText } = render(<VehicleCatalog vehicleType="car" />);
+    await findByText('Zeekr 009');
+    const names = [...container.querySelectorAll('.sb-vcard__name')].map((n) => n.textContent);
+    expect(names).toEqual(['BYD Seal', 'Zeekr 009', 'Zeekr 009 Premium']);
+  });
+});
+
+describe('VehicleCatalog — model page links', () => {
+  const zeekr = { ...vehicle, vehicle_model: { id: 7, slug: 'zeekr-009' }, trim: 'Premium' };
+
+  it('vehicleModelHref: cars / bikes by vehicle type, locale prefix; no slug → undefined', () => {
+    expect(vehicleModelHref(zeekr, 'ru')).toBe('/ru/cars/zeekr-009');
+    expect(vehicleModelHref({ ...zeekr, vehicle_type: 'motorcycle', vehicle_model: { id: 1, slug: 'honda-adv-160' } }, 'en'))
+      .toBe('/en/bikes/honda-adv-160');
+    expect(vehicleModelHref(vehicle, 'ru')).toBeUndefined();
+    expect(vehicleModelHref({ ...vehicle, vehicle_model: null }, 'ru')).toBeUndefined();
+  });
+
+  it('tab mode: a card with a model slug is a link to the model page; a click still opens the window in place', async () => {
+    stubFetch([cat], [zeekr]);
+    const { container, findByText } = render(<VehicleCatalog vehicleType="car" locale="en" />);
+    await findByText('BMW Z4');
+    expect(container.querySelector('article.sb-vcard')).not.toBeNull();
+    const link = container.querySelector<HTMLAnchorElement>('a.sb-vcard__open');
+    expect(link?.getAttribute('href')).toBe('/en/cars/zeekr-009');
+    expect(link!.querySelector('button')).toBeNull();
+    fireEvent.click(link!);
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy());
+    expect(window.location.pathname).toBe('/');
+    expect(new URLSearchParams(window.location.search).get('vehicle')).toBe('v1');
+  });
+
+  it('filter mode (standalone catalog, another domain) renders no model link', async () => {
+    stubFetch([cat], [zeekr]);
+    const { container, findByText } = render(<VehicleCatalog showFilters />);
+    await findByText('BMW Z4');
+    expect(container.querySelector('a')).toBeNull();
+    expect(container.querySelector('article.sb-vcard')).not.toBeNull();
   });
 });
 

@@ -92,6 +92,10 @@ export interface PriceGridProps {
    *  dates contain it is highlighted; none contains it (or null) → no highlight. */
   referenceDate: string | null;
   locale: 'ru' | 'en';
+  /** The «Цены по сезонам · за сутки, ฿» caption above the table (default
+   *  on). Off — a host with its own heading; the table is then labelled by
+   *  `aria-label` with the same text. */
+  showLabel?: boolean;
 }
 
 /** The season that contains `day` (ISO dates compare as strings). */
@@ -107,7 +111,7 @@ export function isCurrentSeason(season: PricingSeason, day: string | null): bool
  * `--sb-pg-bleed` to its side padding. Digits shrink on a narrow window
  * (container query units in styles.css) so five-digit prices fit 360 px.
  */
-export function PriceGrid({ periods, seasons, referenceDate, locale }: PriceGridProps) {
+export function PriceGrid({ periods, seasons, referenceDate, locale, showLabel = true }: PriceGridProps) {
   const t = S[locale];
   const titleId = useId();
   if (periods.length === 0 || seasons.length === 0) return null;
@@ -115,11 +119,17 @@ export function PriceGrid({ periods, seasons, referenceDate, locale }: PriceGrid
 
   return (
     <div className="sb-pgrid">
-      <p className="sb-vd__lab" id={titleId}>
-        {t.title} <em>· {t.unit}</em>
-      </p>
+      {showLabel ? (
+        <p className="sb-vd__lab" id={titleId}>
+          {t.title} <em>· {t.unit}</em>
+        </p>
+      ) : null}
       <div className="sb-pgrid__wrap">
-        <table className="sb-pgrid__table" aria-labelledby={titleId}>
+        <table
+          className="sb-pgrid__table"
+          aria-labelledby={showLabel ? titleId : undefined}
+          aria-label={showLabel ? undefined : `${t.title} · ${t.unit}`}
+        >
           <thead>
             <tr>
               <th scope="col">{t.season}</th>

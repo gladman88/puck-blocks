@@ -1565,6 +1565,22 @@ describe('VehicleBookingModal — availability calendar on the "How to book?" st
     expect(button('1-click booking').disabled).toBe(true);
   });
 
+  it('initialStep defaults to the vehicle screen', async () => {
+    renderBusy();
+    await screen.findByText('Frees up 14 October');
+    expect(screen.queryByText('How to book?')).toBeNull();
+  });
+
+  it("initialStep='booking' opens straight on the dates step, seeded like «Book»; «‹ Back» → the vehicle screen", async () => {
+    renderBusy({ initialStep: 'booking' });
+    await screen.findByText('How to book?');
+    await waitFor(() => expect(valueFields()).toEqual(['14.10.2026', 'Select']));
+    expect(document.querySelector('.sb-avcal__summary')).toBeNull();
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.sb-stephead__back')!);
+    await screen.findByText('Frees up 14 October');
+    expect(screen.queryByText('How to book?')).toBeNull();
+  });
+
   it('busy vehicle: a seeded period starting before free_from is moved to free_from', async () => {
     renderBusy({ initialFrom: '2026-10-10', initialTo: '2026-10-20' });
     await screen.findByText('Frees up 14 October');

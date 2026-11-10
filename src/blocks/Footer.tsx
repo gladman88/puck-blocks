@@ -1,7 +1,7 @@
 import { safeHref, safeImageUrl } from '../sanitize';
 import { ContactIcon, type ContactKind } from '../components/ContactIcon';
 import { BrandLogo } from '../components/BrandLogo';
-import type { NavLink } from './SiteHeader';
+import { withLinkBase, type NavLink } from './SiteHeader';
 
 export interface FooterColumn {
   title: string;
@@ -23,6 +23,9 @@ export interface FooterProps {
   whatsapp?: string;
   telegram?: string;
   instagram?: string;
+  /** Same as `SiteHeader.linkBase`: `'/ru'` turns the `#reviews` anchors of
+   *  the columns into `/ru#reviews` on another page. Empty — as they are. */
+  linkBase?: string;
 }
 
 /** Multi-column footer: wordmark + nav columns + a contacts column. */
@@ -38,7 +41,9 @@ export function Footer({
   whatsapp,
   telegram,
   instagram,
+  linkBase,
 }: FooterProps) {
+  const anchor = (href: string | undefined) => (href ? withLinkBase(href, linkBase) : href);
   const phoneHref = phone
     ? safeHref(phone.startsWith('tel:') ? phone : `tel:${phone.replace(/\s+/g, '')}`)
     : undefined;
@@ -71,9 +76,9 @@ export function Footer({
         </div>
 
         {(columns ?? []).map((col, index) => {
-          const titleHref = safeHref(col.titleHref);
+          const titleHref = anchor(safeHref(col.titleHref));
           const links = (col.links ?? [])
-            .map((l) => ({ label: l.label, href: safeHref(l.href) }))
+            .map((l) => ({ label: l.label, href: anchor(safeHref(l.href)) }))
             .filter((l): l is { label: string; href: string } => Boolean(l.href));
           return (
             <div className="sb-footer__col" key={index}>

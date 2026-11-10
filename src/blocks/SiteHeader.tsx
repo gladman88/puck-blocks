@@ -20,6 +20,16 @@ export interface SiteHeaderProps {
   instagram?: string;
   /** Override the Puck metadata locale (for non-Puck hosts). */
   locale?: SiteLocale;
+  /** Page the in-page anchors belong to, for hosts that render the header on
+   *  another page: `'/ru'` turns `#car` into `/ru#car` and the logo link into
+   *  `/ru`. Empty / absent — anchors stay as they are, the logo leads to `/`. */
+  linkBase?: string;
+}
+
+/** `#car` → `/ru#car` when a link base is set; any other link is unchanged. */
+export function withLinkBase(href: string, linkBase: string | undefined): string {
+  const base = (linkBase ?? '').trim();
+  return base && href.startsWith('#') ? `${base}${href}` : href;
 }
 
 type PuckInjected = { puck?: { metadata?: { locale?: string } } };
@@ -63,6 +73,7 @@ export function SiteHeader({
   telegram,
   instagram,
   locale: localeProp,
+  linkBase,
   puck,
 }: SiteHeaderProps & PuckInjected) {
   const locale: SiteLocale = localeProp ?? (puck?.metadata?.locale === 'en' ? 'en' : 'ru');
@@ -148,13 +159,16 @@ export function SiteHeader({
   );
 
   const navLinks = (links ?? [])
-    .map((link) => ({ label: link.label, href: safeHref(link.href) }))
+    .map((link) => {
+      const href = safeHref(link.href);
+      return { label: link.label, href: href ? withLinkBase(href, linkBase) : href };
+    })
     .filter((l): l is { label: string; href: string } => Boolean(l.href));
 
   return (
     <header className={`sb-header${scrolled ? ' is-scrolled' : ''}`}>
       <div className="sb-header__inner">
-        <a className="sb-header__brand" href="/">
+        <a className="sb-header__brand" href={linkBase?.trim() || '/'}>
           {logoNode}
         </a>
 

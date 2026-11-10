@@ -450,7 +450,7 @@ export interface TelegramCatalogUser {
   language_code?: string;
 }
 
-interface Props {
+export interface VehicleBookingModalProps {
   vehicle: CatalogVehicle;
   apiBase: string;
   locale: 'ru' | 'en';
@@ -486,6 +486,10 @@ interface Props {
    *  and the request goes to a unit that is free for the whole period. Absent →
    *  just this vehicle. */
   unitIds?: string[];
+  /** Step the window opens on: `'detail'` (default) — the vehicle screen;
+   *  `'booking'` — straight to the dates step, as if «Забронировать» was
+   *  pressed («‹ Назад» still leads to the vehicle screen). */
+  initialStep?: 'detail' | 'booking';
   onClose: () => void;
 }
 
@@ -538,8 +542,9 @@ export function VehicleBookingModal({
   initialFrom,
   initialTo,
   unitIds,
+  initialStep = 'detail',
   onClose,
-}: Props) {
+}: VehicleBookingModalProps) {
   const t = S[locale];
   const [detail, setDetail] = useState<CatalogVehicleDetail | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -620,7 +625,9 @@ export function VehicleBookingModal({
   // 2026-07-21: one booking → three identical manager notifications). A ref
   // flips synchronously, before the first `await`, closing that window.
   const submittingRef = useRef(false);
-  const [stage, setStage] = useState<'detail' | 'choice' | 'form' | 'success'>('detail');
+  const [stage, setStage] = useState<'detail' | 'choice' | 'form' | 'success'>(
+    initialStep === 'booking' ? 'choice' : 'detail',
+  );
   const [err, setErr] = useState('');
   // 1-click Telegram booking (workspace/docs/catalog.md) — POSTs
   // the current selection to /booking-intents/, then redirects to the bot
@@ -933,7 +940,6 @@ export function VehicleBookingModal({
     pendingAskRef.current = kind;
     setStage('choice');
   };
-
   // «Стоимость» — ONE quote for the choice step, the manual form and the
   // success screen's «Итого» (same `priceSummaryTotalSatang`).
   const pickupLeg = { enabled: pickupEnabled, hasLocation: effectivePickupLocation != null, cost: pickupCost };
@@ -1244,6 +1250,17 @@ export function VehicleBookingModal({
     }
     setStage('choice');
   };
+
+  // `initialStep='booking'` opens on the dates step: once the detail is in,
+  // apply the same «Забронировать» seeding (a busy vehicle starts from its
+  // return day) — exactly once per window.
+  const bookedOnOpenRef = useRef(false);
+  useEffect(() => {
+    if (initialStep !== 'booking' || bookedOnOpenRef.current || !d) return;
+    bookedOnOpenRef.current = true;
+    onBook();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [d]);
 
   // Additional paid accessories (Stage 5) — a SINGLE horizontal scroll-snap
   // row, not a grid: with many categories/items a grid would grow the modal's

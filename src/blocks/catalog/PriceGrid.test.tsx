@@ -40,6 +40,15 @@ describe('PriceGrid', () => {
     }
   });
 
+  it('showLabel: caption shown by default, hidden on false — the table keeps its name', () => {
+    render(<PriceGrid periods={PERIODS} seasons={SEASONS} referenceDate={REF} locale="ru" />);
+    expect(document.querySelector('.sb-pgrid > .sb-vd__lab')?.textContent).toBe('Цены по сезонам · за сутки, ฿');
+    cleanup();
+    render(<PriceGrid periods={PERIODS} seasons={SEASONS} referenceDate={REF} locale="en" showLabel={false} />);
+    expect(document.querySelector('.sb-pgrid .sb-vd__lab')).toBeNull();
+    expect(screen.getByRole('table', { name: 'Prices by season · per day, ฿' })).toBeTruthy();
+  });
+
   it('current season row highlighted, no badge', () => {
     render(<PriceGrid periods={PERIODS} seasons={SEASONS} referenceDate={REF} locale="ru" />);
     expect(rows()[0].classList.contains('is-now')).toBe(true);
