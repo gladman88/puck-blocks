@@ -5,9 +5,10 @@ import { formatBahtCeil, formatMoney } from '../blocks/catalog/price';
 import { buildSpecRows } from '../blocks/catalog/specs';
 import { Breadcrumbs } from './Breadcrumbs';
 import { IconBadge, PageIcon, type PageIconName } from './icons';
-import { formatLongDate, trimLabel, versionPrice, versionSubtitle } from './model';
+import { formatLongDate, versionPrice } from './model';
 import { useModelPage } from './ModelPageContext';
 import { PAGE_STRINGS } from './strings';
+import { TrimSwitcher } from './TrimSwitcher';
 import type { CatalogModelUnit, Crumb } from './types';
 
 /** Anchor of the hero — «Выбрать» of the trims scrolls back here. */
@@ -121,7 +122,7 @@ function Deposit({ unit, locale }: { unit: CatalogModelUnit; locale: 'ru' | 'en'
 export function ModelHero({ crumbs = [], telegramUrl, whatsappUrl }: ModelHeroProps) {
   const page = useModelPage();
   if (!page || !page.selected) return null;
-  const { model, locale, today, versions, selected, select, openBooking } = page;
+  const { model, locale, today, selected, openBooking } = page;
   const t = PAGE_STRINGS[locale];
   const c = CATALOG_STRINGS[locale];
   const unit = selected.unit;
@@ -165,26 +166,7 @@ export function ModelHero({ crumbs = [], telegramUrl, whatsappUrl }: ModelHeroPr
             <h1 className="sb-mp-title">
               {model.label} <small>{t.rentInPhuket}</small>
             </h1>
-            {versions.length > 1 ? (
-              <div className="sb-mp-seg" style={{ ['--n' as string]: versions.length }} role="group" aria-label={t.trims}>
-                {versions.map((v) => {
-                  const sub = versionSubtitle(v, versions, t.seatsCount);
-                  const on = v.key === selected.key;
-                  return (
-                    <button
-                      key={v.key}
-                      type="button"
-                      className={on ? 'is-on' : undefined}
-                      aria-pressed={on}
-                      onClick={() => select(v.key)}
-                    >
-                      {trimLabel(v.trim, t.baseTrim)}
-                      {sub ? <i>{sub}</i> : null}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
+            <TrimSwitcher />
             <div className="sb-mp-book__body">
               <div className="sb-mp-price-row">
                 {price.from ? (

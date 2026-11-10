@@ -2,12 +2,15 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import type { CatalogVehicle } from '../blocks/VehicleCatalog';
 import {
+  CategoryAbout,
   CategoryHeader,
   MobileBookingBar,
   ModelGrid,
   ModelHero,
   ModelOverview,
   ModelPageProvider,
+  SeasonPrices,
+  SectionHeading,
   SpecGroups,
   TrimCompare,
   buildVersions,
@@ -275,6 +278,56 @@ describe('TrimCompare', () => {
   });
 });
 
+describe('SeasonPrices', () => {
+  it('a card with the trim switcher; switching swaps the table to that trim', () => {
+    const cheap = unit({
+      id: 'c1',
+      trim: 'Comfort',
+      pricing_seasons: [{ start_date: '2026-11-01', end_date: '2026-12-15', prices: ['3100', '2900', '2500'] }],
+    });
+    renderPage(model([freePremium, cheap]), 'ru', <SeasonPrices />);
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Цены по сезонам');
+    const card = document.querySelector('.sb-mp-pg') as HTMLElement;
+    expect(card).not.toBeNull();
+    // The table has no own caption here — labelled by aria-label.
+    expect(card.querySelector('.sb-vd__lab')).toBeNull();
+    const table = () => within(card).getByRole('table');
+    const seg = within(card).getByRole('group', { name: 'Комплектации' });
+    expect(seg.className).toContain('sb-mp-seg--inline');
+    fireEvent.click(within(seg).getByRole('button', { name: /Premium/ }));
+    expect(within(seg).getByRole('button', { name: /Premium/ }).getAttribute('aria-pressed')).toBe('true');
+    const before = table().textContent;
+    expect(before).not.toContain('100');
+    fireEvent.click(within(seg).getByRole('button', { name: /Comfort/ }));
+    expect(within(seg).getByRole('button', { name: /Comfort/ }).getAttribute('aria-pressed')).toBe('true');
+    expect(table().textContent).not.toBe(before);
+    expect(table().textContent).toContain('100');
+  });
+
+  it('one trim — no switcher; no seasons — no section', () => {
+    renderPage(model([freePremium]), 'ru', <SeasonPrices />);
+    expect(document.querySelector('.sb-mp-pg [role="group"]')).toBeNull();
+    expect(document.querySelector('.sb-mp-pg table')).not.toBeNull();
+    cleanup();
+    renderPage(model([unit({ pricing_seasons: [] })]), 'ru', <SeasonPrices />);
+    expect(document.querySelector('.sb-mp-pg')).toBeNull();
+  });
+
+  it('the hero and the prices share one trim choice', () => {
+    renderPage(
+      model([busyBase, freePremium]),
+      'ru',
+      <>
+        <ModelHero />
+        <SeasonPrices />
+      </>,
+    );
+    const [heroSeg, priceSeg] = screen.getAllByRole('group', { name: 'Комплектации' });
+    fireEvent.click(within(priceSeg).getByRole('button', { name: /Базовая/ }));
+    expect(within(heroSeg).getByRole('button', { name: /Базовая/ }).getAttribute('aria-pressed')).toBe('true');
+  });
+});
+
 describe('MobileBookingBar', () => {
   it('price of the chosen trim, Telegram, «Забронировать» opens the window', () => {
     renderPage(model([freePremium]), 'ru', <MobileBookingBar telegramUrl="https://t.me/x" />);
@@ -421,5 +474,96 @@ describe('CategoryHeader', () => {
     const stats = Array.from(document.querySelectorAll('.sb-mc-stats li')).map((li) => li.textContent);
     expect(stats).toEqual(['4 models', `from 934${NB}฿ / day for rentals of 28+ days`, '3 available today']);
     expect(screen.getByRole('link', { name: /EVs/ }).getAttribute('href')).toBe('/en/cars/electric');
+  });
+});
+
+describe('CategoryAbout', () => {
+  it('text on the left, «Поможем выбрать» with Telegram and WhatsApp', () => {
+    render(
+      <CategoryAbout
+        locale="ru"
+        heading="Электрокары на Пхукете"
+        text={'Первый абзац.\n\nВторой абзац.'}
+        telegramUrl="https://t.me/x"
+        whatsappUrl="https://wa.me/1"
+      />,
+    );
+    expect(Array.from(document.querySelectorAll('.sb-mp-text')).map((p) => p.textContent)).toEqual([
+      'Первый абзац.',
+      'Второй абзац.',
+    ]);
+    const help = document.querySelector('.sb-mc-help') as HTMLElement;
+    expect(within(help).getByRole('heading', { level: 3 }).textContent).toBe('Поможем выбрать');
+    expect(help.textContent).toContain('подберём машину и пришлём свободные даты');
+    expect(within(help).getByRole('link', { name: /Telegram/ }).getAttribute('href')).toBe('https://t.me/x');
+    expect(within(help).getByRole('link', { name: /WhatsApp/ }).getAttribute('href')).toBe('https://wa.me/1');
+  });
+
+  it('en strings; no contacts — no card', () => {
+    render(<CategoryAbout locale="en" text="Text." telegramUrl="https://t.me/x" />);
+    const help = document.querySelector('.sb-mc-help') as HTMLElement;
+    expect(within(help).getByRole('heading', { level: 3 }).textContent).toBe('Need help choosing?');
+    expect(help.textContent).toContain('we will suggest a car and send free dates');
+    expect(within(help).queryByRole('link', { name: /WhatsApp/ })).toBeNull();
+    cleanup();
+    render(<CategoryAbout locale="en" text="Text." />);
+    expect(document.querySelector('.sb-mc-help')).toBeNull();
+    expect(document.querySelector('.sb-mp-text')?.textContent).toBe('Text.');
+  });
+});
+
+describe('SectionHeading', () => {
+  const category: CatalogCategoryPage = {
+    id: 'c1',
+    name: 'Электрокары',
+    name_en: 'EVs',
+    color: '#0f0',
+    slug: 'electric',
+    h1: '',
+    h1_en: '',
+    intro: '',
+    intro_en: '',
+    meta_description: '',
+    meta_description_en: '',
+    section: 'cars',
+    is_published: true,
+    has_text_ru: true,
+    has_text_en: true,
+  };
+  const row = (slug: string, price: string): CatalogModelPage => ({
+    slug,
+    brand: 'B',
+    name: slug,
+    label: `B ${slug}`,
+    vehicle_type: 'car',
+    category: { id: 'c1', slug: 'electric', name: 'Электрокары', name_en: 'EVs' },
+    photo_url: null,
+    price_from_per_day: price,
+    price_from_min_days: 7,
+    vehicle_count: 1,
+    available_today_count: 1,
+    has_text_ru: true,
+    has_text_en: true,
+    updated_at: '2026-11-10T00:00:00Z',
+  });
+  const four = [row('a', '1500.00'), row('b', '933.40'), row('c', '2000.00'), row('d', '1200.00')];
+
+  it('name, «N моделей · от X ฿» and «Все … · N» with more than three models', () => {
+    render(<SectionHeading locale="ru" section="cars" category={category} models={four} />);
+    const h2 = screen.getByRole('heading', { level: 2 });
+    expect(h2.textContent).toBe(`Электрокары4 модели · от 934${NB}฿`);
+    const more = screen.getByRole('link');
+    expect(more.textContent).toBe('Смотреть все · 4');
+    expect(more.getAttribute('href')).toBe('/ru/cars/electric');
+  });
+
+  it('three models or fewer — no link; en strings', () => {
+    render(<SectionHeading locale="en" section="cars" category={category} models={four.slice(0, 3)} />);
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe(`EVs3 models · from 934${NB}฿`);
+    expect(screen.queryByRole('link')).toBeNull();
+    cleanup();
+    render(<SectionHeading locale="en" section="cars" category={category} models={four} />);
+    expect(screen.getByRole('link').textContent).toBe('See all · 4');
+    expect(screen.getByRole('link').getAttribute('href')).toBe('/en/cars/electric');
   });
 });

@@ -13,11 +13,18 @@ export type { ModelGridProps } from './ModelGrid';
 export { CategoryHeader } from './CategoryHeader';
 export type { CategoryHeaderProps } from './CategoryHeader';
 export { MobileBookingBar } from './MobileBookingBar';
+export { SeasonPrices } from './SeasonPrices';
+export { CategoryAbout } from './CategoryAbout';
+export type { CategoryAboutProps } from './CategoryAbout';
+export { SectionHeading } from './SectionHeading';
+export type { SectionHeadingProps } from './SectionHeading';
 export { Breadcrumbs } from './Breadcrumbs';
 export {
   buildVersions,
+  cheapestModel,
   defaultVersion,
   priceFromMinDays,
+  splitParagraphs,
   trimLabel,
   versionPrice,
   versionSubtitle,

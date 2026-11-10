@@ -1,5 +1,6 @@
 import { buildSpecRows, type SpecRow, type VehicleSpecs } from '../blocks/catalog/specs';
 import { IconBadge, type PageIconName } from './icons';
+import { splitParagraphs } from './model';
 import { useModelPage } from './ModelPageContext';
 import { PAGE_STRINGS } from './strings';
 
@@ -56,10 +57,7 @@ export function ModelOverview({ about, specs, eyebrow, locale: localeProp }: Mod
   const t = PAGE_STRINGS[locale];
   const source = specs ?? page?.selected?.unit;
   const facts = source ? keyFacts(source, locale) : [];
-  const paragraphs = about
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const paragraphs = splitParagraphs(about);
   if (facts.length === 0 && paragraphs.length === 0) return null;
   const kicker = eyebrow ?? page?.model.label;
 

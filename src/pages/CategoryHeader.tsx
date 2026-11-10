@@ -1,7 +1,7 @@
 import { categoryLabel } from '../blocks/VehicleCatalog';
-import { formatBahtCeil } from '../blocks/catalog/price';
 import { Breadcrumbs } from './Breadcrumbs';
 import { PageIcon } from './icons';
+import { cheapestModel } from './model';
 import { PAGE_STRINGS } from './strings';
 import type { CatalogCategoryPage, CatalogModelPage, Crumb } from './types';
 
@@ -21,16 +21,6 @@ export interface CategoryHeaderProps {
   currentSlug?: string;
 }
 
-/** Cheapest «from» price of the models and the rental it needs (server values). */
-function cheapest(models: CatalogModelPage[]): { price: string; minDays: number | null } | null {
-  let best: CatalogModelPage | null = null;
-  for (const m of models) {
-    if (!m.price_from_per_day) continue;
-    if (!best || parseFloat(m.price_from_per_day) < parseFloat(best.price_from_per_day!)) best = m;
-  }
-  return best ? { price: formatBahtCeil(best.price_from_per_day!), minDays: best.price_from_min_days } : null;
-}
-
 /**
  * Top of a category / type page: breadcrumbs, h1 (wraps balanced, never cut), the
  * figures line (models · from N ฿/day for M+ days · free today) and a row of
@@ -47,7 +37,7 @@ export function CategoryHeader({
   currentSlug,
 }: CategoryHeaderProps) {
   const t = PAGE_STRINGS[locale];
-  const from = cheapest(models);
+  const from = cheapestModel(models);
   const freeToday = models.filter((m) => m.available_today_count > 0).length;
   const pool = sectionModels ?? models;
   const chips = categories

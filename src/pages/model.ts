@@ -147,3 +147,23 @@ export function versionPrice(
   }
   return { from: null, maxDay: null, minDays: null };
 }
+
+/** Editor text → paragraphs (split on blank lines, empty ones dropped). */
+export function splitParagraphs(text: string): string[] {
+  return text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+/** Cheapest «from» price of the models and the rental it needs (server values). */
+export function cheapestModel(
+  models: readonly CatalogModelPage[],
+): { price: string; minDays: number | null } | null {
+  let best: CatalogModelPage | null = null;
+  for (const m of models) {
+    if (!m.price_from_per_day) continue;
+    if (!best || parseFloat(m.price_from_per_day) < parseFloat(best.price_from_per_day!)) best = m;
+  }
+  return best ? { price: formatBahtCeil(best.price_from_per_day!), minDays: best.price_from_min_days } : null;
+}

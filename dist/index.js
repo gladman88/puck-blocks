@@ -5237,6 +5237,17 @@ function versionPrice(unit, today, model) {
   }
   return { from: null, maxDay: null, minDays: null };
 }
+function splitParagraphs(text) {
+  return text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+}
+function cheapestModel(models) {
+  let best = null;
+  for (const m of models) {
+    if (!m.price_from_per_day) continue;
+    if (!best || parseFloat(m.price_from_per_day) < parseFloat(best.price_from_per_day)) best = m;
+  }
+  return best ? { price: formatBahtCeil(best.price_from_per_day), minDays: best.price_from_min_days } : null;
+}
 var ModelPageContext = createContext(null);
 function useModelPage() {
   return useContext(ModelPageContext);
@@ -5334,7 +5345,12 @@ var PAGE_STRINGS = {
     modelsCount: (n) => pluralRu(n, "\u043C\u043E\u0434\u0435\u043B\u044C", "\u043C\u043E\u0434\u0435\u043B\u0438", "\u043C\u043E\u0434\u0435\u043B\u0435\u0439"),
     statsPrice: (minDays) => `/ \u0441\u0443\u0442\u043A\u0438${minDays && minDays > 1 ? ` \u043F\u0440\u0438 \u0430\u0440\u0435\u043D\u0434\u0435 \u043E\u0442 ${fromDaysRu(minDays)}` : ""}`,
     statsFree: (n) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u0430" : "\u0441\u0432\u043E\u0431\u043E\u0434\u043D\u044B"} \u0441\u0435\u0433\u043E\u0434\u043D\u044F`,
-    categories: "\u041A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438"
+    categories: "\u041A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438",
+    seasonPrices: "\u0426\u0435\u043D\u044B \u043F\u043E \u0441\u0435\u0437\u043E\u043D\u0430\u043C",
+    helpTitle: "\u041F\u043E\u043C\u043E\u0436\u0435\u043C \u0432\u044B\u0431\u0440\u0430\u0442\u044C",
+    helpText: "\u0420\u0430\u0441\u0441\u043A\u0430\u0436\u0438\u0442\u0435, \u0441\u043A\u043E\u043B\u044C\u043A\u043E \u0432\u0430\u0441 \u0438 \u043A\u0443\u0434\u0430 \u043F\u043B\u0430\u043D\u0438\u0440\u0443\u0435\u0442\u0435 \u0435\u0437\u0434\u0438\u0442\u044C, \u2014 \u043F\u043E\u0434\u0431\u0435\u0440\u0451\u043C \u043C\u0430\u0448\u0438\u043D\u0443 \u0438 \u043F\u0440\u0438\u0448\u043B\u0451\u043C \u0441\u0432\u043E\u0431\u043E\u0434\u043D\u044B\u0435 \u0434\u0430\u0442\u044B.",
+    groupStats: (n, price) => [pluralRu(n, "\u043C\u043E\u0434\u0435\u043B\u044C", "\u043C\u043E\u0434\u0435\u043B\u0438", "\u043C\u043E\u0434\u0435\u043B\u0435\u0439"), price ? `\u043E\u0442 ${price}\xA0\u0E3F` : null].filter(Boolean).join(" \xB7 "),
+    allOf: (_label, n) => `\u0421\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0432\u0441\u0435 \xB7 ${n}`
   },
   en: {
     rentInPhuket: "rental in Phuket",
@@ -5385,7 +5401,12 @@ var PAGE_STRINGS = {
     modelsCount: (n) => `${n} ${n === 1 ? "model" : "models"}`,
     statsPrice: (minDays) => `/ day${minDays && minDays > 1 ? ` for rentals of ${minDays}+ days` : ""}`,
     statsFree: (n) => `${n} available today`,
-    categories: "Categories"
+    categories: "Categories",
+    seasonPrices: "Prices by season",
+    helpTitle: "Need help choosing?",
+    helpText: "Tell us how many of you there are and where you plan to go \u2014 we will suggest a car and send free dates.",
+    groupStats: (n, price) => [`${n} ${n === 1 ? "model" : "models"}`, price ? `from ${price}\xA0\u0E3F` : null].filter(Boolean).join(" \xB7 "),
+    allOf: (_label, n) => `See all \xB7 ${n}`
   }
 };
 function Breadcrumbs({ crumbs, locale }) {
@@ -5414,6 +5435,7 @@ function Svg({ children, className = "sb-mp-ic" }) {
 var PATHS = {
   chevronLeft: /* @__PURE__ */ jsx("path", { d: "m15 18-6-6 6-6" }),
   chevronRight: /* @__PURE__ */ jsx("path", { d: "m9 18 6-6-6-6" }),
+  arrowRight: /* @__PURE__ */ jsx("path", { d: "M5 12h14M13 6l6 6-6 6" }),
   calendar: /* @__PURE__ */ jsxs(Fragment, { children: [
     /* @__PURE__ */ jsx("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }),
     /* @__PURE__ */ jsx("path", { d: "M16 2v4M8 2v4M3 10h18" })
@@ -5499,6 +5521,39 @@ function PageIcon({ name, className }) {
 function IconBadge({ name }) {
   return /* @__PURE__ */ jsx("span", { className: "sb-mp-badge", "aria-hidden": "true", children: /* @__PURE__ */ jsx(PageIcon, { name }) });
 }
+function TrimSwitcher({ inline = false }) {
+  const page = useModelPage();
+  if (!page || !page.selected || page.versions.length < 2) return null;
+  const { locale, versions, selected, select } = page;
+  const t = PAGE_STRINGS[locale];
+  return /* @__PURE__ */ jsx(
+    "div",
+    {
+      className: `sb-mp-seg${inline ? " sb-mp-seg--inline" : ""}`,
+      style: { ["--n"]: versions.length },
+      role: "group",
+      "aria-label": t.trims,
+      children: versions.map((v) => {
+        const sub = versionSubtitle(v, versions, t.seatsCount);
+        const on = v.key === selected.key;
+        return /* @__PURE__ */ jsxs(
+          "button",
+          {
+            type: "button",
+            className: on ? "is-on" : void 0,
+            "aria-pressed": on,
+            onClick: () => select(v.key),
+            children: [
+              trimLabel(v.trim, t.baseTrim),
+              sub ? /* @__PURE__ */ jsx("i", { children: sub }) : null
+            ]
+          },
+          v.key
+        );
+      })
+    }
+  );
+}
 var MODEL_HERO_ID = "sb-model-hero";
 var TRUST_ICONS = ["truck", "contract", "chat"];
 function slidesOf(unit) {
@@ -5564,7 +5619,7 @@ function Deposit({ unit, locale }) {
 function ModelHero({ crumbs = [], telegramUrl, whatsappUrl }) {
   const page = useModelPage();
   if (!page || !page.selected) return null;
-  const { model, locale, today, versions, selected, select, openBooking } = page;
+  const { model, locale, today, selected, openBooking } = page;
   const t = PAGE_STRINGS[locale];
   const c = STRINGS3[locale];
   const unit = selected.unit;
@@ -5592,24 +5647,7 @@ function ModelHero({ crumbs = [], telegramUrl, whatsappUrl }) {
           " ",
           /* @__PURE__ */ jsx("small", { children: t.rentInPhuket })
         ] }),
-        versions.length > 1 ? /* @__PURE__ */ jsx("div", { className: "sb-mp-seg", style: { ["--n"]: versions.length }, role: "group", "aria-label": t.trims, children: versions.map((v) => {
-          const sub = versionSubtitle(v, versions, t.seatsCount);
-          const on = v.key === selected.key;
-          return /* @__PURE__ */ jsxs(
-            "button",
-            {
-              type: "button",
-              className: on ? "is-on" : void 0,
-              "aria-pressed": on,
-              onClick: () => select(v.key),
-              children: [
-                trimLabel(v.trim, t.baseTrim),
-                sub ? /* @__PURE__ */ jsx("i", { children: sub }) : null
-              ]
-            },
-            v.key
-          );
-        }) }) : null,
+        /* @__PURE__ */ jsx(TrimSwitcher, {}),
         /* @__PURE__ */ jsxs("div", { className: "sb-mp-book__body", children: [
           /* @__PURE__ */ jsxs("div", { className: "sb-mp-price-row", children: [
             price.from ? /* @__PURE__ */ jsxs("p", { className: "sb-mp-price", children: [
@@ -5681,7 +5719,7 @@ function ModelOverview({ about, specs, eyebrow, locale: localeProp }) {
   const t = PAGE_STRINGS[locale];
   const source = specs ?? page?.selected?.unit;
   const facts = source ? keyFacts(source, locale) : [];
-  const paragraphs = about.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const paragraphs = splitParagraphs(about);
   if (facts.length === 0 && paragraphs.length === 0) return null;
   const kicker = eyebrow ?? page?.model.label;
   return /* @__PURE__ */ jsx("section", { className: "sb-section sb-mp-sec", children: /* @__PURE__ */ jsxs("div", { className: "sb-container sb-mp-about", children: [
@@ -5889,14 +5927,6 @@ function ModelGrid({
     ) : null
   ] });
 }
-function cheapest(models) {
-  let best = null;
-  for (const m of models) {
-    if (!m.price_from_per_day) continue;
-    if (!best || parseFloat(m.price_from_per_day) < parseFloat(best.price_from_per_day)) best = m;
-  }
-  return best ? { price: formatBahtCeil(best.price_from_per_day), minDays: best.price_from_min_days } : null;
-}
 function CategoryHeader({
   locale,
   section,
@@ -5908,7 +5938,7 @@ function CategoryHeader({
   currentSlug
 }) {
   const t = PAGE_STRINGS[locale];
-  const from = cheapest(models);
+  const from = cheapestModel(models);
   const freeToday = models.filter((m) => m.available_today_count > 0).length;
   const pool = sectionModels ?? models;
   const chips = categories.filter((c) => c.is_published && c.section === section && c.slug).map((c) => ({ c, count: pool.filter((m) => m.category?.id === c.id).length })).filter((x) => x.count > 0);
@@ -5989,5 +6019,68 @@ function MobileBookingBar({ telegramUrl }) {
     ] })
   ] });
 }
+function SeasonPrices({ eyebrow }) {
+  const page = useModelPage();
+  if (!page || !page.selected) return null;
+  const { model, locale, today, selected } = page;
+  const periods = selected.unit.pricing_periods ?? [];
+  const seasons = selected.unit.pricing_seasons ?? [];
+  if (periods.length === 0 || seasons.length === 0) return null;
+  const t = PAGE_STRINGS[locale];
+  const kicker = eyebrow ?? model.label;
+  return /* @__PURE__ */ jsx("section", { className: "sb-section sb-mp-sec", children: /* @__PURE__ */ jsxs("div", { className: "sb-container", children: [
+    kicker ? /* @__PURE__ */ jsx("p", { className: "sb-mp-eyebrow", children: kicker }) : null,
+    /* @__PURE__ */ jsx("h2", { className: "sb-h2", children: t.seasonPrices }),
+    /* @__PURE__ */ jsxs("div", { className: "sb-mp-pg", children: [
+      /* @__PURE__ */ jsx(TrimSwitcher, { inline: true }),
+      /* @__PURE__ */ jsx(PriceGrid, { periods, seasons, referenceDate: today, locale, showLabel: false })
+    ] })
+  ] }) });
+}
+function CategoryAbout({ locale, heading, eyebrow, text, telegramUrl, whatsappUrl }) {
+  const t = PAGE_STRINGS[locale];
+  const paragraphs = splitParagraphs(text);
+  const help = Boolean(telegramUrl || whatsappUrl);
+  if (paragraphs.length === 0 && !help) return null;
+  return /* @__PURE__ */ jsx("section", { className: "sb-section sb-mp-sec", children: /* @__PURE__ */ jsxs("div", { className: "sb-container sb-mc-about", children: [
+    paragraphs.length > 0 ? /* @__PURE__ */ jsxs("div", { children: [
+      eyebrow ? /* @__PURE__ */ jsx("p", { className: "sb-mp-eyebrow", children: eyebrow }) : null,
+      heading ? /* @__PURE__ */ jsx("h2", { className: "sb-h2", children: heading }) : null,
+      paragraphs.map((p, i) => /* @__PURE__ */ jsx("p", { className: "sb-mp-text", children: p }, i))
+    ] }) : null,
+    help ? /* @__PURE__ */ jsxs("aside", { className: "sb-mc-help", children: [
+      /* @__PURE__ */ jsx(IconBadge, { name: "chat" }),
+      /* @__PURE__ */ jsx("h3", { children: t.helpTitle }),
+      /* @__PURE__ */ jsx("p", { children: t.helpText }),
+      /* @__PURE__ */ jsxs("div", { className: "sb-mc-help__btns", children: [
+        telegramUrl ? /* @__PURE__ */ jsxs("a", { className: "sb-mp-btn-ghost", href: telegramUrl, target: "_blank", rel: "noopener noreferrer", children: [
+          /* @__PURE__ */ jsx(ContactIcon, { kind: "telegram", className: "sb-mp-ic" }),
+          "Telegram"
+        ] }) : null,
+        whatsappUrl ? /* @__PURE__ */ jsxs("a", { className: "sb-mp-btn-ghost", href: whatsappUrl, target: "_blank", rel: "noopener noreferrer", children: [
+          /* @__PURE__ */ jsx(ContactIcon, { kind: "whatsapp", className: "sb-mp-ic" }),
+          "WhatsApp"
+        ] }) : null
+      ] })
+    ] }) : null
+  ] }) });
+}
+var MORE_AFTER = 3;
+function SectionHeading({ locale, section, category, models, id }) {
+  const t = PAGE_STRINGS[locale];
+  const label = categoryLabel(category, locale);
+  const from = cheapestModel(models);
+  const more = models.length > MORE_AFTER && category.is_published && Boolean(category.slug);
+  return /* @__PURE__ */ jsxs("div", { className: "sb-mc-group__head", children: [
+    /* @__PURE__ */ jsxs("h2", { className: "sb-mc-h2", id, children: [
+      label,
+      /* @__PURE__ */ jsx("span", { children: t.groupStats(models.length, from?.price ?? null) })
+    ] }),
+    more ? /* @__PURE__ */ jsxs("a", { className: "sb-mc-more", href: `/${locale}/${section}/${category.slug}`, children: [
+      t.allOf(label, models.length),
+      /* @__PURE__ */ jsx(PageIcon, { name: "arrowRight" })
+    ] }) : null
+  ] });
+}
 
-export { AboutPromo, Breadcrumbs, STRINGS3 as CATALOG_STRINGS, CardPriceOverlay, CardTitle, CategoryHeader, ContactIcon, FeatureCards, Footer, Hero, LanguageSwitcher, LeadForm, MODEL_HERO_ID, MapContacts, MobileBookingBar, ModelGrid, ModelHero, ModelOverview, ModelPageProvider, PAGE_STRINGS, PriceGrid, ReviewsCarousel, RichText, SiteHeader, SpecGroups, StatCounters, TermsAccordion, TrimCompare, VehicleBookingModal, VehicleCard, VehicleCatalog, buildSpecRows, buildVersions, categoryLabel, defaultVersion, formatBahtCeil, formatCardDate, formatDayPrice, formatMoney, groupVehicles, isCurrentSeason, orderCatalogCards, periodLabel, pickRepresentative, priceFromMinDays, puckConfig, seasonLabel, trimLabel, useModelPage, vehicleGroupKey, vehicleModelHref, versionPrice, versionSubtitle, withLinkBase };
+export { AboutPromo, Breadcrumbs, STRINGS3 as CATALOG_STRINGS, CardPriceOverlay, CardTitle, CategoryAbout, CategoryHeader, ContactIcon, FeatureCards, Footer, Hero, LanguageSwitcher, LeadForm, MODEL_HERO_ID, MapContacts, MobileBookingBar, ModelGrid, ModelHero, ModelOverview, ModelPageProvider, PAGE_STRINGS, PriceGrid, ReviewsCarousel, RichText, SeasonPrices, SectionHeading, SiteHeader, SpecGroups, StatCounters, TermsAccordion, TrimCompare, VehicleBookingModal, VehicleCard, VehicleCatalog, buildSpecRows, buildVersions, categoryLabel, cheapestModel, defaultVersion, formatBahtCeil, formatCardDate, formatDayPrice, formatMoney, groupVehicles, isCurrentSeason, orderCatalogCards, periodLabel, pickRepresentative, priceFromMinDays, puckConfig, seasonLabel, splitParagraphs, trimLabel, useModelPage, vehicleGroupKey, vehicleModelHref, versionPrice, versionSubtitle, withLinkBase };

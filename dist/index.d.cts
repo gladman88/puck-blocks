@@ -1027,6 +1027,13 @@ interface VersionPrice {
     minDays: number | null;
 }
 declare function versionPrice(unit: CatalogModelUnit, today: string, model?: Pick<CatalogModelPage, 'price_from_per_day' | 'price_from_min_days'>): VersionPrice;
+/** Editor text → paragraphs (split on blank lines, empty ones dropped). */
+declare function splitParagraphs(text: string): string[];
+/** Cheapest «from» price of the models and the rental it needs (server values). */
+declare function cheapestModel(models: readonly CatalogModelPage[]): {
+    price: string;
+    minDays: number | null;
+} | null;
 
 /** What the HOST passes to open the booking window (same props the catalog
  *  block forwards to `VehicleBookingModal`). */
@@ -1169,6 +1176,50 @@ declare function MobileBookingBar({ telegramUrl }: {
     telegramUrl?: string;
 }): react.JSX.Element | null;
 
+/**
+ * «Цены по сезонам» of a model page: the trim switcher (shared with the hero)
+ * and the season × period table of the chosen trim (`PriceGrid`, server
+ * prices), both in one card whose side padding is the table's bleed. Nothing
+ * when the chosen trim has no seasons. Needs `ModelPageProvider`.
+ */
+declare function SeasonPrices({ eyebrow }: {
+    eyebrow?: string;
+}): react.JSX.Element | null;
+
+interface CategoryAboutProps {
+    locale: 'ru' | 'en';
+    /** Heading of the text column (the host's: category / type h2). */
+    heading?: string;
+    eyebrow?: string;
+    /** Category / type text; blank lines split paragraphs. */
+    text: string;
+    /** «Поможем выбрать» buttons — from the site's contacts, not literals. */
+    telegramUrl?: string;
+    whatsappUrl?: string;
+}
+/**
+ * Bottom of a category / type page: the text on the left, the «Поможем
+ * выбрать» card (badge, title, hint, Telegram + WhatsApp) on the right; one
+ * column on ≤1024px. The card is drawn only with at least one contact link.
+ */
+declare function CategoryAbout({ locale, heading, eyebrow, text, telegramUrl, whatsappUrl }: CategoryAboutProps): react.JSX.Element | null;
+
+interface SectionHeadingProps {
+    locale: 'ru' | 'en';
+    section: 'cars' | 'bikes';
+    category: CatalogCategoryPage;
+    /** Models of the category (all of them — the counter and the «from» price). */
+    models: CatalogModelPage[];
+    /** id of the h2 (the host's group `aria-labelledby`). */
+    id?: string;
+}
+/**
+ * Head of a category group on a type page: the category name, «N моделей · от
+ * X ฿» and, with more than three models and a published category page, the
+ * «Все {категория} · N →» link to it.
+ */
+declare function SectionHeading({ locale, section, category, models, id }: SectionHeadingProps): react.JSX.Element;
+
 /** «Главная / Автомобили / Zeekr 009» — the last crumb (no `href`) is the page. */
 declare function Breadcrumbs({ crumbs, locale }: {
     crumbs: Crumb[];
@@ -1224,6 +1275,11 @@ declare const PAGE_STRINGS: {
         readonly statsPrice: (minDays: number | null) => string;
         readonly statsFree: (n: number) => string;
         readonly categories: "Категории";
+        readonly seasonPrices: "Цены по сезонам";
+        readonly helpTitle: "Поможем выбрать";
+        readonly helpText: "Расскажите, сколько вас и куда планируете ездить, — подберём машину и пришлём свободные даты.";
+        readonly groupStats: (n: number, price: string | null) => string;
+        readonly allOf: (_label: string, n: number) => string;
     };
     readonly en: {
         readonly rentInPhuket: "rental in Phuket";
@@ -1272,7 +1328,12 @@ declare const PAGE_STRINGS: {
         readonly statsPrice: (minDays: number | null) => string;
         readonly statsFree: (n: number) => string;
         readonly categories: "Categories";
+        readonly seasonPrices: "Prices by season";
+        readonly helpTitle: "Need help choosing?";
+        readonly helpText: "Tell us how many of you there are and where you plan to go — we will suggest a car and send free dates.";
+        readonly groupStats: (n: number, price: string | null) => string;
+        readonly allOf: (_label: string, n: number) => string;
     };
 };
 
-export { AboutPromo, type AboutPromoProps, Breadcrumbs, STRINGS as CATALOG_STRINGS, CardPriceOverlay, type CardPriceOverlayProps, type CardPriceOverlayStrings, type CardPrices, type CardStatusTone, CardTitle, type CatalogCategory, type CatalogCategoryPage, type CatalogFilterState, type CatalogGalleryImage, type CatalogModelPage, type CatalogModelPageCategory, type CatalogModelPageDetail, type CatalogModelRedirect, type CatalogModelUnit, type CatalogPreload, type CatalogSortOption, type CatalogVehicle, type CatalogVehicleDetail, CategoryHeader, type CategoryHeaderProps, ContactIcon, type ContactKind, type Crumb, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LanguageSwitcher, type LanguageSwitcherProps, LeadForm, type LeadFormProps, MODEL_HERO_ID, MapContacts, type MapContactsProps, type MediaReview, MobileBookingBar, ModelGrid, type ModelGridProps, ModelHero, type ModelHeroProps, ModelOverview, type ModelOverviewProps, ModelPageProvider, type ModelPageProviderProps, type ModelPageState, type ModelVersion, type NavLink, PAGE_STRINGS, type PageBookingConfig, PriceGrid, type PriceGridProps, type PricingPeriod, type PricingSeason, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SiteHeader, type SiteHeaderProps, type SiteLocale, SpecGroups, type SpecGroupsProps, type SpecRow, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, TrimCompare, VehicleBookingModal, type VehicleBookingModalProps, VehicleCard, type VehicleCardProps, type VehicleCardStrings, VehicleCatalog, type VehicleCatalogProps, type VehicleGroup, type VehicleSpecs, type VersionPrice, buildSpecRows, buildVersions, categoryLabel, defaultVersion, formatBahtCeil, formatCardDate, formatDayPrice, formatMoney, groupVehicles, isCurrentSeason, orderCatalogCards, periodLabel, pickRepresentative, priceFromMinDays, puckConfig, seasonLabel, trimLabel, useModelPage, vehicleGroupKey, vehicleModelHref, versionPrice, versionSubtitle, withLinkBase };
+export { AboutPromo, type AboutPromoProps, Breadcrumbs, STRINGS as CATALOG_STRINGS, CardPriceOverlay, type CardPriceOverlayProps, type CardPriceOverlayStrings, type CardPrices, type CardStatusTone, CardTitle, type CatalogCategory, type CatalogCategoryPage, type CatalogFilterState, type CatalogGalleryImage, type CatalogModelPage, type CatalogModelPageCategory, type CatalogModelPageDetail, type CatalogModelRedirect, type CatalogModelUnit, type CatalogPreload, type CatalogSortOption, type CatalogVehicle, type CatalogVehicleDetail, CategoryAbout, type CategoryAboutProps, CategoryHeader, type CategoryHeaderProps, ContactIcon, type ContactKind, type Crumb, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LanguageSwitcher, type LanguageSwitcherProps, LeadForm, type LeadFormProps, MODEL_HERO_ID, MapContacts, type MapContactsProps, type MediaReview, MobileBookingBar, ModelGrid, type ModelGridProps, ModelHero, type ModelHeroProps, ModelOverview, type ModelOverviewProps, ModelPageProvider, type ModelPageProviderProps, type ModelPageState, type ModelVersion, type NavLink, PAGE_STRINGS, type PageBookingConfig, PriceGrid, type PriceGridProps, type PricingPeriod, type PricingSeason, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SeasonPrices, SectionHeading, type SectionHeadingProps, SiteHeader, type SiteHeaderProps, type SiteLocale, SpecGroups, type SpecGroupsProps, type SpecRow, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, TrimCompare, VehicleBookingModal, type VehicleBookingModalProps, VehicleCard, type VehicleCardProps, type VehicleCardStrings, VehicleCatalog, type VehicleCatalogProps, type VehicleGroup, type VehicleSpecs, type VersionPrice, buildSpecRows, buildVersions, categoryLabel, cheapestModel, defaultVersion, formatBahtCeil, formatCardDate, formatDayPrice, formatMoney, groupVehicles, isCurrentSeason, orderCatalogCards, periodLabel, pickRepresentative, priceFromMinDays, puckConfig, seasonLabel, splitParagraphs, trimLabel, useModelPage, vehicleGroupKey, vehicleModelHref, versionPrice, versionSubtitle, withLinkBase };

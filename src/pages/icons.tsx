@@ -22,6 +22,7 @@ function Svg({ children, className = 'sb-mp-ic' }: { children: ReactNode; classN
 const PATHS = {
   chevronLeft: <path d="m15 18-6-6 6-6" />,
   chevronRight: <path d="m9 18 6-6-6-6" />,
+  arrowRight: <path d="M5 12h14M13 6l6 6-6 6" />,
   calendar: (
     <>
       <rect x="3" y="4" width="18" height="18" rx="2" />
