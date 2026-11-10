@@ -18,12 +18,13 @@ export { CategoryAbout } from './CategoryAbout';
 export type { CategoryAboutProps } from './CategoryAbout';
 export { SectionHeading } from './SectionHeading';
 export type { SectionHeadingProps } from './SectionHeading';
+export { SectionGroup } from './SectionGroup';
+export type { SectionGroupProps } from './SectionGroup';
 export { Breadcrumbs } from './Breadcrumbs';
 export {
   buildVersions,
   cheapestModel,
   defaultVersion,
-  priceFromMinDays,
   splitParagraphs,
   trimLabel,
   versionPrice,

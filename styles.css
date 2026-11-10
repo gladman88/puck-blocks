@@ -5104,7 +5104,10 @@ div.sb-acc__item-photo {
   color: rgba(25, 25, 25, 0.65);
 }
 
-/* ---- SectionHeading (type page groups) ---- */
+/* ---- SectionGroup / SectionHeading (type page groups) ---- */
+.sb-mc-group + .sb-mc-group {
+  margin-top: clamp(2.5rem, 4vw, 3.5rem);
+}
 .sb-mc-group__head {
   display: flex;
   justify-content: space-between;

@@ -1,4 +1,5 @@
 import { ContactIcon } from '../components/ContactIcon';
+import { safeHref } from '../sanitize';
 import { IconBadge } from './icons';
 import { splitParagraphs } from './model';
 import { PAGE_STRINGS } from './strings';
@@ -20,7 +21,9 @@ export interface CategoryAboutProps {
  * выбрать» card (badge, title, hint, Telegram + WhatsApp) on the right; one
  * column on ≤1024px. The card is drawn only with at least one contact link.
  */
-export function CategoryAbout({ locale, heading, eyebrow, text, telegramUrl, whatsappUrl }: CategoryAboutProps) {
+export function CategoryAbout({ locale, heading, eyebrow, text, telegramUrl: tgRaw, whatsappUrl: waRaw }: CategoryAboutProps) {
+  const telegramUrl = safeHref(tgRaw);
+  const whatsappUrl = safeHref(waRaw);
   const t = PAGE_STRINGS[locale];
   const paragraphs = splitParagraphs(text);
   const help = Boolean(telegramUrl || whatsappUrl);

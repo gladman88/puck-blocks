@@ -1,10 +1,8 @@
-// Pure helpers of the model / category pages: trims of a model (the unit that
-// stands for a trim — `pickRepresentative` of the catalog), the «from» price
-// condition. No price arithmetic — every sum comes from the server
-// (`card_prices`, `pricing_seasons`).
-import { isCurrentSeason } from '../blocks/catalog/PriceGrid';
+// Pure helpers of the model / category pages: trims of a model, the «from»
+// price block. No ordering, picking or price arithmetic — the backend sends the
+// units in their order (`default_unit_id` first), each with its
+// `price_from_min_days`; every sum comes from the server (`card_prices`).
 import { formatBahtCeil } from '../blocks/catalog/price';
-import { pickRepresentative } from '../blocks/VehicleCatalog';
 import type { CatalogModelPage, CatalogModelUnit } from './types';
 
 /** One trim of a model: its units, the unit that stands for it. */
@@ -13,16 +11,17 @@ export interface ModelVersion {
   key: string;
   /** Trim as written in FMS ('' — no trim). */
   trim: string;
-  /** Units of the trim, incoming order. */
+  /** Units of the trim, backend order. */
   units: CatalogModelUnit[];
-  /** The unit that stands for the trim (`pickRepresentative`). */
+  /** The unit that stands for the trim — its first in the backend order. */
   unit: CatalogModelUnit;
   availableCount: number;
 }
 
 const trimKey = (trim: string | null | undefined) => (trim ?? '').trim().toLowerCase();
 
-/** Trims of a model: no trim («Базовая») first, then alphabetically. */
+/** Trims of a model in the backend order of their units (a trim stands where
+ *  its first unit does); the unit of a trim — its first one. */
 export function buildVersions(units: readonly CatalogModelUnit[]): ModelVersion[] {
   const groups = new Map<string, CatalogModelUnit[]>();
   for (const u of units) {
@@ -31,28 +30,23 @@ export function buildVersions(units: readonly CatalogModelUnit[]): ModelVersion[
     if (list) list.push(u);
     else groups.set(key, [u]);
   }
-  return Array.from(groups.entries())
-    .map(([key, list]) => {
-      const unit = pickRepresentative(list);
-      return {
-        key,
-        trim: (unit.trim ?? '').trim(),
-        units: list,
-        unit,
-        availableCount: list.filter((u) => u.is_available).length,
-      };
-    })
-    .sort((a, b) => {
-      if (!a.key !== !b.key) return a.key ? 1 : -1;
-      return a.trim.localeCompare(b.trim);
-    });
+  return Array.from(groups.entries()).map(([key, list]) => ({
+    key,
+    trim: (list[0].trim ?? '').trim(),
+    units: list,
+    unit: list[0],
+    availableCount: list.filter((u) => u.is_available).length,
+  }));
 }
 
-/** The trim shown first: the one with a unit free today, else freed earliest. */
-export function defaultVersion(versions: readonly ModelVersion[]): ModelVersion | null {
+/** The trim shown first: the one holding the backend's `default_unit_id`
+ *  (else the first trim). */
+export function defaultVersion(
+  versions: readonly ModelVersion[],
+  defaultUnitId?: string | null,
+): ModelVersion | null {
   if (versions.length === 0) return null;
-  const best = pickRepresentative(versions.map((v) => v.unit));
-  return versions.find((v) => v.unit === best) ?? versions[0];
+  return versions.find((v) => v.units.some((u) => u.id === defaultUnitId)) ?? versions[0];
 }
 
 /** «15 декабря» / «15 December» — a date-only `free_from` as written (UTC,
@@ -89,37 +83,6 @@ export function versionSubtitle(
   return version.unit.year ? String(version.unit.year) : '';
 }
 
-/**
- * Shortest rental that gets the unit's lowest per-day price: the period of the
- * current season (`pricing_seasons`) priced at `card_prices.per_day_min`. Not
- * found (older backend, no seasons) — the model row's `price_from_min_days`
- * when this unit carries the model's «from» price.
- */
-export function priceFromMinDays(
-  unit: CatalogModelUnit,
-  today: string,
-  model?: Pick<CatalogModelPage, 'price_from_per_day' | 'price_from_min_days'>,
-): number | null {
-  const cp = unit.card_prices;
-  if (!cp) return null;
-  const want = Math.round(parseFloat(cp.per_day_min) * 100);
-  const periods = unit.pricing_periods ?? [];
-  const seasons = unit.pricing_seasons ?? [];
-  const season = seasons.find((s) => isCurrentSeason(s, today)) ?? seasons[0];
-  if (season) {
-    const matching = season.prices.flatMap((p, i) =>
-      p !== null && p !== undefined && periods[i] && Math.round(Number(p) * 100) === want
-        ? [periods[i].min_days]
-        : [],
-    );
-    if (matching.length > 0) return Math.min(...matching);
-  }
-  if (model?.price_from_per_day && Math.round(parseFloat(model.price_from_per_day) * 100) === want) {
-    return model.price_from_min_days;
-  }
-  return null;
-}
-
 /** Price block of a trim: «от N ฿ / сутки», its rental condition and the
  *  1-day price — all from the server (`card_prices`), rounded up to baht. */
 export interface VersionPrice {
@@ -127,20 +90,16 @@ export interface VersionPrice {
   from: string | null;
   /** 1-day (highest) per-day price; null when it equals `from` or is unknown. */
   maxDay: string | null;
-  /** Shortest rental that gets `from`. */
+  /** Shortest rental that gets `from` (the unit's `price_from_min_days`). */
   minDays: number | null;
 }
 
-export function versionPrice(
-  unit: CatalogModelUnit,
-  today: string,
-  model?: Pick<CatalogModelPage, 'price_from_per_day' | 'price_from_min_days'>,
-): VersionPrice {
+export function versionPrice(unit: CatalogModelUnit): VersionPrice {
   const cp = unit.card_prices;
   if (cp) {
     const from = formatBahtCeil(cp.per_day_min);
     const max = formatBahtCeil(cp.per_day_max);
-    return { from, maxDay: max !== from ? max : null, minDays: priceFromMinDays(unit, today, model) };
+    return { from, maxDay: max !== from ? max : null, minDays: unit.price_from_min_days ?? null };
   }
   if (unit.min_price_per_day !== null && unit.min_price_per_day !== undefined) {
     return { from: formatBahtCeil(unit.min_price_per_day), maxDay: null, minDays: null };

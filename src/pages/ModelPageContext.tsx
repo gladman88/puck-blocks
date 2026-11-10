@@ -54,8 +54,8 @@ export function ModelPageProvider({ model, locale, booking, today, children }: M
   const day = today ?? todayISO();
 
   const selected = useMemo(
-    () => versions.find((v) => v.key === selectedKey) ?? defaultVersion(versions),
-    [versions, selectedKey],
+    () => versions.find((v) => v.key === selectedKey) ?? defaultVersion(versions, model.default_unit_id),
+    [versions, selectedKey, model.default_unit_id],
   );
   const select = useCallback((key: string) => setSelectedKey(key), []);
   const openBooking = useCallback(() => setOpen(true), []);

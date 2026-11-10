@@ -76,6 +76,7 @@ export const PAGE_STRINGS = {
     groupStats: (n: number, price: string | null) =>
       [pluralRu(n, 'модель', 'модели', 'моделей'), price ? `от ${price} ฿` : null].filter(Boolean).join(' · '),
     allOf: (_label: string, n: number) => `Смотреть все · ${n}`,
+    moreModels: 'Ещё модели',
   },
   en: {
     rentInPhuket: 'rental in Phuket',
@@ -137,6 +138,7 @@ export const PAGE_STRINGS = {
     groupStats: (n: number, price: string | null) =>
       [`${n} ${n === 1 ? 'model' : 'models'}`, price ? `from ${price} ฿` : null].filter(Boolean).join(' · '),
     allOf: (_label: string, n: number) => `See all · ${n}`,
+    moreModels: 'More models',
   },
 } as const;
 

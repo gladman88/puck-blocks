@@ -44,10 +44,12 @@ export interface CatalogGalleryImage {
   position: number;
 }
 
-/** A unit of the model page — exactly the vehicle detail response
- *  (`CatalogVehicleDetailSerializer`, with `trim`). */
+/** `CatalogModelUnitSerializer` — a unit of the model page: the vehicle detail
+ *  response (`CatalogVehicleDetailSerializer`, with `trim`) + its «from» rental. */
 export interface CatalogModelUnit extends Omit<CatalogVehicleDetail, 'gallery_images'> {
   gallery_images?: CatalogGalleryImage[];
+  /** Shortest rental (days) that gets `card_prices.per_day_min`; null — unknown. */
+  price_from_min_days: number | null;
 }
 
 /** `CatalogModelPageDetailSerializer` — `GET /catalog/models/<type>/<slug>/`. */
@@ -56,6 +58,9 @@ export interface CatalogModelPageDetail extends CatalogModelPage {
   description_en: string;
   meta_description_ru: string;
   meta_description_en: string;
+  /** The unit the page shows first — the first of `units`. */
+  default_unit_id: string;
+  /** Backend order (free today → by the day freed → by price) — kept as is. */
   units: CatalogModelUnit[];
   similar: CatalogModelPage[];
 }

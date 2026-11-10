@@ -26,6 +26,11 @@ export interface ModelGridProps {
   limit?: number;
   /** Category on the cards (off on a category page — every card is it). */
   showCategory?: boolean;
+  /** Section heading (e.g. «Похожие модели»): with it the grid draws its own
+   *  section; no cards — nothing at all, neither the section nor the heading. */
+  title?: string;
+  /** Small line above `title`. */
+  eyebrow?: string;
 }
 
 /** One card per model: units grouped by `vehicle_model` (a unit without one —
@@ -47,6 +52,8 @@ export function ModelGrid({
   categoryId,
   limit,
   showCategory = true,
+  title,
+  eyebrow,
 }: ModelGridProps) {
   const t = CATALOG_STRINGS[locale];
   const [open, setOpen] = useState<VehicleGroup | null>(null);
@@ -64,7 +71,7 @@ export function ModelGrid({
 
   if (cards.length === 0) return null;
 
-  return (
+  const grid = (
     <>
       <div className="sb-vcatalog__grid">
         {cards.map((c) => (
@@ -93,5 +100,15 @@ export function ModelGrid({
         />
       ) : null}
     </>
+  );
+  if (!title) return grid;
+  return (
+    <section className="sb-section sb-mp-sec">
+      <div className="sb-container">
+        {eyebrow ? <p className="sb-mp-eyebrow">{eyebrow}</p> : null}
+        <h2 className="sb-h2">{title}</h2>
+        {grid}
+      </div>
+    </section>
   );
 }

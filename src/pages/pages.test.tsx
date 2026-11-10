@@ -10,6 +10,7 @@ import {
   ModelOverview,
   ModelPageProvider,
   SeasonPrices,
+  SectionGroup,
   SectionHeading,
   SpecGroups,
   TrimCompare,
@@ -65,6 +66,7 @@ function unit(over: Partial<CatalogModelUnit> = {}): CatalogModelUnit {
       ],
       month_discount_pct: 38,
     },
+    price_from_min_days: 28,
     pricing_periods: [
       { min_days: 1, max_days: 1 },
       { min_days: 2, max_days: 27 },
@@ -110,6 +112,7 @@ function model(units: CatalogModelUnit[], over: Partial<CatalogModelPageDetail> 
     description_en: 'Electric minivan.',
     meta_description_ru: '',
     meta_description_en: '',
+    default_unit_id: units[0]?.id ?? '',
     units,
     similar: [],
     ...over,
@@ -129,20 +132,34 @@ const freePremium = unit({ id: 'p1', trim: 'Premium', seats: 7, photo_url: '/med
 const busyFlagship = unit({ id: 'f1', trim: 'Flagship', is_available: false, free_from: '2026-11-16', seats: 6 });
 
 describe('trims', () => {
-  it('default trim — the one free today, else the one freed earliest', () => {
-    expect(defaultVersion(buildVersions([busyBase, freePremium, busyFlagship]))?.key).toBe('premium');
-    expect(defaultVersion(buildVersions([busyBase, busyFlagship]))?.key).toBe('flagship');
+  it('default trim — the one holding the backend `default_unit_id`, not picked on the page', () => {
+    const versions = buildVersions([busyBase, freePremium, busyFlagship]);
+    expect(defaultVersion(versions, 'f1')?.key).toBe('flagship');
+    expect(defaultVersion(versions, 'p1')?.key).toBe('premium');
+    // Unknown / missing id — the first trim.
+    expect(defaultVersion(versions, 'nope')?.key).toBe('');
+    expect(defaultVersion([], 'p1')).toBeNull();
 
-    renderPage(model([busyBase, freePremium, busyFlagship]));
-    expect(screen.getByRole('button', { name: /Premium/ }).getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByRole('button', { name: /Базовая/ }).getAttribute('aria-pressed')).toBe('false');
+    // Even a busy unit, when the backend names it.
+    renderPage(model([busyBase, freePremium, busyFlagship], { default_unit_id: 'f1' }));
+    expect(screen.getByRole('button', { name: /Flagship/ }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: /Premium/ }).getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('no trim → «Базовая», first; subtitle — seats when they differ, else the year', () => {
-    renderPage(model([busyBase, freePremium, busyFlagship]));
+  it('trims and their units in the backend order; a trim stands for its first unit', () => {
+    const second = unit({ id: 'p2', trim: 'premium ', is_available: false, free_from: '2026-11-11' });
+    const versions = buildVersions([busyFlagship, second, freePremium, busyBase]);
+    expect(versions.map((v) => v.key)).toEqual(['flagship', 'premium', '']);
+    expect(versions[1].units.map((u) => u.id)).toEqual(['p2', 'p1']);
+    expect(versions[1].unit.id).toBe('p2');
+    expect(versions[1].availableCount).toBe(1);
+  });
+
+  it('switcher in the backend order; subtitle — seats when they differ, else the year', () => {
+    renderPage(model([freePremium, busyFlagship, busyBase]));
     const seg = screen.getByRole('group', { name: 'Комплектации' });
     const buttons = within(seg).getAllByRole('button');
-    expect(buttons.map((b) => b.textContent)).toEqual(['Базовая7 мест', 'Flagship6 мест', 'Premium7 мест']);
+    expect(buttons.map((b) => b.textContent)).toEqual(['Premium7 мест', 'Flagship6 мест', 'Базовая7 мест']);
     cleanup();
     renderPage(model([busyBase, unit({ id: 'p2', trim: 'Premium' })]));
     expect(screen.getByRole('button', { name: /Базовая/ }).textContent).toBe('Базовая2026');
@@ -181,6 +198,27 @@ describe('ModelHero', () => {
     expect(document.querySelector('.sb-mp-deposit')?.textContent).toBe(`Депозит30 000${NB}฿или 1 000${NB}USD`);
   });
 
+  it('the rental condition is the unit\'s `price_from_min_days` from the backend, not the season table', () => {
+    renderPage(model([unit({ id: 'p1', price_from_min_days: 7 })], { price_from_min_days: 28 }));
+    expect(document.querySelector('.sb-mp-price__note')?.textContent).toBe(
+      `при аренде от 7 дней · за 1 день — 7 000${NB}฿`,
+    );
+    cleanup();
+    renderPage(model([unit({ id: 'p1', price_from_min_days: null })]));
+    expect(document.querySelector('.sb-mp-price__note')?.textContent).toBe(`за 1 день — 7 000${NB}฿`);
+  });
+
+  it('unsafe ask links are dropped — no button', () => {
+    renderPage(model([freePremium]), 'ru', <ModelHero telegramUrl="javascript:alert(1)" whatsappUrl=" " />);
+    expect(screen.queryByRole('link', { name: /Telegram/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /WhatsApp/ })).toBeNull();
+    expect(document.querySelector('.sb-mp-ask')).toBeNull();
+    cleanup();
+    renderPage(model([freePremium]), 'ru', <ModelHero telegramUrl="javascript:alert(1)" whatsappUrl="https://wa.me/1" />);
+    expect(screen.queryByRole('link', { name: /Telegram/ })).toBeNull();
+    expect(screen.getByRole('link', { name: /WhatsApp/ }).getAttribute('href')).toBe('https://wa.me/1');
+  });
+
   it('main photo — fetchpriority high, thumbs — lazy', () => {
     renderPage(model([freePremium]));
     const main = document.querySelector('.sb-mp-gal__main img')!;
@@ -210,7 +248,7 @@ describe('ModelHero', () => {
   });
 
   it('en strings', () => {
-    renderPage(model([busyBase, freePremium]), 'en');
+    renderPage(model([freePremium, busyBase]), 'en');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Zeekr 009 rental in Phuket');
     expect(screen.getByRole('button', { name: /Standard/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /^Book$/ })).toBeTruthy();
@@ -260,7 +298,7 @@ describe('TrimCompare', () => {
 
   it('a card per trim; «Выбрать» selects it', () => {
     renderPage(
-      model([busyBase, freePremium]),
+      model([freePremium, busyBase]),
       'ru',
       <>
         <ModelHero />
@@ -269,9 +307,9 @@ describe('TrimCompare', () => {
     );
     const cards = document.querySelectorAll('.sb-mp-cmp');
     expect(cards).toHaveLength(2);
-    expect(within(cards[0] as HTMLElement).getByText('с 15 дек.')).toBeTruthy();
-    expect(Array.from(cards[1].querySelectorAll('li b')).map((b) => b.textContent)).toContain(`4 334 – 7 000${NB}฿`);
-    fireEvent.click(within(cards[0] as HTMLElement).getByRole('button', { name: 'Выбрать' }));
+    expect(within(cards[1] as HTMLElement).getByText('с 15 дек.')).toBeTruthy();
+    expect(Array.from(cards[0].querySelectorAll('li b')).map((b) => b.textContent)).toContain(`4 334 – 7 000${NB}฿`);
+    fireEvent.click(within(cards[1] as HTMLElement).getByRole('button', { name: 'Выбрать' }));
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
     const seg = screen.getByRole('group', { name: 'Комплектации' });
     expect(within(seg).getByRole('button', { name: /Базовая/ }).getAttribute('aria-pressed')).toBe('true');
@@ -337,6 +375,13 @@ describe('MobileBookingBar', () => {
     fireEvent.click(within(bar).getByRole('button', { name: /Забронировать/ }));
     expect(document.querySelector('.sb-modal')).not.toBeNull();
   });
+
+  it('unsafe Telegram link — no button', () => {
+    renderPage(model([freePremium]), 'ru', <MobileBookingBar telegramUrl="javascript:alert(1)" />);
+    const bar = document.querySelector('.sb-mp-mbar') as HTMLElement;
+    expect(within(bar).queryByRole('link')).toBeNull();
+    expect(within(bar).getByRole('button', { name: /Забронировать/ })).toBeTruthy();
+  });
 });
 
 function catVehicle(over: Partial<CatalogVehicle>): CatalogVehicle {
@@ -392,6 +437,21 @@ describe('ModelGrid', () => {
     expect(Array.from(document.querySelectorAll('a.sb-vcard__open')).map((a) => a.getAttribute('href'))).toEqual([
       '/ru/cars/byd-seal',
     ]);
+  });
+
+  it('title + eyebrow — its own section; no cards — nothing at all', () => {
+    render(
+      <ModelGrid vehicles={vehicles} locale="ru" booking={booking} onlySlugs={['ora']} title="Похожие модели" eyebrow="Ещё" />,
+    );
+    const section = document.querySelector('section.sb-mp-sec') as HTMLElement;
+    expect(within(section).getByRole('heading', { level: 2 }).textContent).toBe('Похожие модели');
+    expect(section.querySelector('.sb-mp-eyebrow')?.textContent).toBe('Ещё');
+    expect(section.querySelectorAll('.sb-vcard')).toHaveLength(1);
+    cleanup();
+    const { container } = render(
+      <ModelGrid vehicles={vehicles} locale="ru" booking={booking} onlySlugs={['missing']} title="Похожие модели" />,
+    );
+    expect(container.innerHTML).toBe('');
   });
 });
 
@@ -508,6 +568,10 @@ describe('CategoryAbout', () => {
     cleanup();
     render(<CategoryAbout locale="en" text="Text." />);
     expect(document.querySelector('.sb-mc-help')).toBeNull();
+    cleanup();
+    // Unsafe links are dropped; none left — no card.
+    render(<CategoryAbout locale="en" text="Text." telegramUrl="javascript:alert(1)" whatsappUrl="data:text/html,x" />);
+    expect(document.querySelector('.sb-mc-help')).toBeNull();
     expect(document.querySelector('.sb-mp-text')?.textContent).toBe('Text.');
   });
 });
@@ -565,5 +629,84 @@ describe('SectionHeading', () => {
     render(<SectionHeading locale="en" section="cars" category={category} models={four} />);
     expect(screen.getByRole('link').textContent).toBe('See all · 4');
     expect(screen.getByRole('link').getAttribute('href')).toBe('/en/cars/electric');
+  });
+});
+
+describe('SectionGroup', () => {
+  const category: CatalogCategoryPage = {
+    id: 'c1',
+    name: 'Электрокары',
+    name_en: 'EVs',
+    color: '#0f0',
+    slug: 'electric',
+    h1: '',
+    h1_en: '',
+    intro: '',
+    intro_en: '',
+    meta_description: '',
+    meta_description_en: '',
+    section: 'cars',
+    is_published: true,
+    has_text_ru: true,
+    has_text_en: true,
+  };
+  const row = (slug: string): CatalogModelPage => ({
+    slug,
+    brand: 'B',
+    name: slug,
+    label: `B ${slug}`,
+    vehicle_type: 'car',
+    category: null,
+    photo_url: null,
+    price_from_per_day: '1000.00',
+    price_from_min_days: 1,
+    vehicle_count: 1,
+    available_today_count: 1,
+    has_text_ru: true,
+    has_text_en: true,
+    updated_at: '2026-11-10T00:00:00Z',
+  });
+
+  it('category heading + the cards; a group without category — «Ещё модели» / «More models»', () => {
+    const { container } = render(
+      <>
+        <SectionGroup locale="ru" section="cars" category={category} models={[row('a')]} id="g1">
+          <div className="cards" />
+        </SectionGroup>
+        <SectionGroup locale="ru" section="cars" models={[row('b')]}>
+          <div className="cards" />
+        </SectionGroup>
+      </>,
+    );
+    const groups = container.querySelectorAll('.sb-mc-group');
+    expect(groups).toHaveLength(2);
+    expect(groups[0].getAttribute('aria-labelledby')).toBe('g1');
+    expect(groups[0].querySelector('h2')?.textContent).toBe(`Электрокары1 модель · от 1 000${NB}฿`);
+    expect(groups[0].querySelector('.cards')).not.toBeNull();
+    expect(groups[1].querySelector('h2')?.textContent).toBe('Ещё модели');
+    cleanup();
+    render(
+      <SectionGroup locale="en" section="cars" models={[row('b')]}>
+        <div />
+      </SectionGroup>,
+    );
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('More models');
+  });
+
+  it('the only group — no «Ещё модели»; no models — nothing', () => {
+    render(
+      <SectionGroup locale="ru" section="cars" models={[row('b')]} showMoreTitle={false}>
+        <div className="cards" />
+      </SectionGroup>,
+    );
+    expect(screen.queryByRole('heading')).toBeNull();
+    expect(document.querySelector('.sb-mc-group .cards')).not.toBeNull();
+    cleanup();
+    const { container } = render(
+      <SectionGroup locale="ru" section="cars" category={category} models={[]}>
+        <div className="cards" />
+      </SectionGroup>,
+    );
+    expect(container.innerHTML).toBe('');
   });
 });

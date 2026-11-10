@@ -1,4 +1,5 @@
 import { ContactIcon } from '../components/ContactIcon';
+import { safeHref } from '../sanitize';
 import { PageIcon } from './icons';
 import { versionPrice } from './model';
 import { useModelPage } from './ModelPageContext';
@@ -11,12 +12,13 @@ import { PAGE_STRINGS } from './strings';
  * of the page from hiding under it — nothing moves when it shows. Needs
  * `ModelPageProvider`.
  */
-export function MobileBookingBar({ telegramUrl }: { telegramUrl?: string }) {
+export function MobileBookingBar({ telegramUrl: tgRaw }: { telegramUrl?: string }) {
   const page = useModelPage();
+  const telegramUrl = safeHref(tgRaw);
   if (!page || !page.selected) return null;
-  const { locale, today, model, selected, openBooking } = page;
+  const { locale, selected, openBooking } = page;
   const t = PAGE_STRINGS[locale];
-  const price = versionPrice(selected.unit, today, model);
+  const price = versionPrice(selected.unit);
 
   return (
     <>

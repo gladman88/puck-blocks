@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ContactIcon } from '../components/ContactIcon';
+import { safeHref } from '../sanitize';
 import { STRINGS as CATALOG_STRINGS, categoryLabel } from '../blocks/VehicleCatalog';
 import { formatBahtCeil, formatMoney } from '../blocks/catalog/price';
 import { buildSpecRows } from '../blocks/catalog/specs';
@@ -119,10 +120,12 @@ function Deposit({ unit, locale }: { unit: CatalogModelUnit; locale: 'ru' | 'en'
  * rental condition, status, 7/14/30-day sums, deposit, «Забронировать» and
  * «Задать вопрос». Needs `ModelPageProvider`.
  */
-export function ModelHero({ crumbs = [], telegramUrl, whatsappUrl }: ModelHeroProps) {
+export function ModelHero({ crumbs = [], telegramUrl: tgRaw, whatsappUrl: waRaw }: ModelHeroProps) {
   const page = useModelPage();
+  const telegramUrl = safeHref(tgRaw);
+  const whatsappUrl = safeHref(waRaw);
   if (!page || !page.selected) return null;
-  const { model, locale, today, selected, openBooking } = page;
+  const { model, locale, selected, openBooking } = page;
   const t = PAGE_STRINGS[locale];
   const c = CATALOG_STRINGS[locale];
   const unit = selected.unit;
@@ -134,7 +137,7 @@ export function ModelHero({ crumbs = [], telegramUrl, whatsappUrl }: ModelHeroPr
     rows.find((r) => r.key === 'body')?.value ?? null,
   ].filter((x): x is string => Boolean(x));
 
-  const price = versionPrice(unit, today, model);
+  const price = versionPrice(unit);
   const note = price.from ? t.priceNote(price.minDays, price.maxDay) : '';
   const available = selected.availableCount > 0;
   const statusText = available

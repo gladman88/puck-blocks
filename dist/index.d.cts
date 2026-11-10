@@ -950,10 +950,12 @@ interface CatalogGalleryImage {
     display_url: string | null;
     position: number;
 }
-/** A unit of the model page — exactly the vehicle detail response
- *  (`CatalogVehicleDetailSerializer`, with `trim`). */
+/** `CatalogModelUnitSerializer` — a unit of the model page: the vehicle detail
+ *  response (`CatalogVehicleDetailSerializer`, with `trim`) + its «from» rental. */
 interface CatalogModelUnit extends Omit<CatalogVehicleDetail, 'gallery_images'> {
     gallery_images?: CatalogGalleryImage[];
+    /** Shortest rental (days) that gets `card_prices.per_day_min`; null — unknown. */
+    price_from_min_days: number | null;
 }
 /** `CatalogModelPageDetailSerializer` — `GET /catalog/models/<type>/<slug>/`. */
 interface CatalogModelPageDetail extends CatalogModelPage {
@@ -961,6 +963,9 @@ interface CatalogModelPageDetail extends CatalogModelPage {
     description_en: string;
     meta_description_ru: string;
     meta_description_en: string;
+    /** The unit the page shows first — the first of `units`. */
+    default_unit_id: string;
+    /** Backend order (free today → by the day freed → by price) — kept as is. */
     units: CatalogModelUnit[];
     similar: CatalogModelPage[];
 }
@@ -995,27 +1000,22 @@ interface ModelVersion {
     key: string;
     /** Trim as written in FMS ('' — no trim). */
     trim: string;
-    /** Units of the trim, incoming order. */
+    /** Units of the trim, backend order. */
     units: CatalogModelUnit[];
-    /** The unit that stands for the trim (`pickRepresentative`). */
+    /** The unit that stands for the trim — its first in the backend order. */
     unit: CatalogModelUnit;
     availableCount: number;
 }
-/** Trims of a model: no trim («Базовая») first, then alphabetically. */
+/** Trims of a model in the backend order of their units (a trim stands where
+ *  its first unit does); the unit of a trim — its first one. */
 declare function buildVersions(units: readonly CatalogModelUnit[]): ModelVersion[];
-/** The trim shown first: the one with a unit free today, else freed earliest. */
-declare function defaultVersion(versions: readonly ModelVersion[]): ModelVersion | null;
+/** The trim shown first: the one holding the backend's `default_unit_id`
+ *  (else the first trim). */
+declare function defaultVersion(versions: readonly ModelVersion[], defaultUnitId?: string | null): ModelVersion | null;
 /** Switcher caption: the trim, or «Базовая»/«Standard». */
 declare function trimLabel(trim: string, baseLabel: string): string;
 /** Line under the trim caption: seats when the trims differ by them, else the year. */
 declare function versionSubtitle(version: ModelVersion, versions: readonly ModelVersion[], seatsCount: (n: number) => string): string;
-/**
- * Shortest rental that gets the unit's lowest per-day price: the period of the
- * current season (`pricing_seasons`) priced at `card_prices.per_day_min`. Not
- * found (older backend, no seasons) — the model row's `price_from_min_days`
- * when this unit carries the model's «from» price.
- */
-declare function priceFromMinDays(unit: CatalogModelUnit, today: string, model?: Pick<CatalogModelPage, 'price_from_per_day' | 'price_from_min_days'>): number | null;
 /** Price block of a trim: «от N ฿ / сутки», its rental condition and the
  *  1-day price — all from the server (`card_prices`), rounded up to baht. */
 interface VersionPrice {
@@ -1023,10 +1023,10 @@ interface VersionPrice {
     from: string | null;
     /** 1-day (highest) per-day price; null when it equals `from` or is unknown. */
     maxDay: string | null;
-    /** Shortest rental that gets `from`. */
+    /** Shortest rental that gets `from` (the unit's `price_from_min_days`). */
     minDays: number | null;
 }
-declare function versionPrice(unit: CatalogModelUnit, today: string, model?: Pick<CatalogModelPage, 'price_from_per_day' | 'price_from_min_days'>): VersionPrice;
+declare function versionPrice(unit: CatalogModelUnit): VersionPrice;
 /** Editor text → paragraphs (split on blank lines, empty ones dropped). */
 declare function splitParagraphs(text: string): string[];
 /** Cheapest «from» price of the models and the rental it needs (server values). */
@@ -1081,7 +1081,7 @@ interface ModelHeroProps {
  * rental condition, status, 7/14/30-day sums, deposit, «Забронировать» and
  * «Задать вопрос». Needs `ModelPageProvider`.
  */
-declare function ModelHero({ crumbs, telegramUrl, whatsappUrl }: ModelHeroProps): react.JSX.Element | null;
+declare function ModelHero({ crumbs, telegramUrl: tgRaw, whatsappUrl: waRaw }: ModelHeroProps): react.JSX.Element | null;
 
 interface ModelOverviewProps {
     /** «О модели» — plain text, paragraphs split by a blank line. */
@@ -1134,6 +1134,11 @@ interface ModelGridProps {
     limit?: number;
     /** Category on the cards (off on a category page — every card is it). */
     showCategory?: boolean;
+    /** Section heading (e.g. «Похожие модели»): with it the grid draws its own
+     *  section; no cards — nothing at all, neither the section nor the heading. */
+    title?: string;
+    /** Small line above `title`. */
+    eyebrow?: string;
 }
 /**
  * Grid of catalog cards, one per model (category and type pages, similar
@@ -1141,7 +1146,7 @@ interface ModelGridProps {
  * to its model page (`href`, crawlable), a plain click opens the vehicle window
  * in place — as on the home page.
  */
-declare function ModelGrid({ vehicles, locale, booking, onlySlugs, categoryId, limit, showCategory, }: ModelGridProps): react.JSX.Element | null;
+declare function ModelGrid({ vehicles, locale, booking, onlySlugs, categoryId, limit, showCategory, title, eyebrow, }: ModelGridProps): react.JSX.Element | null;
 
 interface CategoryHeaderProps {
     locale: 'ru' | 'en';
@@ -1172,7 +1177,7 @@ declare function CategoryHeader({ locale, section, h1, crumbs, models, sectionMo
  * of the page from hiding under it — nothing moves when it shows. Needs
  * `ModelPageProvider`.
  */
-declare function MobileBookingBar({ telegramUrl }: {
+declare function MobileBookingBar({ telegramUrl: tgRaw }: {
     telegramUrl?: string;
 }): react.JSX.Element | null;
 
@@ -1202,7 +1207,7 @@ interface CategoryAboutProps {
  * выбрать» card (badge, title, hint, Telegram + WhatsApp) on the right; one
  * column on ≤1024px. The card is drawn only with at least one contact link.
  */
-declare function CategoryAbout({ locale, heading, eyebrow, text, telegramUrl, whatsappUrl }: CategoryAboutProps): react.JSX.Element | null;
+declare function CategoryAbout({ locale, heading, eyebrow, text, telegramUrl: tgRaw, whatsappUrl: waRaw }: CategoryAboutProps): react.JSX.Element | null;
 
 interface SectionHeadingProps {
     locale: 'ru' | 'en';
@@ -1219,6 +1224,27 @@ interface SectionHeadingProps {
  * «Все {категория} · N →» link to it.
  */
 declare function SectionHeading({ locale, section, category, models, id }: SectionHeadingProps): react.JSX.Element;
+
+interface SectionGroupProps {
+    locale: 'ru' | 'en';
+    section: 'cars' | 'bikes';
+    /** Category of the group — its `SectionHeading`. No category — the
+     *  models outside the categories: «Ещё модели» (`showMoreTitle`). */
+    category?: CatalogCategoryPage;
+    /** Models of the group (all of them — the heading's counter and price). */
+    models: CatalogModelPage[];
+    /** «Ещё модели» over a group without a category (off when it is the only one). */
+    showMoreTitle?: boolean;
+    /** id of the heading; the group is labelled by it. */
+    id?: string;
+    /** The group's cards (`ModelGrid`). */
+    children: ReactNode;
+}
+/**
+ * A group of a type page: its heading and its cards, groups spaced apart
+ * (styles.css `.sb-mc-group + .sb-mc-group`). No models — nothing.
+ */
+declare function SectionGroup({ locale, section, category, models, showMoreTitle, id, children }: SectionGroupProps): react.JSX.Element | null;
 
 /** «Главная / Автомобили / Zeekr 009» — the last crumb (no `href`) is the page. */
 declare function Breadcrumbs({ crumbs, locale }: {
@@ -1280,6 +1306,7 @@ declare const PAGE_STRINGS: {
         readonly helpText: "Расскажите, сколько вас и куда планируете ездить, — подберём машину и пришлём свободные даты.";
         readonly groupStats: (n: number, price: string | null) => string;
         readonly allOf: (_label: string, n: number) => string;
+        readonly moreModels: "Ещё модели";
     };
     readonly en: {
         readonly rentInPhuket: "rental in Phuket";
@@ -1333,7 +1360,8 @@ declare const PAGE_STRINGS: {
         readonly helpText: "Tell us how many of you there are and where you plan to go — we will suggest a car and send free dates.";
         readonly groupStats: (n: number, price: string | null) => string;
         readonly allOf: (_label: string, n: number) => string;
+        readonly moreModels: "More models";
     };
 };
 
-export { AboutPromo, type AboutPromoProps, Breadcrumbs, STRINGS as CATALOG_STRINGS, CardPriceOverlay, type CardPriceOverlayProps, type CardPriceOverlayStrings, type CardPrices, type CardStatusTone, CardTitle, type CatalogCategory, type CatalogCategoryPage, type CatalogFilterState, type CatalogGalleryImage, type CatalogModelPage, type CatalogModelPageCategory, type CatalogModelPageDetail, type CatalogModelRedirect, type CatalogModelUnit, type CatalogPreload, type CatalogSortOption, type CatalogVehicle, type CatalogVehicleDetail, CategoryAbout, type CategoryAboutProps, CategoryHeader, type CategoryHeaderProps, ContactIcon, type ContactKind, type Crumb, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LanguageSwitcher, type LanguageSwitcherProps, LeadForm, type LeadFormProps, MODEL_HERO_ID, MapContacts, type MapContactsProps, type MediaReview, MobileBookingBar, ModelGrid, type ModelGridProps, ModelHero, type ModelHeroProps, ModelOverview, type ModelOverviewProps, ModelPageProvider, type ModelPageProviderProps, type ModelPageState, type ModelVersion, type NavLink, PAGE_STRINGS, type PageBookingConfig, PriceGrid, type PriceGridProps, type PricingPeriod, type PricingSeason, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SeasonPrices, SectionHeading, type SectionHeadingProps, SiteHeader, type SiteHeaderProps, type SiteLocale, SpecGroups, type SpecGroupsProps, type SpecRow, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, TrimCompare, VehicleBookingModal, type VehicleBookingModalProps, VehicleCard, type VehicleCardProps, type VehicleCardStrings, VehicleCatalog, type VehicleCatalogProps, type VehicleGroup, type VehicleSpecs, type VersionPrice, buildSpecRows, buildVersions, categoryLabel, cheapestModel, defaultVersion, formatBahtCeil, formatCardDate, formatDayPrice, formatMoney, groupVehicles, isCurrentSeason, orderCatalogCards, periodLabel, pickRepresentative, priceFromMinDays, puckConfig, seasonLabel, splitParagraphs, trimLabel, useModelPage, vehicleGroupKey, vehicleModelHref, versionPrice, versionSubtitle, withLinkBase };
+export { AboutPromo, type AboutPromoProps, Breadcrumbs, STRINGS as CATALOG_STRINGS, CardPriceOverlay, type CardPriceOverlayProps, type CardPriceOverlayStrings, type CardPrices, type CardStatusTone, CardTitle, type CatalogCategory, type CatalogCategoryPage, type CatalogFilterState, type CatalogGalleryImage, type CatalogModelPage, type CatalogModelPageCategory, type CatalogModelPageDetail, type CatalogModelRedirect, type CatalogModelUnit, type CatalogPreload, type CatalogSortOption, type CatalogVehicle, type CatalogVehicleDetail, CategoryAbout, type CategoryAboutProps, CategoryHeader, type CategoryHeaderProps, ContactIcon, type ContactKind, type Crumb, FeatureCards, type FeatureCardsProps, type FeatureItem, Footer, type FooterProps, Hero, type HeroProps, LanguageSwitcher, type LanguageSwitcherProps, LeadForm, type LeadFormProps, MODEL_HERO_ID, MapContacts, type MapContactsProps, type MediaReview, MobileBookingBar, ModelGrid, type ModelGridProps, ModelHero, type ModelHeroProps, ModelOverview, type ModelOverviewProps, ModelPageProvider, type ModelPageProviderProps, type ModelPageState, type ModelVersion, type NavLink, PAGE_STRINGS, type PageBookingConfig, PriceGrid, type PriceGridProps, type PricingPeriod, type PricingSeason, type Props, ReviewsCarousel, type ReviewsCarouselProps, RichText, type RichTextProps, type RootProps, SeasonPrices, SectionGroup, type SectionGroupProps, SectionHeading, type SectionHeadingProps, SiteHeader, type SiteHeaderProps, type SiteLocale, SpecGroups, type SpecGroupsProps, type SpecRow, StatCounters, type StatCountersProps, type StatItem, type TelegramCatalogUser, type TermItem, TermsAccordion, type TermsAccordionProps, type TextReview, TrimCompare, VehicleBookingModal, type VehicleBookingModalProps, VehicleCard, type VehicleCardProps, type VehicleCardStrings, VehicleCatalog, type VehicleCatalogProps, type VehicleGroup, type VehicleSpecs, type VersionPrice, buildSpecRows, buildVersions, categoryLabel, cheapestModel, defaultVersion, formatBahtCeil, formatCardDate, formatDayPrice, formatMoney, groupVehicles, isCurrentSeason, orderCatalogCards, periodLabel, pickRepresentative, puckConfig, seasonLabel, splitParagraphs, trimLabel, useModelPage, vehicleGroupKey, vehicleModelHref, versionPrice, versionSubtitle, withLinkBase };
