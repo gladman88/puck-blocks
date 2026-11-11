@@ -703,9 +703,14 @@ declare function vehicleGroupKey(v: Pick<CatalogVehicle, 'brand' | 'model' | 'ye
 type RepresentativeLike = Pick<CatalogVehicle, 'is_available' | 'free_from' | 'min_price_per_day'>;
 /**
  * The unit that stands for a group (catalog card, model-page card, trim):
- * free today → the cheapest of the free ones; none free → the one freed
- * earliest (units with a date first), then the cheaper. Ties keep the incoming
- * order. The ONE rule for the home catalog and the model / category pages.
+ * units WITH a price first — then free today → the cheapest of the free ones;
+ * none free → the one freed earliest (units with a date first), then the
+ * cheaper. Ties keep the incoming order. The ONE rule for the home catalog and
+ * the model / category pages, and the backend's (`ModelPages._unit_order`).
+ *
+ * A unit without a price (no full price matrix) stands for the group only when
+ * no unit has one: otherwise one free unpriced car blanks the card's price
+ * although its siblings are bookable (prod 2026-11-11, Zeekr X).
  */
 declare function pickRepresentative<T extends RepresentativeLike>(group: readonly T[]): T;
 /**

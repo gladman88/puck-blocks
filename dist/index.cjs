@@ -4299,17 +4299,18 @@ function vehicleGroupKey(v) {
   return `${v.brand}:${v.model}:${v.year ?? ""}:${v.color ?? ""}`;
 }
 function pickRepresentative(group) {
-  const available = group.filter((v) => v.is_available);
+  const priced = group.filter((v) => v.min_price_per_day !== null);
+  const pool = priced.length > 0 ? priced : group;
+  const available = pool.filter((v) => v.is_available);
   if (available.length === 0) {
-    const withDate = group.filter((v) => v.free_from);
-    const candidates = withDate.length > 0 ? withDate : group;
+    const withDate = pool.filter((v) => v.free_from);
+    const candidates = withDate.length > 0 ? withDate : pool;
     return candidates.reduce((a, b) => {
       if (a.free_from !== b.free_from) return (a.free_from ?? "9999") <= (b.free_from ?? "9999") ? a : b;
       return (a.min_price_per_day ?? Infinity) <= (b.min_price_per_day ?? Infinity) ? a : b;
     });
   }
-  const withPrice = available.filter((v) => v.min_price_per_day !== null);
-  return withPrice.length > 0 ? withPrice.reduce((a, b) => (a.min_price_per_day ?? 0) <= (b.min_price_per_day ?? 0) ? a : b) : available[0];
+  return available.reduce((a, b) => (a.min_price_per_day ?? Infinity) <= (b.min_price_per_day ?? Infinity) ? a : b);
 }
 function groupVehicles(vehicles, keyFn = vehicleGroupKey) {
   const groups = /* @__PURE__ */ new Map();

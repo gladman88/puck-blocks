@@ -455,6 +455,25 @@ describe('groupVehicles / pickRepresentative (one rule for the home catalog and 
     ).toBe('early-cheap');
   });
 
+  it('a unit without a price never stands for a group that has priced units (prod 2026-11-11, Zeekr X)', () => {
+    expect(
+      pickRepresentative([
+        u('free-unpriced', { min_price_per_day: null }),
+        u('busy-priced', { is_available: false, free_from: '2026-11-20', min_price_per_day: 1334 }),
+      ]).id,
+    ).toBe('busy-priced');
+    expect(
+      pickRepresentative([u('free-unpriced', { min_price_per_day: null }), u('free-priced', { min_price_per_day: 1334 })]).id,
+    ).toBe('free-priced');
+    // Nobody priced («по запросу») — the plain rule: free first.
+    expect(
+      pickRepresentative([
+        u('busy', { is_available: false, free_from: '2026-11-20', min_price_per_day: null }),
+        u('free', { min_price_per_day: null }),
+      ]).id,
+    ).toBe('free');
+  });
+
   it('home key — brand/model/year/colour; a custom key groups across colours; counts and group availability', () => {
     const list = [
       u('black-busy', { is_available: false, free_from: '2026-12-01' }),

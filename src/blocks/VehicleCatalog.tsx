@@ -306,24 +306,28 @@ type RepresentativeLike = Pick<CatalogVehicle, 'is_available' | 'free_from' | 'm
 
 /**
  * The unit that stands for a group (catalog card, model-page card, trim):
- * free today → the cheapest of the free ones; none free → the one freed
- * earliest (units with a date first), then the cheaper. Ties keep the incoming
- * order. The ONE rule for the home catalog and the model / category pages.
+ * units WITH a price first — then free today → the cheapest of the free ones;
+ * none free → the one freed earliest (units with a date first), then the
+ * cheaper. Ties keep the incoming order. The ONE rule for the home catalog and
+ * the model / category pages, and the backend's (`ModelPages._unit_order`).
+ *
+ * A unit without a price (no full price matrix) stands for the group only when
+ * no unit has one: otherwise one free unpriced car blanks the card's price
+ * although its siblings are bookable (prod 2026-11-11, Zeekr X).
  */
 export function pickRepresentative<T extends RepresentativeLike>(group: readonly T[]): T {
-  const available = group.filter((v) => v.is_available);
+  const priced = group.filter((v) => v.min_price_per_day !== null);
+  const pool = priced.length > 0 ? priced : group;
+  const available = pool.filter((v) => v.is_available);
   if (available.length === 0) {
-    const withDate = group.filter((v) => v.free_from);
-    const candidates = withDate.length > 0 ? withDate : group;
+    const withDate = pool.filter((v) => v.free_from);
+    const candidates = withDate.length > 0 ? withDate : pool;
     return candidates.reduce((a, b) => {
       if (a.free_from !== b.free_from) return (a.free_from ?? '9999') <= (b.free_from ?? '9999') ? a : b;
       return (a.min_price_per_day ?? Infinity) <= (b.min_price_per_day ?? Infinity) ? a : b;
     });
   }
-  const withPrice = available.filter((v) => v.min_price_per_day !== null);
-  return withPrice.length > 0
-    ? withPrice.reduce((a, b) => ((a.min_price_per_day ?? 0) <= (b.min_price_per_day ?? 0) ? a : b))
-    : available[0];
+  return available.reduce((a, b) => ((a.min_price_per_day ?? Infinity) <= (b.min_price_per_day ?? Infinity) ? a : b));
 }
 
 /**
